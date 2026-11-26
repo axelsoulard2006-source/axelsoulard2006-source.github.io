@@ -20,7 +20,7 @@
   const partyGame = () => BR.curGame === 'bousculade';
   const isPartyMap = m => /^p_/.test(String(m || ''));
   const partyRoom = r => !!(r && isPartyMap(r.map));
-  const PDIFF = { id: 'normal', name: 'Fiesta', color: '#ff4f9e', desc: '2 manches : le Grand Parcours (les premiers arrivés passent), puis la Toupie (le dernier debout gagne).' };
+  const PDIFF = { id: 'normal', name: 'Fiesta', color: '#ff4f9e', desc: '2 manches : la Course d’adresse (les premiers arrivés passent), puis la Toupie (le dernier debout gagne).' };
   const gameOfRoom = r => arenaRoom(r) ? (r.map === 'a_asc' ? 'asc' : 'arena') : partyRoom(r) ? 'bousculade' : doorsRoom(r) ? 'portes' : 'backrooms';
   const curKind = () => arenaGame() ? (BR.ascMode ? 'asc' : 'arena') : partyGame() ? 'bousculade' : doorsGame() ? 'portes' : 'backrooms';
   const brandName = () => BR.curGame === 'arena' ? (BR.ascMode ? 'COLOSSES · L\'ASCENSION' : 'COLOSSES') : BR.curGame === 'portes' ? 'LES PORTES' : BR.curGame === 'bousculade' ? 'BOUSCULADE' : 'BACKROOMS';
@@ -1056,7 +1056,7 @@
 
   /* ================= jeu 4 : BOUSCULADE ================= */
   function partyRules() {
-    return `<ul class="d-rules"><li><b>Manche 1 · Le Grand Parcours</b> : moulinets, plateformes mobiles, marteaux, rondins, toupies, champignons et trampolines. Les premiers arrivés sont qualifiés (60 %).</li>
+    return `<ul class="d-rules"><li><b>Manche 1 · La Course d'adresse</b> : 6 sections tirées au sort à chaque partie (grand saut, piliers, poutre, cheminée à saut mural, toboggan, îlots, trampolines). Rien ne bouge : que du skill. Les premiers arrivés sont qualifiés (60 %).</li>
       <li><b>Manche 2 · La Toupie</b> : les dalles s'effritent sous tes pieds. Saute la barre <b style="color:#ff3b3b">rouge</b> (basse), ne saute PAS sous la barre <b style="color:#e0b400">jaune</b> (haute). Le dernier debout gagne.</li>
       <li><b>Plonge</b> (Maj ou clic droit) pour aller plus loin ou faire tomber les autres. Tomber pendant le parcours = retour au dernier point de passage.</li></ul>`;
   }
@@ -1090,7 +1090,7 @@
           </nav>
         </div>
         <div class="main-right"><div class="d-lrules" style="max-width:520px"><h4>Comment ça marche</h4>${partyRules()}
-          <p class="muted" style="margin-top:10px">${best ? ICO('trophy', 13) + ' Ton record sur le Grand Parcours : <b>' + Math.floor(best / 60) + ':' + String((best % 60).toFixed(1)).padStart(4, '0') + '</b>' : 'Pas encore de record sur le Grand Parcours'}</p>
+          <p class="muted" style="margin-top:10px">${best ? ICO('trophy', 13) + ' Ton meilleur temps de course : <b>' + Math.floor(best / 60) + ':' + String((best % 60).toFixed(1)).padStart(4, '0') + '</b>' : 'Pas encore de temps de course'}</p>
           <p class="muted"><b>ZQSD</b> courir · <b>Espace</b> sauter · <b>Maj / clic droit</b> plonger · <b>Souris</b> caméra</p></div>
           <button class="btn primary big pt-go" style="margin-top:14px">${ICO('play', 18)} JOUER EN MULTIJOUEUR</button></div></div>`;
       n.querySelectorAll('[data-go]').forEach(bt => bt.addEventListener('click', () => {

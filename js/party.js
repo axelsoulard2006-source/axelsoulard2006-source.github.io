@@ -1,6 +1,6 @@
 /* ===== party.js : LA BOUSCULADE — jeu 4 : party game multijoueur (course d'obstacles puis survie) =====
    BR.Party.start({ mode:'solo'|'multi', seed, roster:[{id,name,look,level}], selfId, hostId, onEnd(action) })
-   Manche 1 « LE GRAND PARCOURS » : course d'obstacles, les premiers arrivés sont qualifiés.
+   Manche 1 « LA COURSE D'ADRESSE » : sections de parkour tirées au sort, les premiers arrivés sont qualifiés.
    Manche 2 « LA TOUPIE » : plateau de dalles qui s'effritent + barres tournantes, le dernier debout gagne.
    Réseau : chaque joueur fait autorité sur son propre perso (relais BR.Net) ; l'hôte décide des manches et du classement. */
 (function () {
@@ -9,9 +9,9 @@
   let S = null, R = null, DOM = null;
   const keys = {};
   // réglages du mouvement : rapide, nerveux, aérien
-  const GRAV = 30, JUMP = 11.2, RUN = 9.2, ACC_G = 75, ACC_A = 28, DIVE_H = 14.5, DIVE_V = 5.2, RAD = 0.45, STEP = 0.45, TRAMP = 23;
+  const GRAV = 34, JUMP = 12.2, RUN = 13, ACC_G = 95, ACC_A = 34, DIVE_H = 19, DIVE_V = 5.5, RAD = 0.45, STEP = 0.45, TRAMP = 25, PAD = 24;
   const ROUND = [
-    { name: 'LE GRAND PARCOURS', sub: 'Les premiers arrivés sont qualifiés !', time: 150 },
+    { name: 'LA COURSE D\'ADRESSE', sub: 'Les premiers arrivés sont qualifiés ! Saut mural : saute contre un mur.', time: 120 },
     { name: 'LA TOUPIE', sub: 'Les dalles s\'effritent sous tes pieds. Saute les barres basses, pas les hautes !', time: 120 },
   ];
   const ST = { run: 0, air: 1, dive: 2, tumble: 3, slide: 4, spec: 9 };
@@ -239,69 +239,95 @@
     sc.add(sun); sc.add(sun.target); S.sun = sun;
   }
 
-  /* ===================== manche 1 : LE GRAND PARCOURS ===================== */
+  /* ===================== manche 1 : LA COURSE D'ADRESSE =====================
+     Une suite de sections tirées au sort (même tirage chez tout le monde) : élan + grand saut, piliers,
+     poutre ou îlots, cheminée à saut mural, toboggan, îlots qui rétrécissent, trampolines. Rien ne bouge : que du skill. */
+  const PAL = ['#7a6cff', '#47d16c', '#ffb13d', '#3fd0ff', '#ff6fb0', '#ff8a3d'];
+  const nextCol = (col, k) => PAL[(PAL.indexOf(col) + k + PAL.length) % PAL.length];
+  function plat(z0, len, w, y, col, x) { addBox(x || 0, y, z0 + len / 2, w, 2.4, len, col); return z0 + len; }
+  function cp(z0, y) { S.checks.push({ z: z0 + 0.5, x: 0, y, zz: z0 + 2.5 }); }
+  function pad(x, y, z, w, d) {
+    const s = addBox(x, y + 0.08, z, w, 0.16, d, '#ffe14a', { plain: true }); s.pad = true;
+    for (let i = 0; i < Math.floor(d / 1.6); i++) [-1, 1].forEach(sd => { const k = addDeco(BOXG, '#ff4f9e', x + sd * 0.5, y + 0.2, z - d / 2 + 0.9 + i * 1.6, 1.3, 0.06, 0.34, false); k.rotation.y = -sd * 0.75; });
+    return s;
+  }
+  const SEC = {
+    saut(c, r, col) {          // élan sur la bande jaune, puis grand saut
+      cp(c.z, c.y); let z = plat(c.z, 16, 12, c.y, col);
+      pad(0, c.y, z - 4, 9, 6);
+      z += 12.5; z = plat(z, 9, 14, c.y - 1, nextCol(col, 2));
+      return { z, y: c.y - 1 };
+    },
+    piliers(c, r, col) {       // piliers en quinconce qui montent
+      cp(c.z, c.y); let z = plat(c.z, 7, 12, c.y, col), y = c.y;
+      const dy = [0.9, 0.9, -0.3, 1, 0.8, -0.4, 1.1];
+      for (let i = 0; i < 7; i++) { z += 4.8; y += dy[i]; addDisc((i % 2 ? 1 : -1) * (1.4 + r() * 2), z, y, 1.35, 6, PAL[i % PAL.length]); }
+      z += 3.8; z = plat(z, 8, 12, y, col);
+      return { z, y };
+    },
+    poutres(c, r, col) {       // à gauche la poutre (rapide mais étroite), à droite des îlots (plus sûrs)
+      cp(c.z, c.y); let z = plat(c.z, 7, 22, c.y, col); const y = c.y;
+      const xs = [-5.5, -3.2, -6.4, -4.2, -5.5];
+      for (let i = 0; i < 4; i++) { const x0 = xs[i], x1 = xs[i + 1], z0 = z + i * 8, L = Math.hypot(x1 - x0, 8); addBox((x0 + x1) / 2, y, z0 + 4, 1.1, 1, L + 0.7, '#ffffff', { ry: Math.atan2(x1 - x0, 8), col2: '#ff4f9e' }); }
+      for (let i = 0; i < 4; i++) addBox(5.5 + (i % 2 ? 0.9 : -0.9), y + (i % 2 ? 0.5 : 0), z + 3.6 + i * 8.2, 3.4, 1.4, 3.4, PAL[(i + 1) % PAL.length]);
+      z += 32; z = plat(z, 8, 22, y, col);
+      return { z, y };
+    },
+    cheminee(c, r, col) {      // monter par sauts muraux entre les deux murs, ou par l'escalier (plus lent)
+      cp(c.z, c.y); const y = c.y; let z = plat(c.z, 14, 18, y, col);
+      const zc = z - 3; [-1, 1].forEach(sd => addBox(sd * 2.05, y + 10, zc, 1.0, 10.5, 5.5, '#ffffff', { col2: '#ff4f9e' }));
+      for (let i = 0; i < 5; i++) addBox(6.5, y + 1.6 * (i + 1), z - 12 + i * 2.2, 3.2, 1.6 * (i + 1), 2.2, PAL[(i + 2) % PAL.length]);
+      z = plat(z, 10, 18, y + 8, nextCol(col, 3));
+      return { z, y: y + 8 };
+    },
+    toboggan(c, r, col) {      // descente qui accélère, bande jaune, énorme saut
+      cp(c.z, c.y); let z = plat(c.z, 6, 12, c.y, col); const y1 = c.y - 10;
+      const rp = addRamp(0, z, z + 34, c.y, y1, 12, '#3fd0ff'); rp.slide = true; z += 34;
+      z = plat(z, 7, 12, y1, col); pad(0, y1, z - 3.5, 10, 6);
+      z += 14; z = plat(z, 9, 16, y1 - 1, nextCol(col, 1));
+      return { z, y: y1 - 1 };
+    },
+    ilots(c, r, col) {         // îlots de plus en plus petits
+      cp(c.z, c.y); let z = plat(c.z, 7, 12, c.y, col), y = c.y; const sz = [4, 3.4, 2.9, 2.5, 2.1, 1.8];
+      for (let i = 0; i < 6; i++) { z += 6.2; y += (r() - 0.4) * 1.1; addBox((i % 2 ? 1 : -1) * (1 + r() * 1.5), y, z, sz[i], 1.2, sz[i], PAL[(i + 3) % PAL.length]); }
+      z += 5.4; z = plat(z, 8, 12, y, col);
+      return { z, y };
+    },
+    rebonds(c, r, col) {       // trampolines vers des étages
+      cp(c.z, c.y); let z = plat(c.z, 10, 14, c.y, col);
+      S.tramps.push(addBox(0, c.y + 0.25, z - 2.2, 12, 0.5, 3.6, '#ff4f9e', { tramp: true, col2: '#ffffff' }));
+      z += 3; z = plat(z, 10, 14, c.y + 6, nextCol(col, 2));
+      S.tramps.push(addBox(0, c.y + 6.25, z - 2.2, 12, 0.5, 3.6, '#ff4f9e', { tramp: true, col2: '#ffffff' }));
+      z += 3; z = plat(z, 9, 14, c.y + 12, col);
+      return { z, y: c.y + 12 };
+    },
+  };
   function buildCourse() {
     const r = rng(S.seed + 11);
-    sky('#46a8ff', '#d9f2ff'); sea(-22); clouds(r, 26, -8, 30, z => z); lights();
-    S.scene.fog = new THREE.Fog(0xcfeeff, 90, 360);
-    const W = 14;
-    // A. départ
-    addBox(0, 0, 9, 18, 2, 22, '#7a6cff');
-    [-1, 1].forEach(sd => { addBox(sd * 9.4, 1.2, 9, 0.8, 1.2, 22, '#ffffff', { plain: true }); });
+    sky('#46a8ff', '#d9f2ff'); sea(-60); clouds(r, 30, -20, 40, z => z + 150); lights();
+    S.scene.fog = new THREE.Fog(0xcfeeff, 120, 480);
+    // départ
+    addBox(0, 0, 9, 18, 2.4, 22, '#7a6cff');
     addDeco(BOXG, '#ff4f9e', 0, 7, 19.5, 18, 1.2, 1); [-1, 1].forEach(sd => addDeco(BOXG, '#ffffff', sd * 8.6, 3.5, 19.5, 0.9, 7, 0.9));
     S.checks.push({ z: -99, x: 0, y: 0, zz: 5 });
-    // B. rampe puis les Moulinets
-    addRamp(0, 20, 32, 0, 3, 10, '#ffb13d');
-    addDisc(0, 44, 3, 12, 3, '#47d16c');
-    addSweep(0, 44, 3, 0.75, 11.6, 0.45, 1.25, '#ff4f9e', 0, 0.004);
-    addBox(0, 3, 58, 5, 2, 6, '#ffb13d');
-    addDisc(0, 70, 3, 10, 3, '#47d16c');
-    addSweep(0, 70, 3, 0.75, 9.6, 0.45, -1.6, '#ff4f9e', 1.3, 0.004);
-    S.checks.push({ z: 33, x: 0, y: 3, zz: 34 });
-    // C. plateformes mobiles au-dessus du vide
-    addBox(0, 3, 83, 10, 2, 6, '#7a6cff');
-    S.checks.push({ z: 80, x: 0, y: 3, zz: 83 });
-    for (let i = 0; i < 6; i++) {
-      const z = 90 + i * 5.6, ph = r() * 6, amp = 3.4 + (i % 3) * 0.6, per = 2.6 + r() * 1.4, kind = i % 2;
-      addBox(0, 3, z, 4.2, 1, 3.6, kind ? '#3fd0ff' : '#ffe14a', { move: t => kind ? { x: Math.sin(t * 2 * Math.PI / per + ph) * amp, y: 3, z } : { x: Math.sin(t * 2 * Math.PI / per + ph) * 1.2, y: 3 + Math.sin(t * 2 * Math.PI / per + ph) * 1.1, z } });
-    }
-    // D. les Marteaux
-    addBox(0, 3, 126, 10, 2, 6, '#7a6cff');
-    S.checks.push({ z: 124, x: 0, y: 3, zz: 126 });
-    addBox(0, 3, 149, 5, 2, 40, '#ffb13d');
-    for (let i = 0; i < 5; i++) addHammer(0, 11, 136 + i * 7, 7.4, 1.05, 2.1 + (i % 2) * 0.4, i * 1.7, i % 2 ? '#ff4f9e' : '#3fd0ff');
-    // E. la Montée des rondins
-    addBox(0, 3, 172, W, 2, 6, '#7a6cff');
-    S.checks.push({ z: 169, x: 0, y: 3, zz: 172 });
-    const rp = addRamp(0, 175, 211, 3, 13, W, '#47d16c');
-    [-1, 1].forEach(sd => { const L = Math.hypot(36, 10), a = Math.atan2(10, 36); const m = addDeco(BOXG, '#ffffff', sd * (W / 2 + 0.3), 8 + 0.6, 193, 0.6, 1.2, L); m.rotation.x = -a; });
-    addLogs(rp, 5, 9.5, 0.75);
-    // F. les Toupies
-    addBox(0, 13, 214, W, 2, 6, '#7a6cff');
-    S.checks.push({ z: 212, x: 0, y: 13, zz: 214 });
-    addDisc(0, 223.5, 13, 5, 2, '#ffe14a', 1.1, 3);
-    addDisc(0, 235.5, 13, 5, 2, '#3fd0ff', -1.4, 3);
-    addDisc(0, 247.5, 13, 5, 2, '#ff8a3d', 1.8, 3);
-    // G. le champ de champignons, puis les trampolines
-    addBox(0, 13, 266.5, 16, 2, 27, '#7a6cff');
-    S.checks.push({ z: 254, x: 0, y: 13, zz: 256 });
-    [[-4, 259], [3, 261], [-1, 265], [5, 268], [-5, 269], [1, 271]].forEach(([x, z], i) => addBumper(x, z, 13, 1.5, i % 2 ? '#ff4f9e' : '#ff3b3b'));
-    S.tramps.push(addBox(0, 13.25, 277.2, 15.6, 0.5, 4, '#ff4f9e', { tramp: true, col2: '#ffffff' }));
-    for (let i = 0; i < 6; i++) addDeco(BOXG, '#ffffff', -6.5 + i * 2.6, 13.52, 277.2, 0.5, 0.06, 3.6, false);
+    // 6 sections tirées au sort parmi 7
+    const ks = Object.keys(SEC); for (let i = ks.length - 1; i > 0; i--) { const j = Math.floor(r() * (i + 1)); const t = ks[i]; ks[i] = ks[j]; ks[j] = t; }
+    let c = { z: 20, y: 0 };
+    S.secAt = []; ks.slice(0, 6).forEach((k, i) => { S.secAt.push({ k, z: c.z, y: c.y }); c = SEC[k](c, r, PAL[i % PAL.length]); });
     // arrivée
-    addBox(0, 20, 292, 18, 2, 24, '#ffe14a');
-    S.finishZ = 284; S.finishY = 19;
+    const zf = c.z, yf = c.y; plat(zf, 26, 20, yf, '#ffe14a');
+    S.finishZ = zf + 9; S.finishY = yf;
     const fl = cv(256, 32, g => { for (let i = 0; i < 16; i++) for (let j = 0; j < 2; j++) { g.fillStyle = (i + j) % 2 ? '#111' : '#fff'; g.fillRect(i * 16, j * 16, 16, 16); } });
     const fm = new THREE.MeshStandardMaterial({ map: fl }); S.disp.push(fm, fl);
-    const fline = mesh(BOXG, fm, false); fline.scale.set(18, 0.05, 1.2); fline.position.set(0, 20.04, S.finishZ); S.scene.add(fline);
+    const fline = mesh(BOXG, fm, false); fline.scale.set(20, 0.05, 1.2); fline.position.set(0, yf + 0.04, S.finishZ); S.scene.add(fline);
     const arch = cv(512, 128, g => { g.fillStyle = '#ff3f9b'; g.fillRect(0, 0, 512, 128); g.fillStyle = '#fff'; g.font = 'bold 84px sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText('ARRIVÉE', 256, 68); });
     const am = new THREE.MeshStandardMaterial({ map: arch, emissive: '#ffffff', emissiveMap: arch, emissiveIntensity: 0.25 }); S.disp.push(am, arch);
-    const ab = mesh(BOXG, am); ab.scale.set(18, 3, 0.8); ab.position.set(0, 28, S.finishZ); S.scene.add(ab);
-    [-1, 1].forEach(sd => addDeco(BOXG, '#ffffff', sd * 8.6, 24, S.finishZ, 1, 8, 1));
-    // confettis de fond : petits îlots flottants
-    for (let i = 0; i < 18; i++) { const sd = r() < 0.5 ? -1 : 1, x = sd * (24 + r() * 40), z = r() * 300, y = -6 + r() * 26, s = 2 + r() * 4; addDeco(own(new THREE.CylinderGeometry(s, s * 0.6, s * 0.8, 7)), ['#47d16c', '#ffb13d', '#7a6cff', '#ff4f9e'][i % 4], x, y, z, 1, 1, 1); }
+    const ab = mesh(BOXG, am); ab.scale.set(20, 3, 0.8); ab.position.set(0, yf + 8, S.finishZ); S.scene.add(ab);
+    [-1, 1].forEach(sd => addDeco(BOXG, '#ffffff', sd * 9.6, yf + 4, S.finishZ, 1, 8, 1));
+    // îlots de décor tout le long
+    for (let i = 0; i < 26; i++) { const sd = r() < 0.5 ? -1 : 1, x = sd * (26 + r() * 50), z = r() * (zf + 30), y = -14 + r() * 34, s = 2 + r() * 5; addDeco(own(new THREE.CylinderGeometry(s, s * 0.6, s * 0.8, 7)), PAL[i % PAL.length], x, y, z, 1, 1, 1); }
     S.spawns = []; for (let i = 0; i < 12; i++) S.spawns.push({ x: ((i % 4) - 1.5) * 2.6, y: 0, z: 4 + Math.floor(i / 4) * 2.6 });
-    S.fallY = -14;
+    S.fallY = -1e9;
   }
   function cv(w, h, draw) { const c = document.createElement('canvas'); c.width = w; c.height = h; draw(c.getContext('2d')); const t = new THREE.CanvasTexture(c); t.encoding = THREE.sRGBEncoding; t.anisotropy = 4; return t; }
 
@@ -352,7 +378,7 @@
     return { y: best, obj };
   }
   function pushWalls(m) {
-    const feet = m.y, head = m.y + 1.7;
+    const feet = m.y, head = m.y + 1.7, x0 = m.x, z0 = m.z;
     for (const s of S.solids) {
       if (s.t === 'box') {
         if (s.dead) continue;
@@ -368,6 +394,8 @@
         if (d < rr && d > 1e-4) { m.x = s.x + dx / d * rr; m.z = s.z + dz / d * rr; }
       }
     }
+    const px = m.x - x0, pz = m.z - z0, pl = Math.hypot(px, pz);
+    return pl > 1e-4 ? [px / pl, pz / pl] : null;
   }
   function updateWorld(t, dt) {
     for (const s of S.solids) {
@@ -412,15 +440,26 @@
     else if (m.st === 'slide') {
       const k = Math.max(0, 1 - dt * 5); m.vx *= k; m.vz *= k; m.stT -= dt; if (m.stT <= 0) m.st = 'run';
     } else {
-      const ac = m.ground ? ACC_G : ACC_A, tx = wx * RUN, tz = wz * RUN;
-      const ddx = tx - m.vx, ddz = tz - m.vz, dd = Math.hypot(ddx, ddz), mx = ac * dt;
-      if (dd > mx) { m.vx += ddx / dd * mx; m.vz += ddz / dd * mx; } else { m.vx = tx; m.vz = tz; }
+      const sp = Math.hypot(m.vx, m.vz);
+      if (sp > RUN + 0.4) {
+        let ns = Math.max(RUN, sp - (m.ground ? (il > 0.1 ? 7 : 26) : 1.5) * dt);
+        const a0 = Math.atan2(m.vx, m.vz), a1 = il > 0.1 ? a0 + BR.angDiff(a0, Math.atan2(wx, wz)) * Math.min(1, dt * (m.ground ? 5 : 2.8)) : a0;
+        m.vx = Math.sin(a1) * ns; m.vz = Math.cos(a1) * ns;
+      } else {
+        const ac = m.ground ? ACC_G : ACC_A, tx = wx * RUN, tz = wz * RUN;
+        const ddx = tx - m.vx, ddz = tz - m.vz, dd = Math.hypot(ddx, ddz), mx = ac * dt;
+        if (dd > mx) { m.vx += ddx / dd * mx; m.vz += ddz / dd * mx; } else { m.vx = tx; m.vz = tz; }
+      }
       if (il > 0.1) m.face += BR.angDiff(m.face, Math.atan2(wx, wz)) * Math.min(1, dt * 16);
     }
     // saut (aussi pour sortir d'une glissade)
     if (m.jbuf > 0 && (m.ground || m.coyote > 0) && (m.st === 'run' || m.st === 'slide')) {
       m.vy = JUMP; m.ground = false; m.coyote = 0; m.jbuf = 0; if (m.st === 'slide') m.st = 'run'; fx('dash', { g: 0.35, rate: 1.5 });
+    } else if (m.jbuf > 0 && !m.ground && m.wallT > 0 && (m.st === 'run' || m.st === 'dive')) {
+      m.vy = JUMP * 0.98; m.vx = m.wallN[0] * 9.5 + m.vx * 0.25; m.vz = m.wallN[1] * 9.5 + m.vz * 0.25; m.jbuf = 0; m.wallT = 0;
+      m.st = 'run'; m.diveUsed = false; m.face = Math.atan2(m.vx, m.vz); fx('dash', { g: 0.5, rate: 1.7 });
     }
+    if (m.wallT > 0) m.wallT -= dt;
     // porté par une plateforme qui bouge
     if (m.ground && m.gObj) {
       const s = m.gObj;
@@ -430,13 +469,15 @@
     const feet0 = m.y;
     m.vy -= GRAV * dt; if (m.vy < -40) m.vy = -40;
     m.x += m.vx * dt; m.z += m.vz * dt; m.y += m.vy * dt;
-    pushWalls(m);
+    const wn = pushWalls(m); if (wn && !m.ground) { m.wallN = wn; m.wallT = 0.22; }
     const g = groundAt(m.x, m.z, Math.max(feet0, m.y));
     const wasG = m.ground;
     if (m.y <= g.y + (wasG && m.vy <= 0 ? 0.3 : 0) && m.vy <= 0 && isFinite(g.y)) {
       if (!wasG && m.vy < -14) fx('land', { g: 0.7 });
       m.y = g.y; m.vy = 0; m.ground = true; m.gObj = g.obj; m.diveUsed = false;
       if (m.st === 'dive') { m.st = 'slide'; m.stT = 0.32; }
+      if (g.obj && g.obj.pad) { const k = Math.hypot(m.vx, m.vz); if (k < PAD) { m.vx *= 0.4; m.vz = Math.max(m.vz, PAD); if (!m.padFx) fx('dash', { g: 0.9, rate: 0.8 }); } m.padFx = 0.3; }
+      if (g.obj && g.obj.slide && m.vz > -2) { m.vz = Math.min(m.vz + 18 * dt, 23); }
       if (g.obj && g.obj.tramp) { m.vy = TRAMP; m.ground = false; m.gObj = null; g.obj.sq = 1; fx('land', { g: 1, rate: 1.8 }); }
       if (g.obj && g.obj.tile != null && !g.obj.state && S.round === 2 && S.ctl) { crumble(g.obj.tile); if (!S.solo) BR.Net.relay({ k: 'tl', i: g.obj.tile }); }
     } else {
@@ -455,14 +496,14 @@
         if (p.st === ST.dive && ps > 8 && (m.bumpCd || 0) <= 0) { m.bumpCd = 0.7; knock(m, { x: p.vx * 0.8, y: 6, z: p.vz * 0.8 }); }
       }
     }
-    m.bumpCd = Math.max(0, (m.bumpCd || 0) - dt);
+    m.bumpCd = Math.max(0, (m.bumpCd || 0) - dt); m.padFx = Math.max(0, (m.padFx || 0) - dt);
     // points de passage, arrivée, chute
     if (S.round === 1) {
       if (m.ground) for (let i = S.check + 1; i < S.checks.length; i++) if (m.z > S.checks[i].z && Math.abs(m.y - S.checks[i].y) < 2.5) { S.check = i; if (i > 0) feed('Point de passage !'); }
       m.maxZ = Math.max(m.maxZ || 0, m.z);
       if (!m.finished && m.z > S.finishZ && m.y > S.finishY - 1.5) finishMe();
     }
-    if (m.y < S.fallY) {
+    if (m.y < (S.round === 1 ? S.checks[Math.max(0, S.check)].y - 18 : S.fallY)) {
       if (S.round === 1) respawn(m); else eliminateMe();
     }
   }
@@ -535,13 +576,13 @@
       if (alive.length) { S.specI = ((S.specI || 0) % alive.length + alive.length) % alive.length; tg = alive[S.specI]; }
     }
     const tx = tg.x, ty = tg.y + 1.6, tz = tg.z;
-    const d = 7.6, cp = Math.cos(S.pitch), x = tx - Math.sin(S.yaw) * d * cp, y = ty + Math.sin(S.pitch) * d, z = tz - Math.cos(S.yaw) * d * cp;
+    const d = 7.6 + clamp(Math.hypot(S.me.vx, S.me.vz) - 12, 0, 12) * 0.16, cp = Math.cos(S.pitch), x = tx - Math.sin(S.yaw) * d * cp, y = ty + Math.sin(S.pitch) * d, z = tz - Math.cos(S.yaw) * d * cp;
     const k = Math.min(1, dt * 12);
     S.camP.x += (x - S.camP.x) * k; S.camP.y += (y - S.camP.y) * Math.min(1, dt * 8); S.camP.z += (z - S.camP.z) * k;
     S.shake = Math.max(0, S.shake - dt * 1.6); const sh = S.shake * S.shake * 0.6;
     S.cam.position.set(S.camP.x + (Math.random() - 0.5) * sh, S.camP.y + (Math.random() - 0.5) * sh, S.camP.z + (Math.random() - 0.5) * sh);
     S.cam.lookAt(tx, ty, tz);
-    const sp = Math.hypot(S.me.vx, S.me.vz); S.cam.fov += (68 + clamp(sp - 8, 0, 8) * 0.9 - S.cam.fov) * Math.min(1, dt * 5); S.cam.updateProjectionMatrix();
+    const sp = Math.hypot(S.me.vx, S.me.vz); S.cam.fov += (68 + clamp(sp - 12, 0, 12) * 0.8 - S.cam.fov) * Math.min(1, dt * 5); S.cam.updateProjectionMatrix();
     if (S.sun) { S.sun.position.set(tx - 30, ty + 60, tz - 20); S.sun.target.position.set(tx, ty, tz); }
     if (S.skyM) S.skyM.position.set(tx, 0, tz);
   }
@@ -784,4 +825,5 @@
   };
   P.session = () => S;
   P._step = dt => S && step(dt);
+  P._ground = (x, z, y) => S && groundAt(x, z, y);
 })();
