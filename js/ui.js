@@ -1084,7 +1084,7 @@
           <div class="logo"><div class="logo-t" style="color:#ff4f9e;text-shadow:0 5px 0 #7a2a8a">BOUSCULADE</div><div class="logo-s">C O U R S , &nbsp; S A U T E , &nbsp; P L O N G E , &nbsp; B O U S C U L E .</div></div>
           <nav class="menu">
             <button class="mi d-hot" data-go="multi"><span>Multijoueur</span><small>Jusqu'à 8 potes · le dernier debout gagne</small></button>
-            <button class="mi d-hot" data-go="tour"><span>🆕 Le Grand Tour</span><small>La nouvelle carte : virages, spirale, tyrolienne…</small></button>
+            <button class="mi d-hot" data-go="tour"><span>🆕 Nouvelles cartes</span><small>Grand Tour, Toits, Temple, Bonbons, Montagnes russes</small></button>
             <button class="mi" data-go="solo"><span>Entraînement solo</span><small>4 manches contre 7 bots</small></button>
             <button class="mi" data-go="rules"><span>Règles</span><small>Les manches, les obstacles, le plongeon</small></button>
             <button class="mi" data-go="char"><span>Personnage</span><small>Ce que voient les autres joueurs</small></button>
@@ -1099,7 +1099,7 @@
       n.querySelectorAll('[data-go]').forEach(bt => bt.addEventListener('click', () => {
         const go = bt.dataset.go;
         if (go === 'solo') { startPartySolo(); return; }
-        if (go === 'tour') { startPartySolo(BR.Party.mapCount() - 1); return; }
+        if (go === 'tour') { const pm = BR.Party.pathMaps(); startPartySolo(pm[Math.floor(Math.random() * pm.length)]); return; }
         if (go === 'rules') { Au.ui('click'); modal(box => box.insertAdjacentHTML('beforeend', `<h3>Bousculade — règles</h3>${partyRules()}`)); return; }
         Au.ui(go === 'hub' ? 'back' : 'click');
         UI.show(go, go === 'char' ? { back: 'party' } : {});
