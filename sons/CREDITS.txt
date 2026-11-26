@@ -1,0 +1,19 @@
+Sons et musiques : Pixabay (https://pixabay.com), licence Pixabay
+(utilisation gratuite, y compris dans un jeu, sans attribution obligatoire).
+
+Cris des entités (sons.js) : recherches « meme », « screaming meme », « evil laugh », « airhorn »
+sur pixabay.com/sound-effects (ex. « AA (with reverb) meme », « goofy ahh car horn », « Woooooaah! »,
+« WOWOWOWOWOWOWOW », « Yeah Boy », « What!? Meme », « sus meme sound », « Hello there »,
+« evil laugh », « possessed laugh », « dj airhorn »…).
+Bruitages : « horror jumpscare », « alarm siren », « item pickup », « retro arcade coin pickup ».
+Musiques (sons/musique) : « ambient horror creepy atmosphere » (menu), « ambient horror » (Backrooms),
+« fluorescent light hum » (bourdonnement), « hotel elevator music » (centre commercial),
+« city night ambience » (ville), « horror music » (poursuite).
+
+Pour donner son propre cri à une entité : mettre un fichier son du même nom que son image
+dans le dossier « monstres » (ex. visage03.mp3), puis lancer AJOUTER-MONSTRES.bat.
+
+Jeu 2 « COLOSSES » (sons/musique) : « Battle Boss Fight Game Music » (menu de l'arène),
+« Epic Boss Battle Instrumental Metal - Blood Ascendant » (Colosse), « Final Battle II Epic Cinematic » (Hydre),
+« Dark Fight Music Boss » (Arachnide), « Final Boss Energy – Cinematic Electronic » (Œil),
+« Japanese Gaming Boss Battle Music » (duel). Bruitages de combat : synthétisés par le jeu.

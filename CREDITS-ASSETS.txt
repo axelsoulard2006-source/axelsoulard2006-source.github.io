@@ -1,0 +1,10 @@
+Modèles 3D utilisés dans le jeu
+================================
+
+Personnages animés, armes, objets de ville et meubles :
+  KayKit — Adventurers / Skeletons / City Builder Bits / Furniture Bits
+  Auteur : Kay Lousberg (kaylousberg.com)
+  Licence : CC0 1.0 (domaine public) — utilisation libre, même commerciale, sans obligation de citer.
+
+Textures des cartes : dessinées par le code du jeu (js/textures.js), aucune image externe.
+Musiques et sons : voir sons/CREDITS.txt (Pixabay).

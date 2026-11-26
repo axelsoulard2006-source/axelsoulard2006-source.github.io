@@ -1,0 +1,92 @@
+/* maître d armes 3D (js/arena/asc-menu.js, écran asc-armory)
+   La salle, les héros, les cartes des pouvoirs et les emplacements du build sont dessinés en WebGL ;
+   ici : les textes et boutons posés par-dessus. Les tailles sont en em : le script règle la taille de base selon l'écran. */
+#s-asc-armory { inset: 0; padding: 0; overflow: hidden; }
+body[data-screen=asc-armory] #ui::before { display: none; }
+
+.amr { position: absolute; inset: 0; overflow: hidden; color: #fff; font-size: 15px; background: #120c08; }
+.amr-gl { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+.amr-fx, .amr-tags, .amr-build { position: absolute; inset: 0; pointer-events: none; }
+.amr-info, .amr-pool, .amr-build, .amr-hint, .amr-tags { transition: opacity 0.45s; }
+.amr.hall .amr-info, .amr.hall .amr-pool, .amr.hall .amr-build { opacity: 0; pointer-events: none; }
+.amr.hall .amr-info *, .amr.hall .amr-pool *, .amr.hall .amr-build * { pointer-events: none !important; }
+.amr.focus .amr-hint, .amr.focus .amr-tags { opacity: 0; }
+.amr.focus .amr-tag { pointer-events: none; }
+
+/* ---------- barre du haut ---------- */
+.amr-top { position: absolute; top: 72px; left: 1.6em; right: 1.6em; display: flex; align-items: center; gap: 1em; pointer-events: none; z-index: 3; }
+.amr-top > * { pointer-events: auto; }
+.amr-title { pointer-events: none; line-height: 1; }
+.amr-title small { display: block; font-family: var(--title); font-size: 0.75em; letter-spacing: 0.3em; text-transform: uppercase; color: #ffe9b8; text-shadow: 0 2px 6px rgba(0, 0, 0, 0.8); }
+.amr-title b { display: block; margin-top: 0.1em; font-family: var(--title); font-size: 2.05em; letter-spacing: 0.05em; background: linear-gradient(180deg, #fff3d6, #ffb347 55%, #ff7a2a); -webkit-background-clip: text; background-clip: text; color: transparent; filter: drop-shadow(0 3px 6px rgba(0, 0, 0, 0.75)); }
+.amr-tabs { flex: 1; display: flex; justify-content: center; gap: 0.5em; }
+.amr.hall .amr-tabs { visibility: hidden; }
+.amr-tab { display: flex; flex-direction: column; align-items: center; min-width: 7.2em; padding: 0.4em 1.1em 0.45em; border-radius: 999px; line-height: 1.1; color: #fff; cursor: pointer;
+  background: rgba(12, 9, 6, 0.62); border: 1px solid rgba(255, 255, 255, 0.12); backdrop-filter: blur(4px); transition: border-color 0.2s, box-shadow 0.2s, background 0.2s, transform 0.12s; }
+.amr-tab b { font-family: var(--title); font-size: 1.1em; letter-spacing: 0.05em; color: var(--cc); }
+.amr-tab span { font-size: 0.72em; color: var(--t2); }
+.amr-tab:hover { border-color: color-mix(in srgb, var(--cc) 70%, transparent); transform: translateY(-1px); }
+.amr-tab.on { border-color: var(--cc); background: color-mix(in srgb, var(--cc) 20%, rgba(12, 9, 6, 0.72)); box-shadow: 0 0 1.1em color-mix(in srgb, var(--cc) 45%, transparent); }
+.amr-tab.on span { color: #fff; }
+.amr-ok { font-size: 1em; }
+.amr .btn.back { font-size: 1em; }
+
+/* ---------- vue d'ensemble : consigne + étiquettes sous les héros ---------- */
+.amr-hint { position: absolute; top: calc(72px + 4.1em); left: 50%; transform: translateX(-50%); display: flex; flex-direction: column; align-items: center; gap: 0.15em; pointer-events: none; text-align: center; z-index: 2; }
+.amr-hint b { font-family: var(--title); font-size: 1.7em; letter-spacing: 0.08em; color: #ffd76a; text-shadow: 0 2px 10px rgba(0, 0, 0, 0.85); }
+.amr-hint span { font-size: 0.9em; color: #f0e6cf; text-shadow: 0 1px 6px rgba(0, 0, 0, 0.9); }
+.amr-tag { position: absolute; left: 0; top: 0; min-width: 10.5em; padding: 0.5em 1em 0.55em; border-radius: 0.8em; text-align: center; pointer-events: auto; cursor: pointer;
+  background: rgba(12, 9, 6, 0.68); border: 1px solid rgba(255, 255, 255, 0.1); backdrop-filter: blur(4px); box-shadow: 0 0.4em 1.4em rgba(0, 0, 0, 0.45);
+  transition: border-color 0.2s, box-shadow 0.2s, background 0.2s; }
+.amr-tag b { display: block; font-family: var(--title); font-size: 1.35em; letter-spacing: 0.06em; color: var(--cc); line-height: 1.1; }
+.amr-tag span { display: block; font-size: 0.78em; color: var(--t2); }
+.amr-tag i { display: block; font-style: normal; font-size: 0.78em; font-weight: 800; color: #ffd76a; margin-top: 0.1em; }
+.amr-tag em { position: absolute; top: -0.85em; left: 50%; transform: translateX(-50%); padding: 0.12em 0.7em; border-radius: 999px; background: #ffd76a; color: #1b1505; font-style: normal; font-weight: 800; font-size: 0.66em; letter-spacing: 0.08em; text-transform: uppercase; white-space: nowrap; }
+.amr-tag p { width: 15em; max-height: 0; margin: 0 auto; overflow: hidden; opacity: 0; font-size: 0.78em; line-height: 1.4; color: #e8dfca; transition: max-height 0.25s, opacity 0.25s, margin 0.25s; }
+.amr-tag.hov, .amr-tag:hover { border-color: var(--cc); background: color-mix(in srgb, var(--cc) 14%, rgba(12, 9, 6, 0.75)); box-shadow: 0 0 1.3em color-mix(in srgb, var(--cc) 40%, transparent); }
+.amr-tag.hov p, .amr-tag:hover p { max-height: 7em; opacity: 1; margin-top: 0.4em; }
+.amr-tag.mine { border-color: color-mix(in srgb, #ffd76a 55%, transparent); }
+
+/* ---------- vue d'une classe : infos, collection, build ---------- */
+.amr-info { position: absolute; width: 18em; pointer-events: none; text-shadow: 0 2px 8px rgba(0, 0, 0, 0.85); }
+.amr-info b { display: block; font-family: var(--title); font-size: 2.1em; letter-spacing: 0.05em; line-height: 1; }
+.amr-info span { display: block; margin-top: 0.25em; font-size: 0.85em; color: #efe5cc; }
+.amr-info i { display: block; width: 12em; height: 0.32em; margin-top: 0.45em; border-radius: 999px; overflow: hidden; background: rgba(255, 255, 255, 0.14); pointer-events: auto; }
+.amr-info u { display: block; height: 100%; border-radius: 999px; }
+
+.amr-pool { position: absolute; display: flex; align-items: flex-end; justify-content: space-between; gap: 1em; pointer-events: none; z-index: 2; }
+.amr-ptabs { display: flex; gap: 0.4em; pointer-events: auto; }
+.amr-ptabs button { font-family: var(--title); font-size: 1.05em; letter-spacing: 0.05em; padding: 0.32em 0.95em; border-radius: 0.6em; color: #efe5cc; background: rgba(12, 9, 6, 0.6); border: 1px solid rgba(255, 255, 255, 0.14); transition: background 0.15s, border-color 0.15s; }
+.amr-ptabs button:hover { border-color: #ffd76a; }
+.amr-ptabs button em { font-family: var(--font); font-style: normal; font-size: 0.75em; font-weight: 700; color: var(--t2); margin-left: 0.35em; }
+.amr-ptabs button.on { background: linear-gradient(180deg, #ffdc5e, #e7b41e); color: #1b1505; border-color: #ffe48a; }
+.amr-ptabs button.on em { color: rgba(27, 21, 5, 0.7); }
+.amr-count { display: grid; grid-template-columns: auto auto; align-items: baseline; justify-content: end; column-gap: 0.45em; text-align: right; text-shadow: 0 1px 6px rgba(0, 0, 0, 0.9); }
+.amr-count span { grid-column: 1 / -1; display: flex; align-items: center; justify-content: flex-end; gap: 0.3em; font-size: 0.68em; letter-spacing: 0.16em; text-transform: uppercase; color: #bfb391; }
+.amr-count b { font-family: var(--title); font-size: 1.4em; color: #ffd76a; }
+.amr-count small { font-size: 0.8em; color: #efe5cc; }
+.amr-count i { grid-column: 1 / -1; display: block; width: 100%; min-width: 11em; height: 0.28em; margin-top: 0.3em; border-radius: 999px; overflow: hidden; background: rgba(255, 255, 255, 0.12); }
+.amr-count u { display: block; height: 100%; border-radius: 999px; background: linear-gradient(90deg, #ffb52e, #ffe9a0); }
+
+.amr-blbl { position: absolute; white-space: nowrap; text-shadow: 0 1px 6px rgba(0, 0, 0, 0.9); }
+.amr-blbl b { font-family: var(--title); font-size: 1.15em; letter-spacing: 0.1em; color: #ffd76a; }
+.amr-blbl span { margin-left: 0.6em; font-size: 0.76em; color: #d8ccb0; }
+.amr-sn { position: absolute; transform: translateX(-50%); text-align: center; font-size: 0.72em; line-height: 1.15; color: #e8dfca; text-shadow: 0 1px 4px #000;
+  pointer-events: auto; cursor: pointer; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.amr-sn.on { color: #ffd76a; font-weight: 700; }
+
+/* ---------- infobulle d'un pouvoir ---------- */
+.amr-tip { position: absolute; left: 0; top: 0; width: 19em; padding: 0.75em 1em 0.85em; border-radius: 0.8em; z-index: 4; pointer-events: none;
+  background: rgba(14, 11, 8, 0.95); border: 1px solid color-mix(in srgb, var(--rc, #ffd76a) 60%, transparent);
+  box-shadow: 0 0.6em 2em rgba(0, 0, 0, 0.6), 0 0 1.2em color-mix(in srgb, var(--rc, #ffd76a) 25%, transparent);
+  opacity: 0; visibility: hidden; transition: opacity 0.12s; }
+.amr-tip.on { opacity: 1; visibility: visible; }
+.amr-tip small { display: block; font-size: 0.7em; font-weight: 800; letter-spacing: 0.14em; text-transform: uppercase; color: var(--rc, #ffd76a); }
+.amr-tip b { display: block; margin: 0.1em 0 0.3em; font-family: var(--title); font-size: 1.35em; letter-spacing: 0.03em; }
+.amr-tip p { margin: 0; font-size: 0.86em; line-height: 1.45; color: #e8e2f0; }
+.amr-tip em { display: flex; align-items: center; gap: 0.35em; flex-wrap: wrap; margin-top: 0.6em; font-style: normal; font-size: 0.78em; font-weight: 600; color: #ffd76a; }
+.amr-tip em.lk { color: #cfc5df; }
+.amr-tip kbd { padding: 0 0.45em; border-radius: 0.3em; background: #ffd76a; color: #141005; font-family: var(--font); font-weight: 800; font-size: 0.95em; }
+
+.amr-err { margin: 120px auto; text-align: center; color: var(--t2); }
+@media (max-width: 900px) { .amr-title small { display: none; } .amr-title b { font-size: 1.5em; } .amr-tab { min-width: 0; padding: 0.35em 0.7em; } }

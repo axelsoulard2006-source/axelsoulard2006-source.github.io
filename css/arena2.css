@@ -1,0 +1,48 @@
+/* ===== css/arena2.css : COLOSSES — nouveaux boss, évolutions, esquives (complète style.css) ===== */
+
+/* ---------- écran de choix des boss : 4 tirés au hasard + aléatoire + duel ---------- */
+.ar-bpanel .ph { align-items: center; }
+.ar-bnote { margin-left: auto; font-size: 12px; letter-spacing: 0.08em; color: var(--t3, #9a9488); text-transform: uppercase; }
+.ar-bpanel .ar-boss .ab-art { height: 200px; }
+.ab-art .ab-new { position: absolute; top: 10px; right: 10px; font-family: var(--title); font-size: 12px; letter-spacing: 0.14em; color: #111; background: var(--bc); padding: 3px 9px; border-radius: 6px; box-shadow: 0 0 16px var(--bc); }
+.ar-boss .ab-desc { font-size: 12.5px; line-height: 1.45; color: var(--t2, #c8c2b4); margin: 6px 0 4px; min-height: 54px; }
+.ab-evo { display: flex; align-items: center; gap: 4px; font-size: 11px; letter-spacing: 0.08em; color: #ddd; text-transform: uppercase; }
+.ab-evo i { width: 16px; height: 5px; border-radius: 3px; background: var(--bc); opacity: 0.45; }
+.ab-evo i:nth-child(2) { opacity: 0.7; } .ab-evo i:nth-child(3) { opacity: 1; box-shadow: 0 0 8px var(--bc); }
+.ab-evo span { margin-left: 6px; }
+.ar-bextra { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 16px; }
+.ar-bx { display: flex; align-items: center; gap: 16px; padding: 14px 18px; border-radius: 14px; background: var(--panel2); border: 1px solid var(--line); cursor: pointer; transition: transform 0.2s, border-color 0.2s, box-shadow 0.2s; }
+.ar-bx:hover { transform: translateY(-3px); border-color: #ffc84a; box-shadow: 0 12px 40px -14px #ffc84a; }
+.ar-bx > b { width: 52px; height: 52px; flex: none; display: flex; align-items: center; justify-content: center; border-radius: 12px; font-family: var(--title); font-size: 30px; color: #ffc84a; background: radial-gradient(circle, rgba(255,200,74,0.25), rgba(0,0,0,0.4)); border: 1px solid rgba(255,200,74,0.35); }
+.ar-bx .ab-name { color: #ffc84a; font-size: 20px; }
+@media (max-width: 1100px) { .ar-bpanel .ar-bosses { grid-template-columns: repeat(2, 1fr); } }
+
+/* ---------- HUD : stades d'évolution du boss ---------- */
+.a-bbar .mark.m2, .a-bbar .mark.m3 { width: 2px; background: rgba(255,255,255,0.75); box-shadow: 0 0 6px #fff; }
+.a-stage { display: flex; align-items: center; justify-content: center; gap: 6px; margin-top: 5px; font-family: var(--title); }
+.a-stage b { min-width: 30px; padding: 1px 6px; font-size: 11px; letter-spacing: 0.1em; color: rgba(255,255,255,0.35); border: 1px solid rgba(255,255,255,0.18); border-radius: 4px; background: rgba(0,0,0,0.45); }
+.a-stage b.on { color: #111; background: var(--bc); border-color: var(--bc); box-shadow: 0 0 10px var(--bc); }
+.a-stage span { margin-left: 8px; font-size: 13px; letter-spacing: 0.3em; color: var(--bc); text-shadow: 0 0 12px var(--bc), 0 1px 2px #000; }
+.a-stage.flash { animation: stageflash 1.2s ease-out; }
+@keyframes stageflash { 0% { transform: scale(1.5); filter: brightness(2.2); } 100% { transform: none; filter: none; } }
+.a-boss .a-post { margin-top: 7px; }
+
+/* bandeau d'évolution */
+.a-banner.evo b { font-size: 78px; color: #fff; letter-spacing: 0.3em; text-shadow: 0 0 36px #ff3a2a, 0 0 70px #ff8a2a, 0 4px 0 #300; }
+.a-banner.evo.on b { animation: evopulse 2.4s ease-out; }
+.a-banner.evo span { font-family: var(--title); font-size: 20px; letter-spacing: 0.22em; color: #ffd8a0; }
+@keyframes evopulse { 0% { transform: scale(1.6); letter-spacing: 0.6em; opacity: 0; } 15% { opacity: 1; } 30% { transform: scale(1); letter-spacing: 0.3em; } }
+
+/* ---------- esquives : nom du mouvement, riposte disponible, invulnérabilité ---------- */
+.a-move { position: absolute; left: 50%; top: 58%; transform: translateX(-50%); font-family: var(--title); font-size: 18px; letter-spacing: 0.35em; color: #bfe6ff; text-shadow: 0 0 14px #3a8aff, 0 2px 2px #000; opacity: 0; pointer-events: none; }
+.a-move.on { animation: movelbl 0.8s ease-out; }
+@keyframes movelbl { 0% { opacity: 0; transform: translate(-50%, 8px); } 15% { opacity: 1; transform: translate(-50%, 0); } 70% { opacity: 1; } 100% { opacity: 0; transform: translate(-50%, -10px); } }
+.a-ripo { position: absolute; left: 50%; top: 62%; transform: translateX(-50%); display: none; flex-direction: column; align-items: center; gap: 2px; padding: 6px 16px 8px; border-radius: 10px; background: rgba(6,16,30,0.7); border: 1px solid rgba(154,216,255,0.6); box-shadow: 0 0 24px rgba(58,138,255,0.5); pointer-events: none; }
+.a-ripo.on { display: flex; animation: ripopop 0.25s ease-out; }
+.a-ripo b { font-family: var(--title); font-size: 22px; letter-spacing: 0.3em; color: #fff; text-shadow: 0 0 14px #3a8aff; }
+.a-ripo span { font-size: 11px; letter-spacing: 0.2em; color: #9ad8ff; text-transform: uppercase; }
+.a-ripo i { display: block; height: 3px; width: 100%; background: linear-gradient(90deg, #9ad8ff, #fff); border-radius: 2px; }
+@keyframes ripopop { from { transform: translateX(-50%) scale(1.4); opacity: 0; } to { transform: translateX(-50%); opacity: 1; } }
+.a-me.inv .a-hp { border-color: #9ad8ff; box-shadow: 0 0 14px #3a8aff; }
+.a-me.inv .a-dash i.on { background: #fff; }
+.a-help .hl { color: #cfe8ff; } .a-help .hl b { color: #9ad8ff; }

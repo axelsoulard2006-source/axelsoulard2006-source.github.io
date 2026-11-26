@@ -1,0 +1,40 @@
+/* ===== fx.css : ambiance du jeu 1 (incrustation bodycam, sang sur l'objectif, réglages) ===== */
+
+/* --- sang sur l'objectif --- */
+.h-bloodw { inset: 0; overflow: hidden; }
+.h-blood { position: absolute; inset: 0; width: 100%; height: 100%; display: block; opacity: 0; transition: opacity 0.25s; }
+.h-blood.on { opacity: 1; }
+.h-blood.on.out { opacity: 0; transition: opacity 3s; }
+
+/* --- incrustation « caméra corporelle » : petite, en bas à droite, ne gêne pas la vue --- */
+.h-bc { right: 22px; bottom: 20px; display: none; flex-direction: column; align-items: flex-end; gap: 3px;
+  font-family: Consolas, 'Lucida Console', 'Courier New', monospace; font-size: 13px; letter-spacing: 0.08em;
+  color: rgba(255, 255, 255, 0.82); text-shadow: 0 0 2px rgba(0, 0, 0, 0.9), 0 1px 2px rgba(0, 0, 0, 0.9); }
+.h-bc.on { display: flex; }
+.h-bc .r1 { display: flex; align-items: center; gap: 7px; }
+.h-bc .r1 b { color: #ff4b3e; font-weight: 700; }
+.h-bc .dot { width: 9px; height: 9px; border-radius: 50%; background: #ff2a1c; box-shadow: 0 0 6px rgba(255, 40, 20, 0.9); animation: bc-rec 1s steps(1) infinite; }
+.h-bc .el { color: rgba(255, 255, 255, 0.85); }
+.h-bc .r2 { display: flex; gap: 12px; font-size: 11px; color: rgba(255, 255, 255, 0.65); }
+@keyframes bc-rec { 50% { opacity: 0.15; } }
+
+/* avec l'objectif bodycam (qui a déjà son vignettage et son grain), on allège les voiles CSS du HUD */
+#hud.bcam::before { opacity: 0.45; }
+#hud.bcam .h-grain { display: none; }
+
+/* --- menu pause : réglages d'ambiance --- */
+.h-pause-set .h-chk { display: flex; align-items: center; gap: 8px; font-size: 13px; color: #ccc; }
+.h-pause-set select { pointer-events: auto; }
+.h-pause-set select:disabled { opacity: 0.5; }
+
+/* --- peur : souffle retenu (caché dans le noir) — simple mention discrète sous le viseur, aucun voile sur l'image --- */
+.h-hold { left: 50%; top: calc(50% + 22px); transform: translateX(-50%); font-family: Consolas, 'Lucida Console', monospace; font-size: 11px;
+  letter-spacing: 0.25em; text-transform: uppercase; color: rgba(210, 220, 235, 0.55); text-shadow: 0 1px 2px rgba(0, 0, 0, 0.9);
+  opacity: 0; transition: opacity 0.6s; pointer-events: none; }
+.h-hold.on { opacity: 1; animation: h-hold 3.2s ease-in-out infinite; }
+@keyframes h-hold { 50% { color: rgba(210, 220, 235, 0.28); } }
+
+@media (max-width: 700px) {
+  .h-bc { right: 12px; bottom: 12px; font-size: 11px; }
+  .h-bc .r2 { font-size: 10px; }
+}
