@@ -11,10 +11,10 @@
   // réglages du mouvement : rapide, nerveux, aérien
   const GRAV = 34, JUMP = 12.2, RUN = 13, ACC_G = 95, ACC_A = 34, DIVE_H = 19, DIVE_V = 5.5, RAD = 0.45, STEP = 0.45, TRAMP = 25, PAD = 24;
   const ROUND = [
-    { name: 'LA COURSE D\'ADRESSE', sub: 'Les premiers arrivés sont qualifiés ! Saut mural : saute contre un mur.', time: 120 },
+    { name: 'LA COURSE D\'ADRESSE', sub: 'Saute contre un mur pour courir dessus, ressaute pour rebondir. Les premiers arrivés sont qualifiés !', time: 210 },
     { name: 'LA TOUPIE', sub: 'Les dalles s\'effritent sous tes pieds. Saute les barres basses, pas les hautes !', time: 120 },
   ];
-  const ST = { run: 0, air: 1, dive: 2, tumble: 3, slide: 4, spec: 9 };
+  const ST = { run: 0, air: 1, dive: 2, tumble: 3, slide: 4, wall: 5, spec: 9 };   // 6 = course murale côté gauche
   const STN = Object.fromEntries(Object.entries(ST).map(([k, v]) => [v, k]));
   const fx = (n, o) => { try { Au.fx(n, o || {}); } catch (e) {} };
   const sfx = n => { try { Au.ui(n); } catch (e) {} };
@@ -251,69 +251,106 @@
     for (let i = 0; i < Math.floor(d / 1.6); i++) [-1, 1].forEach(sd => { const k = addDeco(BOXG, '#ff4f9e', x + sd * 0.5, y + 0.2, z - d / 2 + 0.9 + i * 1.6, 1.3, 0.06, 0.34, false); k.rotation.y = -sd * 0.75; });
     return s;
   }
+  // mur (course murale / saut mural) : planches blanches à bandes roses
+  function wallZ(x, y0, y1, z0, z1, col) { const w = addBox(x, y1, (z0 + z1) / 2, 0.9, y1 - y0, z1 - z0, col || '#ffffff', { col2: '#ff4f9e' }); for (let zz = z0 + 2; zz < z1 - 1; zz += 4) addDeco(BOXG, '#ffe14a', x - Math.sign(x) * 0.47, (y0 + y1) / 2 + 1, zz, 0.06, 0.5, 1.6, false); return w; }
+  // chaque section : d = difficulté (1 facile … 4 dur), f(c, r, col) -> nouveau curseur { z, y }
   const SEC = {
-    saut(c, r, col) {          // élan sur la bande jaune, puis grand saut
-      cp(c.z, c.y); let z = plat(c.z, 16, 12, c.y, col);
-      pad(0, c.y, z - 4, 9, 6);
-      z += 12.5; z = plat(z, 9, 14, c.y - 1, nextCol(col, 2));
-      return { z, y: c.y - 1 };
-    },
-    piliers(c, r, col) {       // piliers en quinconce qui montent
-      cp(c.z, c.y); let z = plat(c.z, 7, 12, c.y, col), y = c.y;
-      const dy = [0.9, 0.9, -0.3, 1, 0.8, -0.4, 1.1];
-      for (let i = 0; i < 7; i++) { z += 4.8; y += dy[i]; addDisc((i % 2 ? 1 : -1) * (1.4 + r() * 2), z, y, 1.35, 6, PAL[i % PAL.length]); }
-      z += 3.8; z = plat(z, 8, 12, y, col);
-      return { z, y };
-    },
-    poutres(c, r, col) {       // à gauche la poutre (rapide mais étroite), à droite des îlots (plus sûrs)
-      cp(c.z, c.y); let z = plat(c.z, 7, 22, c.y, col); const y = c.y;
-      const xs = [-5.5, -3.2, -6.4, -4.2, -5.5];
-      for (let i = 0; i < 4; i++) { const x0 = xs[i], x1 = xs[i + 1], z0 = z + i * 8, L = Math.hypot(x1 - x0, 8); addBox((x0 + x1) / 2, y, z0 + 4, 1.1, 1, L + 0.7, '#ffffff', { ry: Math.atan2(x1 - x0, 8), col2: '#ff4f9e' }); }
-      for (let i = 0; i < 4; i++) addBox(5.5 + (i % 2 ? 0.9 : -0.9), y + (i % 2 ? 0.5 : 0), z + 3.6 + i * 8.2, 3.4, 1.4, 3.4, PAL[(i + 1) % PAL.length]);
-      z += 32; z = plat(z, 8, 22, y, col);
-      return { z, y };
-    },
-    cheminee(c, r, col) {      // monter par sauts muraux entre les deux murs, ou par l'escalier (plus lent)
+    saut: { d: 1, f(c, r, col) {          // élan sur la bande jaune, puis grand saut
+      cp(c.z, c.y); let z = plat(c.z, 16, 12, c.y, col); pad(0, c.y, z - 4, 9, 6);
+      z += 10 + r() * 3.5; z = plat(z, 9, 14, c.y - 1, nextCol(col, 2)); return { z, y: c.y - 1 }; } },
+    piliers: { d: 2, f(c, r, col) {       // piliers en quinconce qui montent
+      cp(c.z, c.y); let z = plat(c.z, 7, 12, c.y, col), y = c.y; const n = 6 + Math.floor(r() * 3);
+      for (let i = 0; i < n; i++) { z += 4.6 + r() * 0.6; y += r() < 0.75 ? 0.6 + r() * 0.5 : -0.4; addDisc((i % 2 ? 1 : -1) * (1.2 + r() * 2.2), z, y, 1.2 + r() * 0.3, 6, PAL[i % PAL.length]); }
+      z += 3.8; z = plat(z, 8, 12, y, col); return { z, y }; } },
+    poutres: { d: 2, f(c, r, col) {       // à gauche la poutre (rapide, étroite), à droite des îlots (plus sûrs)
+      cp(c.z, c.y); let z = plat(c.z, 7, 22, c.y, col); const y = c.y, sd = r() < 0.5 ? -1 : 1;
+      const xs = [-5.5, -3.2, -6.4, -4.2, -5.5].map(v => v * sd);
+      for (let i = 0; i < 4; i++) { const x0 = xs[i], x1 = xs[i + 1], L = Math.hypot(x1 - x0, 8); addBox((x0 + x1) / 2, y, z + i * 8 + 4, 1.1, 1, L + 0.7, '#ffffff', { ry: Math.atan2(x1 - x0, 8), col2: '#ff4f9e' }); }
+      for (let i = 0; i < 4; i++) addBox(-sd * (5.5 + (i % 2 ? 0.9 : -0.9)), y + (i % 2 ? 0.5 : 0), z + 3.6 + i * 8.2, 3.4, 1.4, 3.4, PAL[(i + 1) % PAL.length]);
+      z += 32; z = plat(z, 8, 22, y, col); return { z, y }; } },
+    cheminee: { d: 3, f(c, r, col) {      // sauts muraux entre deux murs, ou l'escalier (plus lent)
       cp(c.z, c.y); const y = c.y; let z = plat(c.z, 14, 18, y, col);
       const zc = z - 3; [-1, 1].forEach(sd => addBox(sd * 2.05, y + 10, zc, 1.0, 10.5, 5.5, '#ffffff', { col2: '#ff4f9e' }));
-      for (let i = 0; i < 5; i++) addBox(6.5, y + 1.6 * (i + 1), z - 12 + i * 2.2, 3.2, 1.6 * (i + 1), 2.2, PAL[(i + 2) % PAL.length]);
-      z = plat(z, 10, 18, y + 8, nextCol(col, 3));
-      return { z, y: y + 8 };
-    },
-    toboggan(c, r, col) {      // descente qui accélère, bande jaune, énorme saut
-      cp(c.z, c.y); let z = plat(c.z, 6, 12, c.y, col); const y1 = c.y - 10;
-      const rp = addRamp(0, z, z + 34, c.y, y1, 12, '#3fd0ff'); rp.slide = true; z += 34;
+      const st = r() < 0.5 ? -1 : 1; for (let i = 0; i < 5; i++) addBox(st * 6.5, y + 1.6 * (i + 1), z - 12 + i * 2.2, 3.2, 1.6 * (i + 1), 2.2, PAL[(i + 2) % PAL.length]);
+      z = plat(z, 10, 18, y + 8, nextCol(col, 3)); return { z, y: y + 8 }; } },
+    toboggan: { d: 1, f(c, r, col) {      // descente qui accélère, bande jaune, énorme saut
+      cp(c.z, c.y); let z = plat(c.z, 6, 12, c.y, col); const L = 26 + r() * 12, y1 = c.y - L * 0.3;
+      const rp = addRamp(0, z, z + L, c.y, y1, 12, '#3fd0ff'); rp.slide = true; z += L;
       z = plat(z, 7, 12, y1, col); pad(0, y1, z - 3.5, 10, 6);
-      z += 14; z = plat(z, 9, 16, y1 - 1, nextCol(col, 1));
-      return { z, y: y1 - 1 };
-    },
-    ilots(c, r, col) {         // îlots de plus en plus petits
+      z += 12 + r() * 4; z = plat(z, 9, 16, y1 - 1, nextCol(col, 1)); return { z, y: y1 - 1 }; } },
+    ilots: { d: 2, f(c, r, col) {         // îlots de plus en plus petits
       cp(c.z, c.y); let z = plat(c.z, 7, 12, c.y, col), y = c.y; const sz = [4, 3.4, 2.9, 2.5, 2.1, 1.8];
-      for (let i = 0; i < 6; i++) { z += 6.2; y += (r() - 0.4) * 1.1; addBox((i % 2 ? 1 : -1) * (1 + r() * 1.5), y, z, sz[i], 1.2, sz[i], PAL[(i + 3) % PAL.length]); }
-      z += 5.4; z = plat(z, 8, 12, y, col);
-      return { z, y };
-    },
-    rebonds(c, r, col) {       // trampolines vers des étages
-      cp(c.z, c.y); let z = plat(c.z, 10, 14, c.y, col);
-      S.tramps.push(addBox(0, c.y + 0.25, z - 2.2, 12, 0.5, 3.6, '#ff4f9e', { tramp: true, col2: '#ffffff' }));
-      z += 3; z = plat(z, 10, 14, c.y + 6, nextCol(col, 2));
-      S.tramps.push(addBox(0, c.y + 6.25, z - 2.2, 12, 0.5, 3.6, '#ff4f9e', { tramp: true, col2: '#ffffff' }));
-      z += 3; z = plat(z, 9, 14, c.y + 12, col);
-      return { z, y: c.y + 12 };
-    },
+      for (let i = 0; i < 6; i++) { z += 5.8 + r() * 0.8; y += (r() - 0.4) * 1.1; addBox((i % 2 ? 1 : -1) * (1 + r() * 1.5), y, z, sz[i], 1.2, sz[i], PAL[(i + 3) % PAL.length]); }
+      z += 5.4; z = plat(z, 8, 12, y, col); return { z, y }; } },
+    rebonds: { d: 1, f(c, r, col) {       // trampolines vers des étages
+      cp(c.z, c.y); let z = plat(c.z, 10, 14, c.y, col); const n = 2 + (r() < 0.4 ? 1 : 0); let y = c.y;
+      // le vol d'un rebond fait ~15 m : chaque étage fait 20 m, trampoline au bout, on atterrit au milieu du suivant
+      for (let i = 0; i < n; i++) { S.tramps.push(addBox(0, y + 0.25, z - 2.2, 12, 0.5, 3.6, '#ff4f9e', { tramp: true, col2: '#ffffff' })); z += 2; y += 6; z = plat(z, i === n - 1 ? 12 : 20, 14, y, nextCol(col, i + 1)); }
+      return { z, y }; } },
+    mur: { d: 3, f(c, r, col) {           // course sur un mur au-dessus du vide
+      cp(c.z, c.y); const y = c.y, sd = r() < 0.5 ? -1 : 1, L = 16 + r() * 6;
+      let z = plat(c.z, 9, 12, y, col);
+      wallZ(sd * 3.6, y - 3.5, y + 4.5, z - 2, z + L);
+      z += L; z = plat(z, 9, 14, y - 1, nextCol(col, 1)); return { z, y: y - 1 }; } },
+    zigzag: { d: 4, f(c, r, col) {        // murs alternés : course murale + saut d'un mur à l'autre
+      cp(c.z, c.y); const y = c.y; let z = plat(c.z, 9, 12, y, col), sd = r() < 0.5 ? -1 : 1; const n = 3;
+      for (let i = 0; i < n; i++) { wallZ(sd * 3.4, y - 5, y + 7.5, z - 1 + i * 9, z + 13 + i * 9); sd = -sd; }
+      z += n * 9 + 3; z = plat(z, 9, 14, y - 2, nextCol(col, 2)); return { z, y: y - 2 }; } },
+    couloir: { d: 3, f(c, r, col) {       // deux murs parallèles au-dessus du vide
+      cp(c.z, c.y); const y = c.y, L = 20 + r() * 6; let z = plat(c.z, 9, 12, y, col);
+      [-1, 1].forEach(sd => wallZ(sd * 3.3, y - 4, y + 4.5, z - 1, z + L));
+      z += L; z = plat(z, 9, 14, y - 1, nextCol(col, 3)); return { z, y: y - 1 }; } },
+    marches: { d: 1, f(c, r, col) {       // escalier volant en lacets
+      cp(c.z, c.y); let z = plat(c.z, 7, 12, c.y, col), y = c.y; const n = 7 + Math.floor(r() * 3), ph = r() * 6;
+      for (let i = 0; i < n; i++) { z += 4.1; y += 0.75; addBox(Math.sin(ph + i * 0.9) * 3.5, y, z, 3.2, 1, 3.2, PAL[i % PAL.length]); }
+      z += 3.6; z = plat(z, 8, 12, y, col); return { z, y }; } },
+    tremplin: { d: 2, f(c, r, col) {      // rampe, bande jaune en haut, saut géant
+      cp(c.z, c.y); const y = c.y; let z = plat(c.z, 6, 10, y, col);
+      addRamp(0, z, z + 12, y, y + 3, 9, '#ffb13d'); z += 12;
+      z = plat(z, 5, 9, y + 3, col); pad(0, y + 3, z - 2.5, 8, 4.4);
+      z += 14 + r() * 3; z = plat(z, 10, 16, y, nextCol(col, 2)); return { z, y }; } },
+    damier: { d: 2, f(c, r, col) {        // damier troué : à toi de trouver le chemin
+      cp(c.z, c.y); const y = c.y; let z = plat(c.z, 7, 14, y, col); const rows = 6 + Math.floor(r() * 3);
+      for (let row = 0; row < rows; row++) {
+        const cols = [0, 1, 2, 3, 4]; for (let i = 4; i > 0; i--) { const j = Math.floor(r() * (i + 1)); const t = cols[i]; cols[i] = cols[j]; cols[j] = t; }
+        cols.slice(0, 2 + (r() < 0.5 ? 1 : 0)).forEach(k => addBox((k - 2) * 2.9, y + (r() - 0.5) * 0.4, z + 1.9 + row * 2.9, 2.4, 0.8, 2.4, PAL[(k + row) % PAL.length]));
+      }
+      z += 1.9 + rows * 2.9; z = plat(z, 8, 14, y, col); return { z, y }; } },
+    pont: { d: 1, f(c, r, col) {          // pont étroit avec des trous
+      cp(c.z, c.y); const y = c.y; let z = plat(c.z, 7, 12, y, col); const end = z + 38 + r() * 10, ph = r() * 6;
+      while (z < end) { const L = 4 + r() * 5, x = Math.sin(ph + z * 0.08) * 2.5; addBox(x, y, z + L / 2, 2.2, 1, L, r() < 0.5 ? '#ffffff' : nextCol(col, 1)); z += L + 1.8 + r() * 1.6; }
+      z = plat(z, 8, 12, y, col); return { z, y }; } },
+    bosses: { d: 1, f(c, r, col) {        // montagnes russes : monte, descend (ça accélère), recommence
+      cp(c.z, c.y); const y = c.y; let z = plat(c.z, 5, 10, y, col); const n = 3;
+      for (let i = 0; i < n; i++) { const h = 1.8 + r() * 1.2; addRamp(0, z, z + 7, y, y + h, 10, PAL[(i + 1) % PAL.length]); const d = addRamp(0, z + 7, z + 14, y + h, y, 10, PAL[(i + 2) % PAL.length]); d.slide = true; z += 14; }
+      z = plat(z, 8, 12, y, col); return { z, y }; } },
+    tour: { d: 3, f(c, r, col) {          // grimper de bloc en bloc
+      cp(c.z, c.y); let z = plat(c.z, 7, 12, c.y, col), y = c.y; const n = 5 + Math.floor(r() * 2);
+      for (let i = 0; i < n; i++) { z += 3.1; y += 1.75; addBox((i % 2 ? 1 : -1) * 2, y, z, 3.2, 1.5, 3.2, PAL[(i + 2) % PAL.length]); }
+      z += 3.2; z = plat(z, 9, 14, y, col); return { z, y }; } },
   };
+  function cloudsSide(r, n, zmax) {
+    const geo = own(new THREE.IcosahedronGeometry(1, 1)), m = mat('#ffffff', { roughness: 1, emissive: '#cfe8ff', emissiveIntensity: 0.25 });
+    for (let i = 0; i < n; i++) {
+      const sd = r() < 0.5 ? -1 : 1, cx = sd * (48 + r() * 130), cz = -60 + r() * (zmax + 120), cy = -45 + r() * 70;
+      for (let k = 0; k < 5; k++) { const s = 4 + r() * 6; const p = mesh(geo, m, false); p.position.set(cx + (r() - 0.5) * 14, cy + (r() - 0.5) * 3, cz + (r() - 0.5) * 8); p.scale.set(s * 1.4, s * 0.8, s); S.scene.add(p); }
+    }
+  }
   function buildCourse() {
     const r = rng(S.seed + 11);
-    sky('#46a8ff', '#d9f2ff'); sea(-60); clouds(r, 30, -20, 40, z => z + 150); lights();
-    S.scene.fog = new THREE.Fog(0xcfeeff, 120, 480);
+    sky('#46a8ff', '#d9f2ff'); lights();
+    S.scene.fog = new THREE.Fog(0xcfeeff, 140, 520);
     // départ
     addBox(0, 0, 9, 18, 2.4, 22, '#7a6cff');
     addDeco(BOXG, '#ff4f9e', 0, 7, 19.5, 18, 1.2, 1); [-1, 1].forEach(sd => addDeco(BOXG, '#ffffff', sd * 8.6, 3.5, 19.5, 0.9, 7, 0.9));
     S.checks.push({ z: -99, x: 0, y: 0, zz: 5 });
-    // 6 sections tirées au sort parmi 7
+    // 10 sections tirées au sort parmi 16 (au moins une section de murs), des plus faciles aux plus dures
     const ks = Object.keys(SEC); for (let i = ks.length - 1; i > 0; i--) { const j = Math.floor(r() * (i + 1)); const t = ks[i]; ks[i] = ks[j]; ks[j] = t; }
-    let c = { z: 20, y: 0 };
-    S.secAt = []; ks.slice(0, 6).forEach((k, i) => { S.secAt.push({ k, z: c.z, y: c.y }); c = SEC[k](c, r, PAL[i % PAL.length]); });
+    let pick = ks.slice(0, 10);
+    if (!pick.some(k => k === 'mur' || k === 'zigzag' || k === 'couloir')) pick[9] = ['mur', 'couloir', 'zigzag'][Math.floor(r() * 3)];
+    const dk = {}; pick.forEach(k => { dk[k] = SEC[k].d + r() * 1.8; }); pick.sort((a, b) => dk[a] - dk[b]);
+    let c = { z: 20, y: 0 }; S.secAt = [];
+    pick.forEach((k, i) => { S.secAt.push({ k, z: c.z, y: c.y }); c = SEC[k].f(c, r, PAL[i % PAL.length]); });
     // arrivée
     const zf = c.z, yf = c.y; plat(zf, 26, 20, yf, '#ffe14a');
     S.finishZ = zf + 9; S.finishY = yf;
@@ -324,8 +361,10 @@
     const am = new THREE.MeshStandardMaterial({ map: arch, emissive: '#ffffff', emissiveMap: arch, emissiveIntensity: 0.25 }); S.disp.push(am, arch);
     const ab = mesh(BOXG, am); ab.scale.set(20, 3, 0.8); ab.position.set(0, yf + 8, S.finishZ); S.scene.add(ab);
     [-1, 1].forEach(sd => addDeco(BOXG, '#ffffff', sd * 9.6, yf + 4, S.finishZ, 1, 8, 1));
-    // îlots de décor tout le long
-    for (let i = 0; i < 26; i++) { const sd = r() < 0.5 ? -1 : 1, x = sd * (26 + r() * 50), z = r() * (zf + 30), y = -14 + r() * 34, s = 2 + r() * 5; addDeco(own(new THREE.CylinderGeometry(s, s * 0.6, s * 0.8, 7)), PAL[i % PAL.length], x, y, z, 1, 1, 1); }
+    // décor : nuages et îlots sur les côtés seulement (jamais sur le parcours)
+    let ymin = 0; S.secAt.forEach(s => { ymin = Math.min(ymin, s.y); }); ymin = Math.min(ymin, yf);
+    sea(ymin - 60); cloudsSide(r, 34, zf + 30);
+    for (let i = 0; i < 34; i++) { const sd = r() < 0.5 ? -1 : 1, x = sd * (30 + r() * 55), z = r() * (zf + 30), y = ymin - 20 + r() * 40, s = 2 + r() * 5; addDeco(own(new THREE.CylinderGeometry(s, s * 0.6, s * 0.8, 7)), PAL[i % PAL.length], x, y, z, 1, 1, 1); }
     S.spawns = []; for (let i = 0; i < 12; i++) S.spawns.push({ x: ((i % 4) - 1.5) * 2.6, y: 0, z: 4 + Math.floor(i / 4) * 2.6 });
     S.fallY = -1e9;
   }
@@ -437,6 +476,12 @@
       m.st = 'dive'; m.diveUsed = true; m.face = Math.atan2(dx, dz); fx('dash', { g: 0.9 }); } }
     if (m.st === 'tumble') { m.stT -= dt; m.spin += dt * 14; if (m.stT <= 0 && m.ground) { m.st = 'run'; m.ghost = 0.5; } }
     else if (m.st === 'dive') { m.vx += wx * dt * 6; m.vz += wz * dt * 6; }
+    else if (m.st === 'wall') {
+      m.wrT += dt; const n = m.wallN; let tx = -n[1], tz = n[0]; if (tx * m.vx + tz * m.vz < 0) { tx = -tx; tz = -tz; }
+      const sp = Math.max(RUN, Math.abs(tx * m.vx + tz * m.vz)); m.vx = tx * sp - n[0] * 2.5; m.vz = tz * sp - n[1] * 2.5;
+      m.face = Math.atan2(tx, tz); m.wallSide = (n[0] * tz - n[1] * tx) > 0 ? 1 : -1;
+      if (m.wallT <= 0.08 || m.ground) { m.st = 'run'; m.wrCd = 0.25; }
+    }
     else if (m.st === 'slide') {
       const k = Math.max(0, 1 - dt * 5); m.vx *= k; m.vz *= k; m.stT -= dt; if (m.stT <= 0) m.st = 'run';
     } else {
@@ -455,8 +500,9 @@
     // saut (aussi pour sortir d'une glissade)
     if (m.jbuf > 0 && (m.ground || m.coyote > 0) && (m.st === 'run' || m.st === 'slide')) {
       m.vy = JUMP; m.ground = false; m.coyote = 0; m.jbuf = 0; if (m.st === 'slide') m.st = 'run'; fx('dash', { g: 0.35, rate: 1.5 });
-    } else if (m.jbuf > 0 && !m.ground && m.wallT > 0 && (m.st === 'run' || m.st === 'dive')) {
-      m.vy = JUMP * 0.98; m.vx = m.wallN[0] * 9.5 + m.vx * 0.25; m.vz = m.wallN[1] * 9.5 + m.vz * 0.25; m.jbuf = 0; m.wallT = 0;
+    } else if (m.jbuf > 0 && !m.ground && m.wallT > 0 && (m.st === 'run' || m.st === 'dive' || m.st === 'wall')) {
+      const keep = m.st === 'wall' ? 0.95 : 0.25; m.wrCd = 0.3;
+      m.vy = JUMP * 0.98; m.vx = m.wallN[0] * 9.5 + m.vx * keep; m.vz = m.wallN[1] * 9.5 + m.vz * keep; m.jbuf = 0; m.wallT = 0;
       m.st = 'run'; m.diveUsed = false; m.face = Math.atan2(m.vx, m.vz); fx('dash', { g: 0.5, rate: 1.7 });
     }
     if (m.wallT > 0) m.wallT -= dt;
@@ -467,9 +513,12 @@
       else if (s.t === 'disc' && s.dry) { const c = Math.cos(s.dry), sn = Math.sin(s.dry), dx = m.x - s.x, dz = m.z - s.z; m.x = s.x + dx * c + dz * sn; m.z = s.z - dx * sn + dz * c; m.face += s.dry; }
     }
     const feet0 = m.y;
-    m.vy -= GRAV * dt; if (m.vy < -40) m.vy = -40;
+    if (m.st === 'wall') { if (m.wrT < 0.8) m.vy = m.vy > 0 ? Math.max(0, m.vy - GRAV * dt * 0.6) : 0; else { m.vy -= GRAV * 0.32 * dt; if (m.vy < -5) m.vy = -5; } }
+    else m.vy -= GRAV * dt;
+    if (m.vy < -40) m.vy = -40; m.wrCd = Math.max(0, (m.wrCd || 0) - dt);
     m.x += m.vx * dt; m.z += m.vz * dt; m.y += m.vy * dt;
     const wn = pushWalls(m); if (wn && !m.ground) { m.wallN = wn; m.wallT = 0.22; }
+    if (wn && !m.ground && m.st === 'run' && !m.wrCd && Math.abs(-wn[1] * m.vx + wn[0] * m.vz) > 7 && m.vy < 9) { m.st = 'wall'; m.wrT = 0; m.vy = Math.max(m.vy, 1.5); m.diveUsed = false; fx('dash', { g: 0.5, rate: 1.2 }); }
     const g = groundAt(m.x, m.z, Math.max(feet0, m.y));
     const wasG = m.ground;
     if (m.y <= g.y + (wasG && m.vy <= 0 ? 0.3 : 0) && m.vy <= 0 && isFinite(g.y)) {
@@ -560,6 +609,7 @@
       p.tilt = p.tilt || 0; p.roll = p.roll || 0;
       let tilt = 0;
       if (sc === ST.dive) tilt = 1.25; else if (sc === ST.slide) tilt = 1.45;
+      const side = sc === ST.wall || sc === 6 ? (p === S.me ? p.wallSide || 1 : sc === 6 ? -1 : 1) : 0; p.lean = (p.lean || 0) + (side * 0.5 - (p.lean || 0)) * Math.min(1, dt * 12); g.rotation.z = p.lean;
       if (sc === ST.tumble) { p.roll += dt * 13; g.rotation.x = p.roll; g.position.y += 0.6; }
       else { p.roll = 0; p.tilt += (tilt - p.tilt) * Math.min(1, dt * 14); g.rotation.x = p.tilt; if (p.tilt > 0.3) g.position.y += 0.25 * Math.min(1, p.tilt); }
       const sp = Math.hypot(p.vx, p.vz), air = sc === ST.air || sc === ST.dive || (p === S.me && !p.ground && sc === ST.run);
@@ -683,7 +733,7 @@
   function sendState(dt) {
     if (S.solo) return; S.sendT -= dt; if (S.sendT > 0) return; S.sendT = 1 / 14;
     const m = S.me, r2 = v => Math.round(v * 100) / 100;
-    BR.Net.relay({ k: 'p', r: S.round, x: r2(m.x), y: r2(m.y), z: r2(m.z), f: r2(m.face), v: [r2(m.vx), r2(m.vy), r2(m.vz)], s: m.active ? (m.st === 'run' && !m.ground ? ST.air : ST[m.st]) : ST.spec });
+    BR.Net.relay({ k: 'p', r: S.round, x: r2(m.x), y: r2(m.y), z: r2(m.z), f: r2(m.face), v: [r2(m.vx), r2(m.vy), r2(m.vz)], s: m.active ? (m.st === 'run' && !m.ground ? ST.air : m.st === 'wall' && m.wallSide < 0 ? 6 : ST[m.st]) : ST.spec });
   }
 
   /* ===================== résultats ===================== */

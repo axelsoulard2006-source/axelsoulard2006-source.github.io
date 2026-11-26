@@ -1056,9 +1056,9 @@
 
   /* ================= jeu 4 : BOUSCULADE ================= */
   function partyRules() {
-    return `<ul class="d-rules"><li><b>Manche 1 · La Course d'adresse</b> : 6 sections tirées au sort à chaque partie (grand saut, piliers, poutre, cheminée à saut mural, toboggan, îlots, trampolines). Rien ne bouge : que du skill. Les premiers arrivés sont qualifiés (60 %).</li>
+    return `<ul class="d-rules"><li><b>Manche 1 · La Course d'adresse</b> : un long parcours de 10 sections tirées au sort parmi 16 (murs à courir, sauts muraux, toboggans, tremplins, damier, piliers, poutres, trampolines…). Jamais deux fois le même, rien ne bouge : que du skill. Les premiers arrivés sont qualifiés (60 %).</li>
       <li><b>Manche 2 · La Toupie</b> : les dalles s'effritent sous tes pieds. Saute la barre <b style="color:#ff3b3b">rouge</b> (basse), ne saute PAS sous la barre <b style="color:#e0b400">jaune</b> (haute). Le dernier debout gagne.</li>
-      <li><b>Plonge</b> (Maj ou clic droit) pour aller plus loin ou faire tomber les autres. Tomber pendant le parcours = retour au dernier point de passage.</li></ul>`;
+      <li><b>Cours sur les murs</b> : saute contre un mur en allant vite, tu cours dessus 0,8 s puis tu glisses ; ressaute pour rebondir. <b>Plonge</b> (Maj ou clic droit) pour aller plus loin ou faire tomber les autres. Tomber pendant le parcours = retour au dernier point de passage.</li></ul>`;
   }
   function partyRulesBox() { return el('div', { class: 'd-lrules', html: `<h4>Règles de la Bousculade</h4>${partyRules()}` }); }
   function launchParty(o) {
