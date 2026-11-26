@@ -1065,14 +1065,14 @@
   function launchParty(o) {
     BR.$$('.modal-back').forEach(m => m.remove());
     killPreview(); BR.MenuBG.stop(); if (BR.ArenaUI) BR.ArenaUI.bg(false);
-    o.onEnd = a => { BR.MenuBG.start(); if (a === 'replay') startPartySolo(); else UI.show(o.mode === 'multi' && N.room ? 'lobby' : 'party'); };
+    o.onEnd = a => { BR.MenuBG.start(); if (a === 'replay') startPartySolo(o.forceMap); else UI.show(o.mode === 'multi' && N.room ? 'lobby' : 'party'); };
     try { BR.Party.start(o); }
     catch (e) { console.error(e); try { BR.Party.stop(); } catch (_) {} UI.toast('Erreur au lancement : ' + e.message, 'error'); UI.show(o.mode === 'multi' ? (N.room ? 'lobby' : 'multi') : 'party'); }
   }
-  function startPartySolo() {
+  function startPartySolo(forceMap) {
     Au.ui('ok');
     const p = Acc.p;
-    launchParty({ mode: 'solo', seed: BR.Party.pickSeed(), roster: [{ id: 'me', name: p.name, look: p.look, level: lvl().level }], selfId: 'me', hostId: 'me' });
+    launchParty({ mode: 'solo', forceMap: typeof forceMap === 'number' ? forceMap : undefined, seed: BR.Party.pickSeed(), roster: [{ id: 'me', name: p.name, look: p.look, level: lvl().level }], selfId: 'me', hostId: 'me' });
   }
   UI.startPartySolo = startPartySolo;
   screen('party', {
@@ -1084,6 +1084,7 @@
           <div class="logo"><div class="logo-t" style="color:#ff4f9e;text-shadow:0 5px 0 #7a2a8a">BOUSCULADE</div><div class="logo-s">C O U R S , &nbsp; S A U T E , &nbsp; P L O N G E , &nbsp; B O U S C U L E .</div></div>
           <nav class="menu">
             <button class="mi d-hot" data-go="multi"><span>Multijoueur</span><small>Jusqu'à 8 potes · le dernier debout gagne</small></button>
+            <button class="mi d-hot" data-go="tour"><span>🆕 Le Grand Tour</span><small>La nouvelle carte : virages, spirale, tyrolienne…</small></button>
             <button class="mi" data-go="solo"><span>Entraînement solo</span><small>4 manches contre 7 bots</small></button>
             <button class="mi" data-go="rules"><span>Règles</span><small>Les manches, les obstacles, le plongeon</small></button>
             <button class="mi" data-go="char"><span>Personnage</span><small>Ce que voient les autres joueurs</small></button>
@@ -1098,6 +1099,7 @@
       n.querySelectorAll('[data-go]').forEach(bt => bt.addEventListener('click', () => {
         const go = bt.dataset.go;
         if (go === 'solo') { startPartySolo(); return; }
+        if (go === 'tour') { startPartySolo(BR.Party.mapCount() - 1); return; }
         if (go === 'rules') { Au.ui('click'); modal(box => box.insertAdjacentHTML('beforeend', `<h3>Bousculade — règles</h3>${partyRules()}`)); return; }
         Au.ui(go === 'hub' ? 'back' : 'click');
         UI.show(go, go === 'char' ? { back: 'party' } : {});
