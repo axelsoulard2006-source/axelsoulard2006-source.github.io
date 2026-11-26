@@ -1057,8 +1057,8 @@
   /* ================= jeu 4 : BOUSCULADE ================= */
   function partyRules() {
     return `<ul class="d-rules"><li><b>Manche 1 · La Course</b> : une des 11 cartes, jamais la même deux fois de suite — Toboggans géants, Fête foraine (grande roue, canons, flipper), Tempête (ventilateurs géants), Banquise (glace), Usine folle (tapis roulants, murs troués qui avancent), Parc à ressorts (geysers), Vagues, Défi des murs, Grand huit, Château gonflable, Grand mix. Les premiers arrivés sont qualifiés (60 %).</li>
-      <li><b>Manche 2 · La Toupie</b> : les dalles s'effritent sous tes pieds. Saute la barre <b style="color:#ff3b3b">rouge</b> (basse), ne saute PAS sous la barre <b style="color:#e0b400">jaune</b> (haute). Le dernier debout gagne.</li>
-      <li><b>Cours sur les murs</b> : saute contre un mur en allant vite, tu cours dessus 0,8 s puis tu glisses ; ressaute pour rebondir. <b>Plonge</b> (Maj ou clic droit) pour aller plus loin ou faire tomber les autres. Tomber pendant le parcours = retour au dernier point de passage.</li></ul>`;
+      <li><b>Manche 2 · la finale (tirée au sort)</b> : <b>La Toupie</b> (dalles qui s'effritent + barre rouge à sauter, barre jaune à NE PAS sauter), <b>Les Trois Étages</b> (les dalles tombent, il reste deux étages dessous) ou <b>L'Île qui rétrécit</b> (le bord s'effondre). Le dernier debout gagne une couronne 👑.</li>
+      <li><b>Cours sur les murs</b> : saute contre un mur en allant vite, tu cours dessus 0,8 s puis tu glisses ; ressaute pour rebondir. <b>Plonge</b> (Maj ou A) pour aller plus loin ou faire tomber les autres. <b>Attrape</b> (clic gauche, toutes les 3,5 s) pour ralentir et tirer quelqu'un. Tomber pendant la course = retour au dernier point de passage.</li></ul>`;
   }
   function partyRulesBox() { return el('div', { class: 'd-lrules', html: `<h4>Règles de la Bousculade</h4>${partyRules()}` }); }
   function launchParty(o) {
@@ -1077,7 +1077,7 @@
   screen('party', {
     enter(n) {
       BR.curGame = 'bousculade'; Au.track('music', 'menu', 0.8);
-      const best = BR.store.get('br_party_best', 0);
+      const pg = BR.Party.progress(), fm = t => Math.floor(t / 60) + ':' + String((t % 60).toFixed(1)).padStart(4, '0');
       n.innerHTML = `<div class="main pt-main">
         <div class="main-left">
           <div class="logo"><div class="logo-t" style="color:#ff4f9e;text-shadow:0 5px 0 #7a2a8a">BOUSCULADE</div><div class="logo-s">C O U R S , &nbsp; S A U T E , &nbsp; P L O N G E , &nbsp; B O U S C U L E .</div></div>
@@ -1090,8 +1090,9 @@
           </nav>
         </div>
         <div class="main-right"><div class="d-lrules" style="max-width:520px"><h4>Comment ça marche</h4>${partyRules()}
-          <p class="muted" style="margin-top:10px">${best ? ICO('trophy', 13) + ' Ton meilleur temps de course : <b>' + Math.floor(best / 60) + ':' + String((best % 60).toFixed(1)).padStart(4, '0') + '</b>' : 'Pas encore de temps de course'}</p>
-          <p class="muted"><b>ZQSD</b> courir · <b>Espace</b> sauter · <b>Maj / clic droit</b> plonger · <b>Souris</b> caméra</p></div>
+          <p style="margin-top:10px;font-weight:800">👑 <b>${pg.crowns}</b> couronne${pg.crowns > 1 ? 's' : ''} · titre : <b style="color:#ff4f9e">${BR.Party.title(pg.crowns)}</b> · ${pg.games} partie${pg.games > 1 ? 's' : ''} · ${pg.quals} finale${pg.quals > 1 ? 's' : ''}</p>
+          <div class="muted" style="display:grid;grid-template-columns:1fr auto;gap:2px 14px;font-size:13px;margin:6px 0 8px">${pg.maps.map(m => `<span>${esc(m.name)}</span><b>${m.t ? fm(m.t) : '—'}</b>`).join('')}</div>
+          <p class="muted"><b>ZQSD</b> courir · <b>Espace</b> sauter · <b>Maj / A</b> plonger · <b>Clic gauche</b> attraper · <b>Souris</b> caméra</p></div>
           <button class="btn primary big pt-go" style="margin-top:14px">${ICO('play', 18)} JOUER EN MULTIJOUEUR</button></div></div>`;
       n.querySelectorAll('[data-go]').forEach(bt => bt.addEventListener('click', () => {
         const go = bt.dataset.go;
