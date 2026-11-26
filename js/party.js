@@ -439,7 +439,7 @@
     return s;
   }
   // mur (course murale / saut mural) : planches blanches à bandes roses
-  function wallZ(x, y0, y1, z0, z1, col) { const w = addBox(x, y1, (z0 + z1) / 2, 0.9, y1 - y0, z1 - z0, col || '#ffffff', { col2: '#ff4f9e' }); for (let zz = z0 + 2; zz < z1 - 1; zz += 4) addDeco(BOXG, '#ffe14a', x - Math.sign(x) * 0.47, (y0 + y1) / 2 + 1, zz, 0.06, 0.5, 1.6, false); return w; }
+  function wallZ(x, y0, y1, z0, z1, col) { const w = addBox(x, y1, (z0 + z1) / 2, 0.9, y1 - y0, z1 - z0, col || '#ffffff', { col2: '#ff4f9e' }); w.wr = true; for (let zz = z0 + 2; zz < z1 - 1; zz += 4) addDeco(BOXG, '#ffe14a', x - Math.sign(x) * 0.47, (y0 + y1) / 2 + 1, zz, 0.06, 0.5, 1.6, false); return w; }
   // chaque section : d = difficulté (1 facile … 4 dur), f(c, r, col) -> nouveau curseur { z, y }
   const SEC = {
     saut: { d: 1, f(c, r, col) {          // élan sur la bande jaune, puis grand saut
@@ -522,7 +522,7 @@
   function sideWalls(rp, W, z0, z1, col) {
     for (let z = z0; z < z1 - 0.5; z += 7) {
       const za = z, zb = Math.min(z1, z + 7), yTop = Math.max(rampY(rp, za), rampY(rp, zb)) + 2.6, yBot = Math.min(rampY(rp, za), rampY(rp, zb)) - 1.6;
-      [-1, 1].forEach(sd => addBox(sd * (W / 2 + 0.45), yTop, (za + zb) / 2, 0.9, yTop - yBot, zb - za, '#ffffff', { col2: col || '#ff4f9e', noUnder: true }));
+      [-1, 1].forEach(sd => { addBox(sd * (W / 2 + 0.45), yTop, (za + zb) / 2, 0.9, yTop - yBot, zb - za, '#ffffff', { col2: col || '#ff4f9e', noUnder: true }).wr = true; });
     }
   }
   function giantHammer(px, py, pz, len, amp, period, phase, col, s, y0, halfW) {
@@ -534,7 +534,7 @@
     S.scene.add(g);
     [-1, 1].forEach(sd => addDeco(BOXG, '#ffffff', px + sd * (halfW + 1.2), (y0 + py) / 2, pz, 0.8, py - y0 + 1, 0.8));
     addDeco(BOXG, '#5b4bd6', px, py + 0.4, pz, halfW * 2 + 3.4, 0.9, 0.9);
-    S.haz.push({ g, a: 0, da: 0,
+    S.haz.push({ g, a: 0, da: 0, px, pz, len,
       update(t) { const k = 2 * Math.PI / period, u = k * t + phase; this.a = amp * Math.sin(u); this.da = amp * k * Math.cos(u); this.g.rotation.z = this.a; },
       hit(m) {
         const hx = px + len * Math.sin(this.a), hy = py - len * Math.cos(this.a);
@@ -545,7 +545,7 @@
   }
   // ventilateur géant : souffle vers le haut (on vole au-dessus du vide)
   function fan(x, z, yb, top, rad, col) {
-    S.winds.push({ x, z, r: rad, y0: yb, y1: top, ay: 64, az: 5, max: 13 });
+    S.winds.push({ x, z, r: rad, y0: yb, y1: top, ay: 70, az: 5, max: 8.5 });
     const g = new THREE.Group(); g.position.set(x, yb, z);
     const ring = mesh(own(new THREE.TorusGeometry(rad, 0.38, 8, 36)), mat(col)); ring.rotation.x = Math.PI / 2; g.add(ring);
     const hub = mesh(own(new THREE.CylinderGeometry(0.7, 0.9, 1.2, 16)), mat('#ffffff')); g.add(hub);
@@ -607,7 +607,7 @@
       z += L; z = plat(z, 10, 18, y - drop, nextCol(col, 3)); return { z, y: y - drop }; } },
     ventilos: { d: 3, f(c, r, col) {      // traverser le vide en se laissant porter par des ventilateurs géants
       cp(c.z, c.y); const y = c.y; let z = plat(c.z, 10, 14, y, col); const n = 3;
-      for (let i = 0; i < n; i++) fan((i % 2 ? 1 : -1) * 1.5, z + 6 + i * 10, y - 9, y + 7, 3.4, PAL[(i + 1) % PAL.length]);
+      for (let i = 0; i < n; i++) fan((i % 2 ? 1 : -1) * 1.2, z + 6 + i * 10, y - 9, y + 9.5, 3.9, PAL[(i + 1) % PAL.length]);
       z += 6 + (n - 1) * 10 + 8; z = plat(z, 10, 14, y + 3, nextCol(col, 2)); return { z, y: y + 3 }; } },
     roue: { d: 2, f(c, r, col) {          // grande roue : monte dans une nacelle, saute en haut
       cp(c.z, c.y); const y = c.y; let z = plat(c.z, 10, 14, y, col); const R = 9.5, zc = z + 2.8, yc = y + 9.3;
@@ -689,9 +689,9 @@
       for (let k = 0; k < 5; k++) { const s = 4 + r() * 6; const p = mesh(geo, m, false); p.position.set(cx + (r() - 0.5) * 14, cy + (r() - 0.5) * 3, cz + (r() - 0.5) * 8); p.scale.set(s * 1.4, s * 0.8, s); S.scene.add(p); }
     }
   }
-  function buildCourse() {
+  function buildCourse(mapIdx) {
     const r = rng(S.seed + 11);
-    const mi = ((S.seed % MAPS.length) + MAPS.length) % MAPS.length, MP = S.map = MAPS[mi]; S.mapIdx = mi; try { BR.store.set('br_party_map', mi); } catch (e) {}
+    const mi = mapIdx != null ? mapIdx : ((S.seed % MAPS.length) + MAPS.length) % MAPS.length, MP = S.map = MAPS[mi]; S.mapIdx = mi; try { BR.store.set('br_party_map', mi); } catch (e) {}
     PAL = MP.pal || PAL0;
     sky(MP.sky[0], MP.sky[1]); lights();
     S.scene.fog = new THREE.Fog(new THREE.Color(MP.sky[1]).getHex(), 160, 560);
@@ -765,12 +765,12 @@
       }
     };
     if (kind === 'etages') {
-      layer(0, 12.6, ['#ff6fb0', '#ffb13d'], 0); layer(-9, 12.6, ['#3fd0ff', '#7a6cff'], 0); layer(-18, 12.6, ['#47d16c', '#ffe14a'], 0);
-      for (let i = 0; i < 6; i++) { const a = i / 6 * Math.PI * 2; addDeco(own(new THREE.CylinderGeometry(0.9, 0.9, 34, 12)), '#ffffff', Math.cos(a) * 16, -14, Math.sin(a) * 16, 1, 1, 1); }
+      layer(0, 14.6, ['#ff6fb0', '#ffb13d'], 0); layer(-9, 14.6, ['#3fd0ff', '#7a6cff'], 0); layer(-18, 14.6, ['#47d16c', '#ffe14a'], 0);
+      for (let i = 0; i < 6; i++) { const a = i / 6 * Math.PI * 2; addDeco(own(new THREE.CylinderGeometry(0.9, 0.9, 34, 12)), '#ffffff', Math.cos(a) * 18, -14, Math.sin(a) * 18, 1, 1, 1); }
       S.fallY = -27;
     } else if (kind === 'ile') {
       layer(0, 15.2, ['#47d16c', '#ffb13d', '#3fd0ff', '#ff6fb0'], 1.9);
-      S.tiles.forEach(s => { s.fallAt = 6 + (15.2 - s.dist) * 5.6; });
+      S.tiles.forEach(s => { s.fallAt = 4 + (15.2 - s.dist) * 3.6; });
       S.low = addSweep(0, 0, 0.15, 0.7, 15.6, 0.4, 0.8, '#ff3b3b', 0, 0.01); S.low.kb = 0.6; S.low.off = true; S.low.g.visible = false;
       addPillar(0, 0, -6, 2.4, 1.6, '#ffffff');
       S.fallY = -9;
@@ -780,6 +780,8 @@
       S.low = addSweep(0, 0, 0.15, 0.7, 13.6, 0.4, 1.0, '#ff3b3b', 0, 0.012);
       S.high = addSweep(0, 0, 2.15, 0.6, 13.6, 0.4, -0.75, '#ffe14a', Math.PI / 2, 0.012);
       S.high.g.visible = false; S.high.off = true; S.low.kb = S.high.kb = 0.62;
+      // les dalles tombent une à une, dans un ordre tiré au sort (le même pour tout le monde)
+      S.touchCrumble = false; { const rr = rng(S.seed + 5), ids = S.tiles.map((t, i) => i); for (let i = ids.length - 1; i > 0; i--) { const j = Math.floor(rr() * (i + 1)); const t = ids[i]; ids[i] = ids[j]; ids[j] = t; } ids.forEach((id, k) => { S.tiles[id].fallAt = 6 + k * 0.8; }); }
       S.fallY = -9;
     }
     const RR = kind === 'ile' ? 15.2 : 13.2;
@@ -844,9 +846,9 @@
     if (S.bob) for (const b of S.bob) b.g.position.y = b.y + Math.sin(S.rt * 1.3 + b.ph) * 0.5;
     if (S.cloudTex) S.cloudTex.offset.x = (S.cloudTex.offset.x + dt * 0.004) % 1;
     // dalles de la Toupie
-    if (S.tiles && S.r2 === 'ile' && S.round === 2 && S.ctl) for (const s of S.tiles) if (!s.state && s.fallAt != null && t > s.fallAt) crumble(s.tile);
+    if (S.tiles && (S.r2 === 'ile' || S.r2 === 'toupie') && S.round === 2 && S.ctl) for (const s of S.tiles) if (!s.state && s.fallAt != null && t > s.fallAt) crumble(s.tile);
     if (S.tiles) for (const s of S.tiles) {
-      if (s.state === 1) { const k = S.rt - s.t0; s.g.position.x = s.x + Math.sin(k * 60) * 0.06; if (k > 1.0) { s.state = 2; s.dead = true; s.vy = 0; } }
+      if (s.state === 1) { const k = S.rt - s.t0; s.g.position.x = s.x + Math.sin(k * 60) * 0.06; if (k > (S.r2 === 'etages' ? 1.4 : 1.0)) { s.state = 2; s.dead = true; s.vy = 0; } }
       else if (s.state === 2 && s.g.visible) { s.vy -= 30 * dt; s.g.position.y += s.vy * dt; if (s.g.position.y < -30) s.g.visible = false; }
     }
   }
@@ -881,42 +883,64 @@
   const CONF = ['#ff4f9e', '#ffe14a', '#3fd0ff', '#47d16c', '#7a6cff', '#ffffff'];
   function crumble(i) { const s = S.tiles && S.tiles[i]; if (!s || s.state) return; s.state = 1; s.t0 = S.rt; s.g.children[0].material = [mat('#ffffff'), mat('#ffd6ea')]; emit(s.x, 0.1, s.z, 5, { col: '#ffffff', spd: 2, up: 2, life: 0.6 }); }
 
+  // un joueur simulé ici ? (moi, ou un bot quand je suis seul ou l'hôte)
+  const simHere = p => p === S.me || (!!p.bot && (S.solo || BR.Net.isHost()));
+  const stOf = p => simHere(p) ? (p.st === 'run' && !p.ground ? ST.air : p.st === 'wall' && p.wallSide < 0 ? 6 : (ST[p.st] != null ? ST[p.st] : 0)) : p.st;
+  function hitPlayer(p, v) {   // bousculade infligée à p (là où p est simulé)
+    if (simHere(p)) { if ((p.bumpCd || 0) > 0 || !p.active) return; p.bumpCd = 0.7; knock(p, v); if (p === S.me) shout('BOUSCULÉ !', '#ff4f9e'); }
+    else BR.Net.relay({ k: 'bp', to: p.id, v: [Math.round(v.x * 10) / 10, v.y, Math.round(v.z * 10) / 10] });
+  }
+  function grabPlayer(p, byId) {
+    if (simHere(p)) { if (!p.active) return; p.grabbed = { by: byId, t: 1.3 }; if (p === S.me) { shout('ON T\'ATTRAPE !', '#ff4f9e'); snd('grab'); } }
+    else BR.Net.relay({ k: 'gr', to: p.id, by: byId });
+  }
   function doGrab(m) {
-    m.grabCd = 3.5; m.grabT = 0.45; snd('grab');
+    const me = m === S.me; m.grabCd = 3.5; m.grabT = 0.45; if (me) snd('grab');
     const fx0 = Math.sin(m.face), fz0 = Math.cos(m.face); let best = null, bd = 2.3;
     for (const p of S.players.values()) { if (p === m || !p.vis) continue; const dx = p.x - m.x, dz = p.z - m.z, d = Math.hypot(dx, dz); if (d < bd && Math.abs(p.y - m.y) < 1.6 && (dx * fx0 + dz * fz0) / (d || 1) > 0.1) { bd = d; best = p; } }
-    if (best) { m.holding = { id: best.id, t: 1.3 }; if (!S.solo) BR.Net.relay({ k: 'gr', to: best.id }); shout('ATTRAPÉ !'); }
+    if (best) { m.holding = { id: best.id, t: 1.3 }; grabPlayer(best, m.id); if (me) shout('ATTRAPÉ !'); }
   }
   function knock(m, v) {
     if (m.ghost > 0 && !v.soft) return;
     m.vx = v.x; m.vy = Math.max(m.vy, v.y); m.vz = v.z; m.ground = false;
-    if (v.soft) { snd('pop'); return; }
-    m.st = 'tumble'; m.stT = 0.85; m.spin = 0; S.shake = Math.max(S.shake, 0.35); fx('hit', { g: 0.8 }); fx('land', { g: 1 }); emit(m.x, m.y + 1, m.z, 12, { col: '#ffe14a', spd: 4, up: 3, life: 0.5 });
+    if (v.soft) { if (m === S.me) snd('pop'); return; }
+    m.st = 'tumble'; m.stT = 0.85; m.spin = 0; m.holding = null;
+    if (m === S.me) { S.shake = Math.max(S.shake, 0.35); fx('hit', { g: 0.8 }); fx('land', { g: 1 }); }
+    emit(m.x, m.y + 1, m.z, 12, { col: '#ffe14a', spd: 4, up: 3, life: 0.5 });
   }
-  function stepMe(dt) {
-    const m = S.me; if (!m.active) return;
-    m.ghost = Math.max(0, m.ghost - dt);
-    // entrée relative à la caméra
+  /* ---------- entrées du joueur local (clavier / manette), relatives à la caméra ---------- */
+  function myInput() {
     let ix = 0, iz = 0;
     if (S.ctl && !S.paused) {
       if (keys.KeyW || keys.ArrowUp) iz += 1; if (keys.KeyS || keys.ArrowDown) iz -= 1;
       if (keys.KeyA || keys.ArrowLeft) ix -= 1; if (keys.KeyD || keys.ArrowRight) ix += 1;
+      const gp = S.gp; if (gp && Math.hypot(gp.lx, gp.ly) > 0.2) { ix = gp.lx; iz = -gp.ly; }
     }
     const fwx = Math.sin(S.yaw), fwz = Math.cos(S.yaw);
-    let wx = fwx * iz - fwz * ix, wz = fwz * iz + fwx * ix;
-    // juste après la fin d'un mur : on ignore la touche qui pousse vers le mur (sinon on repasse derrière)
+    const inp = { wx: fwx * iz - fwz * ix, wz: fwz * iz + fwx * ix, jump: false, dive: S.diveReq, grab: S.grabReq };
+    S.diveReq = S.grabReq = false; return inp;
+  }
+  /* ---------- physique d'un joueur (moi ou un bot) ---------- */
+  function stepPlayer(m, dt, inp) {
+    if (!m.active) return;
+    const me = m === S.me;
+    m.ghost = Math.max(0, m.ghost - dt);
+    if (inp.jump) m.jbuf = 0.13;
+    let wx = inp.wx, wz = inp.wz;
+    // juste après la fin d'un mur : on ignore la direction qui pousse vers le mur (sinon on repasse derrière)
     if (m.wallExit > 0) { m.wallExit -= dt; const dn = wx * m.exitN[0] + wz * m.exitN[1]; if (dn < 0) { wx -= dn * m.exitN[0]; wz -= dn * m.exitN[1]; } }
     const il = Math.hypot(wx, wz); if (il > 1) { wx /= il; wz /= il; }
     if (m.jbuf > 0) m.jbuf -= dt; if (m.coyote > 0) m.coyote -= dt;
     m.grabCd = Math.max(0, (m.grabCd || 0) - dt); m.grabT = Math.max(0, (m.grabT || 0) - dt);
-    if (S.grabReq) { S.grabReq = false; if (S.ctl && m.grabCd <= 0 && m.st !== 'tumble') doGrab(m); }
+    if (inp.grab && S.ctl && m.grabCd <= 0 && m.st !== 'tumble') doGrab(m);
     if (m.holding) { m.holding.t -= dt; if (m.holding.t <= 0 || !S.players.has(m.holding.id)) m.holding = null; }
     if (m.grabbed) { m.grabbed.t -= dt; const gb = S.players.get(m.grabbed.by); if (!gb || m.grabbed.t <= 0) m.grabbed = null; else { const dx = gb.x - m.x, dz = gb.z - m.z, d = Math.hypot(dx, dz); if (d > 1.2) { m.vx += dx / d * 30 * dt; m.vz += dz / d * 30 * dt; } } }
     // plongeon
-    if (S.diveReq) { S.diveReq = false; if (S.ctl && !m.grabbed && (m.st === 'run' || m.st === 'air' || m.st === 'slide') && !m.diveUsed) {
+    if (inp.dive && S.ctl && !m.grabbed && (m.st === 'run' || m.st === 'air' || m.st === 'slide') && !m.diveUsed) {
       const dl = Math.hypot(wx, wz), dx = dl > 0.1 ? wx / dl : Math.sin(m.face), dz = dl > 0.1 ? wz / dl : Math.cos(m.face);
-      m.vx = dx * DIVE_H; m.vz = dz * DIVE_H; m.vy = m.ground ? DIVE_V + 1.5 : Math.max(m.vy, DIVE_V); m.ground = false;
-      m.st = 'dive'; m.diveUsed = true; m.face = Math.atan2(dx, dz); fx('dash', { g: 0.9 }); } }
+      const dv = Math.max(DIVE_H, Math.hypot(m.vx, m.vz) + 1.5); m.vx = dx * dv; m.vz = dz * dv; m.vy = m.ground ? DIVE_V + 1.5 : Math.max(m.vy, DIVE_V); m.ground = false;
+      m.st = 'dive'; m.diveUsed = true; m.face = Math.atan2(dx, dz); if (me) fx('dash', { g: 0.9 });
+    }
     if (m.st === 'tumble') { m.stT -= dt; m.spin += dt * 14; if (m.stT <= 0 && m.ground) { m.st = 'run'; m.ghost = 0.5; } }
     else if (m.st === 'dive') { m.vx += wx * dt * 6; m.vz += wz * dt * 6; }
     else if (m.st === 'wall') {
@@ -945,11 +969,16 @@
     // saut (aussi pour sortir d'une glissade)
     if (m.jbuf > 0 && S.ctl && (m.ground || m.coyote > 0) && (m.st === 'run' || m.st === 'slide')) {
       if (m.gObj && m.gObj.conv) { m.vx += m.gObj.conv[0]; m.vz += m.gObj.conv[1]; }
-      m.vy = JUMP; m.ground = false; m.coyote = 0; m.jbuf = 0; if (m.st === 'slide') m.st = 'run'; fx('jump', { g: 0.6 }); emit(m.x, m.y + 0.1, m.z, 6, { col: '#ffffff', spd: 2.5, up: 1.5, life: 0.45 });
+      m.vy = JUMP; m.ground = false; m.coyote = 0; m.jbuf = 0; if (m.st === 'slide') m.st = 'run';
+      if (me) fx('jump', { g: 0.6 }); emit(m.x, m.y + 0.1, m.z, 6, { col: '#ffffff', spd: 2.5, up: 1.5, life: 0.45 });
     } else if (m.jbuf > 0 && S.ctl && !m.ground && m.wallT > 0 && (m.st === 'run' || m.st === 'dive' || m.st === 'wall')) {
-      const keep = m.st === 'wall' ? 0.95 : 0.25; m.wrCd = 0.3; m.wjChain = (S.rt - (m.wjT || -9) < 1.5 ? (m.wjChain || 0) : 0) + 1; m.wjT = S.rt; if (m.wjChain === 3) shout('ENCHAÎNEMENT !'); else if (m.wjChain === 5) shout('NINJA !', '#47d16c');
-      m.vy = JUMP * 0.98; m.vx = m.wallN[0] * 9.5 + m.vx * keep; m.vz = m.wallN[1] * 9.5 + m.vz * keep; m.jbuf = 0; m.wallT = 0;
-      m.st = 'run'; m.diveUsed = false; m.face = Math.atan2(m.vx, m.vz); fx('jump', { g: 0.7, rate: 1.2 }); emit(m.x - m.wallN[0] * 0.4, m.y + 0.8, m.z - m.wallN[1] * 0.4, 9, { col: '#ff8ac2', spd: 3, up: 2, life: 0.5 });
+      // saut mural : rebondir deux fois de suite sur LE MÊME mur ne fait presque plus monter (pas d'escalade infinie)
+      const same = m.lastWJS && m.lastWJS === m.wallS, keep = m.st === 'wall' ? 0.95 : 0.25; m.wrCd = 0.3;
+      m.wjChain = (S.rt - (m.wjT || -9) < 1.5 ? (m.wjChain || 0) : 0) + 1; m.wjT = S.rt;
+      if (me) { if (m.wjChain === 3) shout('ENCHAÎNEMENT !'); else if (m.wjChain === 5) shout('NINJA !', '#47d16c'); }
+      m.vy = JUMP * (same ? 0.42 : 0.98); m.vx = m.wallN[0] * 9.5 + m.vx * keep; m.vz = m.wallN[1] * 9.5 + m.vz * keep; m.jbuf = 0; m.wallT = 0; m.lastWJS = m.wallS;
+      m.st = 'run'; m.diveUsed = false; m.face = Math.atan2(m.vx, m.vz); if (me) fx('jump', { g: 0.7, rate: 1.2 });
+      emit(m.x - m.wallN[0] * 0.4, m.y + 0.8, m.z - m.wallN[1] * 0.4, 9, { col: '#ff8ac2', spd: 3, up: 2, life: 0.5 });
     }
     if (m.wallT > 0) m.wallT -= dt;
     // porté par une plateforme qui bouge
@@ -969,24 +998,25 @@
     m.lastPush = null; const wn = pushWalls(m);
     if (wn && m.st === 'wall' && m.wallN && wn[0] * m.wallN[0] + wn[1] * m.wallN[1] < 0.8) { m.st = 'run'; m.wrCd = 0.4; }
     if (wn && !m.ground) { m.wallN = wn; m.wallT = 0.22; if (m.lastPush) m.wallS = m.lastPush; }
-    if (wn && !m.ground && m.st === 'run' && !m.wrCd && Math.abs(-wn[1] * m.vx + wn[0] * m.vz) > 7 && m.vy < 9) { m.st = 'wall'; m.wrT = 0; m.vy = Math.max(m.vy, 1.5); m.diveUsed = false; fx('dash', { g: 0.5, rate: 1.2 }); }
+    // course murale : seulement sur les vrais murs (pas sur le côté d'une plateforme)
+    if (wn && !m.ground && (m.st === 'run' || m.st === 'dive') && !m.wrCd && m.lastPush && m.lastPush.wr && Math.abs(-wn[1] * m.vx + wn[0] * m.vz) > 7 && m.vy < 9) { m.st = 'wall'; m.wrT = 0; m.vy = Math.max(m.vy, 1.5); m.diveUsed = false; if (me) fx('dash', { g: 0.5, rate: 1.2 }); }
     const g = groundAt(m.x, m.z, Math.max(feet0, m.y));
     const wasG = m.ground;
     if (m.y <= g.y + (wasG && m.vy <= 0 ? 0.3 : 0) && m.vy <= 0 && isFinite(g.y)) {
-      if (!wasG && m.vy < -7) { fx('land', { g: clamp(-m.vy / 25, 0.3, 1) }); emit(m.x, g.y + 0.05, m.z, Math.min(16, Math.round(-m.vy / 2)), { col: '#ffffff', spd: 4, up: 1.2, life: 0.5, grav: 3 }); }
-      m.y = g.y; m.vy = 0; m.ground = true; m.gObj = g.obj; m.diveUsed = false;
+      if (!wasG && m.vy < -7) { if (me) fx('land', { g: clamp(-m.vy / 25, 0.3, 1) }); emit(m.x, g.y + 0.05, m.z, Math.min(16, Math.round(-m.vy / 2)), { col: '#ffffff', spd: 4, up: 1.2, life: 0.5, grav: 3 }); }
+      m.y = g.y; m.vy = 0; m.ground = true; m.gObj = g.obj; m.diveUsed = false; m.lastWJS = null;
       if (m.st === 'dive') { m.st = 'slide'; m.stT = 0.32; }
-      if (g.obj && g.obj.pad) { const k = Math.hypot(m.vx, m.vz); if (k < PAD) { m.vx *= 0.4; m.vz = Math.max(m.vz, PAD); if (!m.padFx) { snd('whoosh'); emit(m.x, m.y + 0.2, m.z, 14, { col: '#ffe14a', spd: 3, up: 2.5, life: 0.5, vz: 10 }); } } m.padFx = 0.3; }
+      if (g.obj && g.obj.pad) { const k = Math.hypot(m.vx, m.vz); if (k < PAD) { m.vx *= 0.4; m.vz = Math.max(m.vz, PAD); if (!m.padFx) { if (me) snd('whoosh'); emit(m.x, m.y + 0.2, m.z, 14, { col: '#ffe14a', spd: 3, up: 2.5, life: 0.5, vz: 10 }); } } m.padFx = 0.3; }
       if (g.obj && g.obj.slide && m.vz > -2) { m.vz = Math.min(m.vz + 18 * dt, 23); }
-      if (g.obj && g.obj.cannon) { const cn = g.obj.cannon; m.vx = cn[0]; m.vy = cn[1]; m.vz = cn[2]; m.ground = false; m.gObj = null; S.shake = Math.max(S.shake, 0.4); snd('boom'); shout('BOUM !', '#ff8a3d'); emit(m.x, m.y + 0.5, m.z, 20, { cols: ['#ffcf2e', '#ff8a3d', '#ffffff'], spd: 4, up: 3, life: 0.6 }); }
-      if (g.obj && g.obj.tramp) { snd('boing'); shout('BOING !', '#ff4f9e'); m.vy = TRAMP; m.ground = false; m.gObj = null; g.obj.sq = 1; fx('jump', { g: 1, rate: 0.8 }); emit(m.x, m.y + 0.3, m.z, 18, { cols: ['#ff4f9e', '#ffffff'], spd: 4, up: 4, life: 0.6 }); }
+      if (g.obj && g.obj.cannon) { const cn = g.obj.cannon; m.vx = cn[0]; m.vy = cn[1]; m.vz = cn[2]; m.ground = false; m.gObj = null; if (me) { S.shake = Math.max(S.shake, 0.4); snd('boom'); shout('BOUM !', '#ff8a3d'); } emit(m.x, m.y + 0.5, m.z, 20, { cols: ['#ffcf2e', '#ff8a3d', '#ffffff'], spd: 4, up: 3, life: 0.6 }); }
+      if (g.obj && g.obj.tramp) { if (me) { snd('boing'); shout('BOING !', '#ff4f9e'); fx('jump', { g: 1, rate: 0.8 }); } m.vy = TRAMP; m.ground = false; m.gObj = null; g.obj.sq = 1; emit(m.x, m.y + 0.3, m.z, 18, { cols: ['#ff4f9e', '#ffffff'], spd: 4, up: 4, life: 0.6 }); }
       if (g.obj && g.obj.tile != null && !g.obj.state && S.round === 2 && S.ctl && S.touchCrumble) { crumble(g.obj.tile); if (!S.solo) BR.Net.relay({ k: 'tl', i: g.obj.tile }); }
     } else {
       if (wasG) m.coyote = 0.11;
       m.ground = false; m.gObj = null;
     }
     // dangers
-    if (S.ctl) for (const h of S.haz) { const v = h.hit(m); if (!v) continue; if (v.launch) { if (m.vy < v.y - 1) { m.vy = v.y; m.vz = Math.max(m.vz, v.z); m.ground = false; m.gObj = null; if (m.st !== 'tumble') m.st = 'run'; snd('jet'); emit(m.x, m.y, m.z, 10, { col: '#c8efff', spd: 3, up: 4, life: 0.6 }); } continue; } knock(m, v); break; }
+    if (S.ctl) for (const h of S.haz) { const v = h.hit(m); if (!v) continue; if (v.launch) { if (m.vy < v.y - 1) { m.vy = v.y; m.vz = Math.max(m.vz, v.z); m.ground = false; m.gObj = null; if (m.st !== 'tumble') m.st = 'run'; if (me) snd('jet'); emit(m.x, m.y, m.z, 10, { col: '#c8efff', spd: 3, up: 4, life: 0.6 }); } continue; } knock(m, v); break; }
     // bousculade entre joueurs
     for (const p of S.players.values()) {
       if (p === m || !p.av || !p.vis) continue;
@@ -994,26 +1024,113 @@
       if (d < 0.95 && d > 1e-4 && Math.abs(m.y - p.y) < 1.5) {
         m.x += dx / d * (0.95 - d) * 0.6; m.z += dz / d * (0.95 - d) * 0.6;
         const ps = Math.hypot(p.vx, p.vz);
-        if (p.st === ST.dive && ps > 8 && (m.bumpCd || 0) <= 0) { m.bumpCd = 0.7; knock(m, { x: p.vx * 0.8, y: 6, z: p.vz * 0.8 }); shout('BOUSCULÉ !', '#ff4f9e'); }
-        if (m.st === 'dive' && Math.hypot(m.vx, m.vz) > 8 && (p.hitCd || 0) <= 0 && !S.solo) { p.hitCd = 0.8; BR.Net.relay({ k: 'bp', to: p.id, v: [Math.round(m.vx * 8) / 10, 6, Math.round(m.vz * 8) / 10] }); snd('pop'); shout('BOUM !'); }
+        // un joueur distant qui me plonge dessus (s'il est simulé ici, c'est lui qui gère)
+        if (!simHere(p) && p.st === ST.dive && ps > 8 && (m.bumpCd || 0) <= 0) { m.bumpCd = 0.7; knock(m, { x: p.vx * 0.8, y: 6, z: p.vz * 0.8 }); if (me) shout('BOUSCULÉ !', '#ff4f9e'); }
+        // je plonge sur quelqu'un : c'est moi qui décide
+        if (m.st === 'dive' && Math.hypot(m.vx, m.vz) > 8 && (p.hitCd || 0) <= 0) { p.hitCd = 0.8; hitPlayer(p, { x: m.vx * 0.8, y: 6, z: m.vz * 0.8 }); if (me) { snd('pop'); shout('BOUM !'); } }
       }
     }
     m.bumpCd = Math.max(0, (m.bumpCd || 0) - dt); m.padFx = Math.max(0, (m.padFx || 0) - dt);
     // points de passage, arrivée, chute
     if (S.round === 1) {
-      if (m.ground) for (let i = S.check + 1; i < S.checks.length; i++) if (m.z > S.checks[i].z && Math.abs(m.y - S.checks[i].y) < 2.5) { S.check = i; if (i > 0) feed('Point de passage !'); }
+      if (m.ground) for (let i = (m.check || 0) + 1; i < S.checks.length; i++) if (m.z > S.checks[i].z && Math.abs(m.y - S.checks[i].y) < 2.5) { m.check = i; if (i > 0 && me) feed('Point de passage !'); }
       m.maxZ = Math.max(m.maxZ || 0, m.z);
-      if (!m.finished && m.z > S.finishZ && m.y > S.finishY - 1.5) finishMe();
+      if (!m.finished && m.z > S.finishZ && m.y > S.finishY - 1.5) finishP(m);
     }
-    const ck = S.round === 1 ? S.checks[Math.max(0, S.check)] : null;
+    const ck = S.round === 1 ? S.checks[Math.max(0, m.check || 0)] : null;
     if (m.y < (ck ? (ck.low != null ? ck.low : ck.y) - 16 : S.fallY)) {
-      if (S.round === 1) respawn(m); else eliminateMe();
+      if (S.round === 1) respawn(m); else eliminateP(m);
     }
   }
   function respawn(m) {
-    const c = S.checks[Math.max(0, S.check)];
-    m.x = c.x + (Math.random() - 0.5) * 3; m.y = c.y + 0.2; m.z = c.zz; m.vx = m.vy = m.vz = 0; m.st = 'run'; m.ghost = 1.2; m.ground = false;
-    S.yaw = 0; snd('aww'); shout('PLOUF !', '#3fd0ff');
+    const c = S.checks[Math.max(0, m.check || 0)];
+    m.x = c.x + (Math.random() - 0.5) * 3; m.y = c.y + 0.2; m.z = c.zz; m.vx = m.vy = m.vz = 0; m.st = 'run'; m.ghost = 1.2; m.ground = false; m.grabbed = m.holding = null;
+    if (m === S.me) { S.yaw = 0; snd('aww'); shout('PLOUF !', '#3fd0ff'); }
+  }
+
+  /* ===================== bots ===================== */
+  const BOT_NAMES = ['Bouboule', 'Mimi Fusée', 'Captain Patate', 'Gégé', 'Choupette', 'Rillette', 'Biscotte', 'Kiwi', 'Tonton Turbo', 'Mamie Glisse', 'Pépito', 'Zigzag', 'Moumoune', 'Flan Royal', 'Nugget', 'Cacahuète', 'Super Mamie', 'Le Grand Gégé'];
+  function secOf(z) { let s = null; if (S.secAt) for (const x of S.secAt) { if (x.z <= z + 1) s = x; else break; } return s; }
+  function botThink(b, dt) {
+    const inp = { wx: 0, wz: 0, jump: false, dive: false, grab: false };
+    if (!S.ctl || !b.active || (S.round === 1 && b.finished)) return inp;
+    const ai = b.ai = b.ai || { t: 0, react: 0 };
+    if (b.st === 'tumble') return inp;
+    if (S.round === 1) raceAI(b, inp, dt); else survAI(b, inp, dt);
+    // de temps en temps : bousculer ou attraper un joueur proche
+    if (Math.random() < dt * 0.6 * b.skill) for (const p of S.players.values()) {
+      if (p === b || !p.vis) continue; const dx = p.x - b.x, dz = p.z - b.z, d = Math.hypot(dx, dz);
+      if (d < 2.4 && Math.abs(p.y - b.y) < 1.2) { const safe = S.round !== 2 || !ai.safe || ai.safe(b.x + dx / d * 4, b.z + dz / d * 4); if (Math.random() < 0.55 && safe) { inp.dive = true; inp.wx = dx / d; inp.wz = dz / d; } else { b.face = Math.atan2(dx, dz); inp.grab = true; } break; }
+    }
+    return inp;
+  }
+  function steer(b, inp, tx, tz, spd) { const dx = tx - b.x, dz = tz - b.z, d = Math.hypot(dx, dz) || 1; inp.wx = dx / d * spd; inp.wz = dz / d * spd; }
+  // barres tournantes : la rouge (basse) se saute, la jaune (haute) non
+  function barAhead(b) {
+    for (const h of S.haz) {
+      if (h.t !== 'sweep' || h.off) continue;
+      const a2 = h.a + h.w * 0.24, dx = b.x - h.cx, dz = b.z - h.cz, c = Math.cos(a2), s = Math.sin(a2);
+      if (Math.abs(dx * c - dz * s) < h.L && Math.abs(dx * s + dz * c) < 1.3) return h.yb < b.y + 1 ? 'low' : 'high';
+    }
+    return null;
+  }
+  function raceAI(b, inp, dt) {
+    const ai = b.ai, sec = secOf(b.z), k = sec ? sec.k : '', spd = 0.86 + 0.14 * b.skill;
+    let tx = b.lane, go = 1;
+    if (k === 'canons') tx = ai.can != null ? ai.can : (ai.can = [-4.5, 0, 4.5][Math.floor(Math.random() * 3)]);
+    else if (k === 'geysers') tx = Math.max(-4, Math.min(4, Math.round(b.lane / 4) * 4));
+    else if (k === 'ventilos') { const f = S.winds.find(w => w.z > b.z - 3); if (f) tx = f.x; }
+    else if (k === 'murs') { const ws = S.solids.filter(s => s.move && Math.abs(s.hz - 0.65) < 0.01 && s.z > b.z - 0.5 && s.z < b.z + 13 && s.y + s.hy > b.y + 1).sort((a, c) => a.z - c.z);
+      if (ws.length) { const z1 = ws[0].z, pr = ws.filter(s => Math.abs(s.z - z1) < 0.1).sort((a, c) => a.x - c.x); tx = pr.length === 2 ? (pr[0].x + pr[0].hx + pr[1].x - pr[1].hx) / 2 : pr[0].x > 0 ? pr[0].x - pr[0].hx - 1.9 : pr[0].x + pr[0].hx + 1.9; } }
+    else if (k === 'mur' || k === 'couloir' || k === 'zigzag') {
+      if (b.st === 'wall') { tx = b.x - b.wallN[0] * 2; if (k === 'zigzag' && b.wrT > 0.28 + (1 - b.skill) * 0.15) inp.jump = true; }
+      else { const wl = S.solids.filter(s => s.wr && s !== b.lastWJS && s.z + s.hz > b.z + 1 && s.z - s.hz < b.z + 16).sort((a, c) => Math.abs(a.z - b.z) - Math.abs(c.z - b.z))[0];
+        if (wl && (!b.ground || wl.z - wl.hz < b.z + 4)) tx = wl.x * 1.4; }
+    }
+    else if (k === 'marteaux') {   // attendre que la tête soit passée (et qu'elle s'éloigne), puis foncer ; ne jamais s'arrêter dessous
+      for (const h of S.haz) { if (h.pz == null) continue; const dz = h.pz - b.z; if (dz < 1.6 || dz > 5.5) continue;
+        const hx = h.px + h.len * Math.sin(h.a), away = Math.sign(h.da || 1) * (hx - b.x) > 0; if (Math.abs(hx - b.x) < 3.2 || (!away && Math.abs(hx - b.x) < 8)) go = 0; } }
+    if (k === 'mixeur' || k === 'marteaux') { const bar = barAhead(b); if (bar === 'low' && b.ground) inp.jump = true; }
+    if (go) steer(b, inp, tx, b.z + 8, spd);
+    // bords : sauter (mais attendre la nacelle sur la grande roue)
+    const gx = b.x + inp.wx * 2.2, gz = b.z + Math.max(1.6, inp.wz * 2.4), g = groundAt(gx, gz, b.y + 0.3), gap = !isFinite(g.y) || g.y < b.y - 1.2;
+    if (b.ground && gap && go) {
+      if (k === 'roue') { inp.wx = inp.wz = 0; }
+      else if (k === 'canons') { /* le canon s'en charge */ }
+      else if (Math.random() < 0.55 + 0.45 * b.skill) inp.jump = true;
+    }
+    // plongeon pour allonger un saut quand il n'y a rien dessous
+    if (!b.ground && b.vy < 0.5 && !b.diveUsed && b.st === 'run' && k !== 'mur' && k !== 'couloir' && k !== 'zigzag' && k !== 'ventilos' && k !== 'canons') { const gb = groundAt(b.x, b.z + 3, b.y); if (!isFinite(gb.y) || gb.y < b.y - 5) inp.dive = true; }
+  }
+  function survAI(b, inp, dt) {
+    const ai = b.ai; ai.t -= dt;
+    const onTile = (x, z) => { const g = groundAt(x, z, b.y + 0.3); return isFinite(g.y) && g.y > b.y - 1.2 && !(g.obj && g.obj.state); };
+    const hasGround = (x, z) => { const g = groundAt(x, z, b.y + 0.3); return isFinite(g.y) && g.y > b.y - 1.2 && !(g.obj && g.obj.state === 2); };
+    const RM = S.r2 === 'ile' ? 6 : 10;
+    if (ai.R == null) { ai.R = 3 + Math.random() * (RM - 4); ai.dir = Math.random() < 0.5 ? 1 : -1; }
+    // on tourne en rond (comme un vrai joueur : ne jamais rester sur une dalle qui s'effrite)
+    const ang = Math.atan2(b.z, b.x) + ai.dir * 0.75;
+    let tx = Math.cos(ang) * ai.R, tz = Math.sin(ang) * ai.R;
+    if (!onTile(tx, tz) || (ai.t <= 0 && Math.random() < 0.25)) {   // le cercle est cassé : on en cherche un autre
+      let best = null, bs = 1e9;
+      for (let i = 0; i < 16; i++) { const r = Math.random() * RM, a = Math.random() * 6.283, x = Math.cos(a) * r, z = Math.sin(a) * r; if (!onTile(x, z)) continue; const sc = Math.hypot(x - b.x, z - b.z) + r * 0.5; if (sc < bs) { bs = sc; best = [x, z, r]; } }
+      if (best) { tx = best[0]; tz = best[1]; ai.R = Math.max(2.5, best[2]); if (Math.random() < 0.3) ai.dir = -ai.dir; }
+      ai.t = 1 + Math.random();
+    }
+    steer(b, inp, tx, tz, 0.5 + 0.25 * b.skill);
+    // jamais vers le vide
+    if (b.ground && !hasGround(b.x + inp.wx * 1.9, b.z + inp.wz * 1.9)) { inp.wx = -inp.wx * 0.6; inp.wz = -inp.wz * 0.6; ai.t = 0; }
+    const bar = barAhead(b);
+    if (bar === 'low' && b.ground && Math.random() < 0.6 + 0.4 * b.skill) inp.jump = true;
+    ai.safe = hasGround;
+  }
+  function makeBots(seed) {
+    const r = rng(seed + 77), have = S.players.size, n = Math.max(0, 8 - have), skins = (BR.SKINS || []).map(s => s.id).filter(Boolean), names = BOT_NAMES.slice();
+    for (let i = 0; i < n; i++) {
+      const nm = names.splice(Math.floor(r() * names.length), 1)[0] || ('Bot ' + (i + 1)), id = 'bot' + (i + 1);
+      S.players.set(id, { id, name: nm, bot: true, skill: 0.55 + r() * 0.45, lane: (r() - 0.5) * 3.6, look: { skin: skins.length ? skins[Math.floor(r() * skins.length)] : 'survivor', aura: null },
+        x: 0, y: 0, z: 0, tx: 0, ty: 0, tz: 0, vx: 0, vy: 0, vz: 0, face: 0, tf: 0, st: 'run', ground: false, active: true, jbuf: 0, coyote: 0, ghost: 0, diveUsed: false, stT: 0 });
+    }
   }
 
   /* ===================== joueurs ===================== */
@@ -1046,7 +1163,7 @@
   function updateAvatars(dt) {
     for (const p of S.players.values()) {
       const av = p.av; if (!av) continue;
-      if (p === S.me) {
+      if (simHere(p)) {
         p.vis = p.active; p.stc = p.st === 'run' && !p.ground ? ST.air : ST[p.st] != null ? ST[p.st] : 0;
       } else {
         const ax = p.tx + p.vx * 0.05, az = p.tz + p.vz * 0.05, dx = ax - p.x, dz = az - p.z, dy = p.ty - p.y;
@@ -1066,7 +1183,7 @@
       let tilt = 0;
       if (sc === ST.dive) tilt = 1.25; else if (sc === ST.slide) tilt = 1.45;
       // course murale : les pieds contre le mur, le corps penché vers le vide (rotation autour de l'axe de course)
-      const side = sc === ST.wall || sc === 6 ? (p === S.me ? p.wallSide || 1 : sc === 6 ? -1 : 1) : 0;
+      const side = sc === ST.wall || sc === 6 ? (simHere(p) ? p.wallSide || 1 : sc === 6 ? -1 : 1) : 0;
       if (side) p.wside = side;
       p.wallK = (p.wallK || 0) + ((side ? 1 : 0) - (p.wallK || 0)) * Math.min(1, dt * 14);
       const ws = p.wside || 1, nx = ws * Math.cos(p.face), nz = -ws * Math.sin(p.face), wk = p.wallK;
@@ -1086,12 +1203,12 @@
       if (sc === ST.tumble) { p.roll += dt * 13; g.rotation.x = p.roll; g.position.y += 0.6; }
       else { p.roll = 0; p.tilt += (tilt - p.tilt) * Math.min(1, dt * 14); g.rotation.x = p.tilt; if (p.tilt > 0.3) g.position.y += 0.25 * Math.min(1, p.tilt); }
       const sp = Math.hypot(p.vx, p.vz), air = sc === ST.air || sc === ST.dive || (p === S.me && !p.ground && sc === ST.run && !side);
-      if (p === S.me) p.grabVis = p.grabT > 0 || !!p.holding;
+      if (simHere(p)) p.grabVis = p.grabT > 0 || !!p.holding;
       if (p.prevSc2 !== ST.tumble && sc === ST.tumble) { try { av.act('Hit_A', { speed: 1.5 }); } catch (e) {} } p.prevSc2 = sc;
       poseRestore(p);
       av.update(dt, sp, { air: air || sc === ST.tumble, sprint: sp > 7, dash: false });
       applyPose(p, sc, dt);
-      if (p !== S.me) p.hitCd = Math.max(0, (p.hitCd || 0) - dt);
+      p.hitCd = Math.max(0, (p.hitCd || 0) - dt);
       p.tag.sprite.position.set(p.x, p.y + 2.25, p.z);
     }
   }
@@ -1118,139 +1235,191 @@
     if (S.seaM) { S.seaM.position.x = x; S.seaM.position.z = z; }
   }
   function flash() { DOM.flash.classList.add('on'); void DOM.flash.offsetWidth; requestAnimationFrame(() => DOM && DOM.flash.classList.remove('on')); }
+  // la caméra ne traverse pas les murs : on la rapproche avant le premier obstacle
+  function camBlocked(x, y, z) {
+    for (const s of S.solids) {
+      if (s.t === 'box') { if (s.dead || y > s.y + s.hy || y < s.y - s.hy) continue; const dx = x - s.x, dz = z - s.z, lx = dx * s.c - dz * s.s, lz = dx * s.s + dz * s.c; if (Math.abs(lx) < s.hx + 0.2 && Math.abs(lz) < s.hz + 0.2) return true; }
+      else if (s.t === 'cyl') { if (y > s.y1 || y < s.y0) continue; if (Math.hypot(x - s.x, z - s.z) < s.r + 0.2) return true; }
+      else if (s.t === 'disc') { if (y > s.y || y < s.y - s.h) continue; if (Math.hypot(x - s.x, z - s.z) < s.r + 0.2) return true; }
+    }
+    return false;
+  }
   function updateCam(dt) {
     let tg = S.me;
     if (!S.me.active) {
       const alive = [...S.players.values()].filter(p => p !== S.me && p.vis);
       if (alive.length) { S.specI = ((S.specI || 0) % alive.length + alive.length) % alive.length; tg = alive[S.specI]; }
     }
+    // recentrage automatique derrière le joueur quand il court et qu'on ne touche pas à la souris
+    const spd = Math.hypot(tg.vx, tg.vz);
+    if (tg === S.me && S.rt - (S.lastLook || 0) > 1.2 && spd > 5 && S.me.st !== 'wall') S.yaw += BR.angDiff(S.yaw, Math.atan2(tg.vx, tg.vz)) * Math.min(1, dt * 1.6);
     const tx = tg.x, ty = tg.y + 1.6, tz = tg.z;
-    const d = 7.6 + clamp(Math.hypot(S.me.vx, S.me.vz) - 12, 0, 12) * 0.16, cp = Math.cos(S.pitch), x = tx - Math.sin(S.yaw) * d * cp, y = ty + Math.sin(S.pitch) * d, z = tz - Math.cos(S.yaw) * d * cp;
-    const k = Math.min(1, dt * 12);
-    S.camP.x += (x - S.camP.x) * k; S.camP.y += (y - S.camP.y) * Math.min(1, dt * 8); S.camP.z += (z - S.camP.z) * k;
+    let d = 7.6 + clamp(spd - 12, 0, 12) * 0.16;
+    const cp = Math.cos(S.pitch), ux = -Math.sin(S.yaw) * cp, uy = Math.sin(S.pitch), uz = -Math.cos(S.yaw) * cp;
+    for (let k = 0.8; k < d; k += 0.4) if (camBlocked(tx + ux * k, ty + uy * k, tz + uz * k)) { d = Math.max(1.4, k - 0.5); break; }
+    const x = tx + ux * d, y = ty + uy * d, z = tz + uz * d;
+    const kk = Math.min(1, dt * 12), near = d < S.camD - 0.3; S.camD = d;
+    if (near) { S.camP.set(x, y, z); } else { S.camP.x += (x - S.camP.x) * kk; S.camP.y += (y - S.camP.y) * Math.min(1, dt * 8); S.camP.z += (z - S.camP.z) * kk; }
     S.shake = Math.max(0, S.shake - dt * 1.6); const sh = S.shake * S.shake * 0.6;
     S.cam.position.set(S.camP.x + (Math.random() - 0.5) * sh, S.camP.y + (Math.random() - 0.5) * sh, S.camP.z + (Math.random() - 0.5) * sh);
     S.cam.lookAt(tx, ty, tz);
-    const sp = Math.hypot(S.me.vx, S.me.vz); S.cam.fov += (68 + clamp(sp - 12, 0, 12) * 0.8 - S.cam.fov) * Math.min(1, dt * 5); S.cam.updateProjectionMatrix();
+    S.cam.fov += (68 + clamp(spd - 12, 0, 12) * 0.8 - S.cam.fov) * Math.min(1, dt * 5); S.cam.updateProjectionMatrix();
     if (S.sun) { S.sun.position.set(tx - 30, ty + 60, tz - 20); S.sun.target.position.set(tx, ty, tz); }
     if (S.skyM) S.skyM.position.set(tx, 0, tz);
     if (S.seaM) { S.seaM.position.x = tx; S.seaM.position.z = tz; }
   }
 
-  /* ===================== manches ===================== */
+  /* ===================== déroulé de la partie : 4 manches avec éliminations ===================== */
+  const RACE_DEF = { name: 'LA COURSE', sub: 'Les premiers arrivés sont qualifiés ! Saute contre un mur pour courir dessus.', time: 150 };
   function clearWorld() {
     if (!S.scene) return;
     for (const p of S.players.values()) { if (p.av) S.scene.remove(p.av.group); if (p.tag) S.scene.remove(p.tag.sprite); }
     S.disp.forEach(x => x.dispose && x.dispose()); S.disp = [];
     S.scene = null;
   }
-  function startRound(n, part, kind) {
+  // nombre de manches restantes (pour l'affichage « manche 2 / 4 »)
+  function planLen(n, type) { let k = 0; while (n > 1 && k < 9) { k++; if (n <= 2) break; if (type === 'race') { n = Math.max(2, Math.min(n - 1, Math.round(n * 0.66))); type = 'surv'; } else { n = Math.max(1, Math.ceil(n / 2)); type = 'race'; } } return k; }
+  function startRound(cfg) {
     clearWorld();
-    if (n === 2) { S.r2 = kind || 'toupie'; ROUND[1] = R2[S.r2]; try { BR.store.set('br_party_r2', S.r2); } catch (e) {} }
-    S.round = n; S.high = S.low = null; S.part = part.slice(); S.out = new Set(); S.fin = []; S.check = 0; S.decided = false; S.tiles = null; S.tramps = [];
+    S.cfg = cfg; S.rn = cfg.rn; S.final = !!cfg.final; S.seed = cfg.seed >>> 0; S.target = cfg.target;
+    S.round = cfg.type === 'race' ? 1 : 2;
+    if (S.round === 2) { S.r2 = cfg.kind; S.def = Object.assign({}, R2[S.r2], { time: S.final ? 90 : 75 }); S.usedR2.push(cfg.kind); try { BR.store.set('br_party_r2', S.r2); } catch (e) {} }
+    else { S.def = RACE_DEF; S.usedMaps.push(cfg.map); }
+    S.high = S.low = null; S.part = cfg.q.filter(id => S.players.has(id)); S.out = new Set(); S.outOrder = []; S.fin = []; S.decided = false; S.tiles = null; S.tramps = [];
     S.scene = new THREE.Scene(); S.solids = []; S.haz = []; S.checks = []; S.scroll = []; S.anim = []; S.winds = []; S.gyB = S.gyG = S.canG = S.bulb = null; S.bob = []; S.cloudTex = null; S.seaM = null; S.post = S.flag = S.fanG = null;
     initFx();
-    if (n === 1) buildCourse(); else buildSpin(S.r2);
-    S.round === 1 ? S.checks.sort((a, b) => a.z - b.z) : 0;
+    if (S.round === 1) buildCourse(cfg.map); else buildSpin(S.r2);
+    if (S.round === 1) S.checks.sort((a, b) => a.z - b.z);
     placeAll(S.part);
-    const m = S.me; m.active = S.part.includes(m.id); m.finished = false; m.st = 'run'; m.ground = false; m.ghost = 0; m.maxZ = 0; m.jbuf = 0;
-    S.yaw = n === 2 ? Math.atan2(-m.x, -m.z) : 0; S.pitch = 0.32; S.camP = new THREE.Vector3(m.x - Math.sin(S.yaw) * 8, m.y + 4, m.z - Math.cos(S.yaw) * 8);
-    S.trackPts = n === 1 ? S.secAt.map(s => ({ z: s.z, y: s.y })).concat([{ z: S.finishZ, y: S.finishY }]) : null;
-    S.introT = n === 1 ? 6.5 : 4.5; S.introDone = false;
+    for (const p of S.players.values()) {
+      p.active = S.part.includes(p.id); p.finished = false; p.st = simHere(p) ? 'run' : 0; p.ground = false; p.ghost = 0; p.maxZ = 0; p.jbuf = 0; p.check = 0;
+      p.grabbed = p.holding = null; p.ai = null; p.wallExit = 0; p.vis = p.active;
+    }
+    const m = S.me;
+    S.yaw = S.round === 2 ? Math.atan2(-m.x, -m.z) : 0; S.pitch = 0.32; S.camP = new THREE.Vector3(m.x - Math.sin(S.yaw) * 8, m.y + 4, m.z - Math.cos(S.yaw) * 8); S.camD = 7.6;
+    S.trackPts = S.round === 1 ? S.secAt.map(s => ({ z: s.z, y: s.y })).concat([{ z: S.finishZ, y: S.finishY }]) : null;
+    S.introT = S.round === 1 ? 5 : 3.4; S.introDone = false;
     S.rt = 0; S.goAt = S.introT + 3.2; S.ctl = false; S.endAt = null; S.cd = 0;
-    const def = ROUND[n - 1];
-    DOM.title.textContent = 'MANCHE ' + n + ' · ' + def.name; DOM.sub.textContent = def.sub;
-    DOM.iTag.textContent = 'MANCHE ' + n + (S.solo ? '' : ' / 2') + (n === 1 && S.map ? ' · ' + def.name : ''); DOM.iName.textContent = n === 1 && S.map ? S.map.name : def.name; DOM.iSub.textContent = n === 1 && S.map ? S.map.desc + ' — ' + def.sub : def.sub;
-    if (n === 1 && S.map) DOM.title.textContent = S.map.name;
-    DOM.iSkip.textContent = S.solo ? 'Espace : passer la présentation' : (n === 1 ? 'Les ' + Math.max(1, S.part.length <= 2 ? S.part.length : Math.ceil(S.part.length * 0.6)) + ' premiers arrivés sont qualifiés' : 'Le dernier debout gagne');
+    const tot = S.rn - 1 + planLen(S.part.length, cfg.type), nm = S.round === 1 && S.map ? S.map.name : S.def.name;
+    DOM.title.textContent = 'MANCHE ' + S.rn + ' / ' + tot + ' · ' + nm; DOM.sub.textContent = S.def.sub;
+    DOM.iTag.textContent = (S.final ? 'FINALE' : 'MANCHE ' + S.rn + ' / ' + tot) + ' · ' + (S.round === 1 ? 'COURSE' : 'SURVIE');
+    DOM.iName.textContent = nm; DOM.iSub.textContent = S.round === 1 && S.map ? S.map.desc + ' — ' + S.def.sub : S.def.sub;
+    const goal = S.round === 1 ? 'Les ' + S.target + ' premiers arrivés sont qualifiés (sur ' + S.part.length + ')' : S.final ? 'Le dernier debout gagne la couronne 👑' : 'Qualifiés dès qu\'il ne reste que ' + S.target + ' joueurs debout (sur ' + S.part.length + ')';
+    DOM.iSkip.textContent = goal + (S.solo ? ' · Espace : passer' : '');
     DOM.intro.classList.remove('on'); void DOM.intro.offsetWidth; DOM.intro.classList.add('on'); DOM.big.classList.remove('on'); DOM.root.classList.add('intro');
     if (!m.active) setTimeout(() => S && big('SPECTATEUR', 'Clique pour changer de joueur', 1800), (S.introT + 0.6) * 1000);
-    try { Au.track('music', '', 0); } catch (e) {} musicStart(S.seed + n * 101, n === 1 ? 130 : 142);
-    if (S.solo === false && n === 1) BR.Net.relay({ k: 'hi', c: P.progress().crowns });
+    try { Au.track('music', '', 0); } catch (e) {} musicStart(S.seed + S.rn * 101, S.round === 1 ? 130 : S.final ? 150 : 142);
+    if (S.solo === false && S.rn === 1) BR.Net.relay({ k: 'hi', c: P.progress().crowns });
     paintList();
   }
-  function finishMe() {
-    const m = S.me; m.finished = true; const t = S.rt - S.goAt;
-    snd('cheer'); S.excite = 1.2; sfx('buy'); emit(m.x, m.y + 1, m.z, 160, { cols: CONF, spd: 7, up: 9, life: 2.2, grav: 7, spread: 3 });
-    try { m.av.act('Cheer', { speed: 1 }); } catch (e) {}
-    const rec = recordMap(t); S.newBest = rec.best; S.mapT = t;
-    if (S.solo) { S.soloT = t; big('ARRIVÉ !', fmt(t) + (S.newBest ? ' · NOUVEAU RECORD' : ''), 2600); S.endAt = S.rt + 3; }
-    else { BR.Net.relay({ k: 'fin', t }); onFin(S.selfId, t); big('QUALIFIÉ !', fmt(t) + (S.newBest ? ' · RECORD' : ''), 2400); }
-    try { BR.Account.save(); } catch (e) {}
+  function finishP(m) {
+    if (m.finished || S.round !== 1) return; m.finished = true; const t = S.rt - S.goAt;
+    if (m === S.me) {
+      snd('cheer'); S.excite = 1.2; sfx('buy'); emit(m.x, m.y + 1, m.z, 160, { cols: CONF, spd: 7, up: 9, life: 2.2, grav: 7, spread: 3 });
+      try { m.av.act('Cheer', { speed: 1 }); } catch (e) {}
+      const rec = recordMap(t); S.newBest = rec.best; S.mapT = t;
+      const k = S.fin.length + 1; big('QUALIFIÉ !', k + (k === 1 ? 'er' : 'e') + ' · ' + fmt(t) + (S.newBest ? ' · RECORD' : ''), 2400);
+      try { BR.Account.save(); } catch (e) {}
+    }
+    if (!S.solo) BR.Net.relay(m === S.me ? { k: 'fin', t } : { k: 'fin', t, id: m.id });
+    onFin(m.id, t);
   }
-  function onFin(id, t) { if (S.round !== 1 || S.fin.some(f => f.id === id)) return; S.fin.push({ id, t }); const p = S.players.get(id); if (p && id !== S.selfId) { feed(p.name + ' est qualifié(e) !'); snd('cheer'); try { p.av.act('Cheer'); } catch (e) {} emit(p.x, p.y + 1, p.z, 60, { cols: CONF, spd: 6, up: 8, life: 1.6, grav: 7, spread: 2 }); } paintList(); }
-  function eliminateMe() {
-    const m = S.me; if (!m.active) return;
-    m.active = false; m.vx = m.vy = m.vz = 0; S.shake = 0.5; snd('aww');
-    if (S.solo) { S.soloSurv = S.rt - S.goAt; big('TOMBÉ !', 'Tu as tenu ' + fmt(S.soloSurv), 2400); S.endAt = S.rt + 2.6; }
-    else { BR.Net.relay({ k: 'out' }); onOut(S.selfId); big('ÉLIMINÉ', 'Regarde la fin de la manche', 2000); }
+  function onFin(id, t) {
+    if (S.round !== 1 || S.fin.some(f => f.id === id)) return; S.fin.push({ id, t }); const p = S.players.get(id);
+    if (p) { p.finished = true; if (id !== S.selfId) { feed(p.name + ' est qualifié(e) !'); try { p.av.act('Cheer'); } catch (e) {} emit(p.x, p.y + 1, p.z, 50, { cols: CONF, spd: 6, up: 8, life: 1.6, grav: 7, spread: 2 }); if (Math.hypot(p.x - S.me.x, p.z - S.me.z) < 40) snd('cheer'); } }
+    paintList();
   }
-  function onOut(id) { if (S.out.has(id)) return; S.out.add(id); S.outOrder.push(id); const p = S.players.get(id); if (p && id !== S.selfId) feed(p.name + ' est tombé(e) !'); paintList(); }
+  function eliminateP(m) {
+    if (!m.active) return;
+    m.active = false; m.vx = m.vy = m.vz = 0;
+    if (m === S.me) { S.shake = 0.5; snd('aww'); big('ÉLIMINÉ', S.solo ? '' : 'Regarde la fin de la partie', 2000); }
+    if (!S.solo) BR.Net.relay(m === S.me ? { k: 'out' } : { k: 'out', id: m.id });
+    onOut(m.id);
+  }
+  function onOut(id) { if (S.out.has(id)) return; S.out.add(id); S.outOrder.push(id); const p = S.players.get(id); if (p) { p.active = false; if (id !== S.selfId) feed(p.name + ' est tombé(e) !'); } paintList(); }
   function paintPos() {
     let t = '';
     if (S.ctl && !S.results) {
       const m = S.me;
       if (S.round === 1) {
-        if (S.solo) { const b = PB()['bz' + S.mapIdx]; t = m.finished ? '' : b ? 'Record : ' + fmt(b / 10) : ''; }
-        else if (m.finished) { const k = S.fin.findIndex(f => f.id === S.selfId) + 1; t = 'Qualifié · ' + k + (k === 1 ? 'er' : 'e'); }
-        else if (m.active) { let k = 1 + S.fin.length; for (const p of S.players.values()) if (p !== m && S.part.includes(p.id) && !S.fin.some(f => f.id === p.id) && p.z > m.z) k++; t = k + (k === 1 ? 'er' : 'e') + ' / ' + S.part.length; }
-      } else { const a = S.part.filter(id => S.players.has(id) && !S.out.has(id)).length; t = S.solo ? '' : 'Encore debout : ' + a; }
+        if (m.finished) { const k = S.fin.findIndex(f => f.id === S.selfId) + 1; t = 'Qualifié · ' + k + (k === 1 ? 'er' : 'e'); }
+        else if (m.active) { let k = 1 + S.fin.length; for (const p of S.players.values()) if (p !== m && S.part.includes(p.id) && !p.finished && p.z > m.z) k++; t = k + (k === 1 ? 'er' : 'e') + ' / ' + S.part.length + ' · ' + S.fin.length + ' / ' + S.target + ' qualifiés'; }
+        else t = S.fin.length + ' / ' + S.target + ' qualifiés';
+      } else { const a = S.part.filter(id => S.players.has(id) && !S.out.has(id)).length; t = 'Debout : ' + a + (S.final ? '' : ' · qualifiés à ' + S.target); }
     }
     if (t !== S.posTxt) { S.posTxt = t; DOM.pos.textContent = t; }
     const gc = S.me.grabCd || 0, gt = !S.ctl || !S.me.active ? '' : gc > 0 ? '✋ ' + gc.toFixed(1) + ' s' : '✋ Attraper : clic gauche';
     if (gt !== S.grabTxt) { S.grabTxt = gt; DOM.grab.textContent = gt; DOM.grab.classList.toggle('ok', gc <= 0); DOM.grab.style.display = gt ? '' : 'none'; }
   }
   let feedT = null;
-  function feed(t) { DOM.sub.textContent = t; clearTimeout(feedT); feedT = setTimeout(() => { if (S) DOM.sub.textContent = ROUND[S.round - 1].sub; }, 2200); }
+  function feed(t) { DOM.sub.textContent = t; clearTimeout(feedT); feedT = setTimeout(() => { if (S && S.def) DOM.sub.textContent = S.def.sub; }, 2200); }
   const fmt = t => { t = Math.max(0, t); const mn = Math.floor(t / 60), s = t - mn * 60; return mn + ':' + (s < 10 ? '0' : '') + s.toFixed(1); };
   function paintList() {
-    if (S.solo) { DOM.list.innerHTML = ''; return; }
-    DOM.list.innerHTML = [...S.players.values()].map(p => {
-      const inR = S.part.includes(p.id), q = S.round === 1 && S.fin.some(f => f.id === p.id), x = !inR || S.out.has(p.id);
-      return `<div class="${q ? 'q' : x ? 'x' : ''} ${p === S.me ? 'me' : ''}"><span>${BR.esc(p.name)}</span><span>${q ? '✔' : x ? '✖' : S.round === 2 ? 'debout' : ''}</span></div>`;
+    DOM.list.innerHTML = [...S.players.values()].filter(p => S.part.includes(p.id) || p === S.me).map(p => {
+      const inR = S.part.includes(p.id), q = S.round === 1 && p.finished, x = !inR || S.out.has(p.id);
+      return `<div class="${q ? 'q' : x ? 'x' : ''} ${p === S.me ? 'me' : ''}"><span>${p.bot ? '🤖 ' : ''}${BR.esc(p.name)}</span><span>${q ? '✔' : x ? '✖' : ''}</span></div>`;
     }).join('');
   }
-  // l'hôte décide de la suite
-  function hostTick() {
-    if (S.solo || S.decided || !BR.Net.isHost()) return;
-    const el = S.rt - S.goAt, n = S.part.length;
-    if (S.round === 1) {
-      const Q = n <= 2 ? n : Math.ceil(n * 0.6);
-      const present = S.part.filter(id => S.players.has(id)).length;
-      if (S.fin.length >= Math.min(Q, present) || el > ROUND[0].time) {
-        S.decided = true; const q = S.fin.map(f => f.id);
-        setTimeout(() => { if (!S) return; const msg = { k: 'rd', r: 2, q, kind: P.pickR2() }; BR.Net.relay(msg); onRelay({ f: S.selfId, d: msg }); }, 2500);
-      }
-    } else {
-      const alive = S.part.filter(id => S.players.has(id) && !S.out.has(id));
-      if ((n > 1 && alive.length <= 1) || (n <= 1 && alive.length === 0) || el > ROUND[1].time) {
-        S.decided = true;
-        setTimeout(() => { if (!S) return; const msg = { k: 'res', rank: ranking(), win: alive }; BR.Net.relay(msg); onRelay({ f: S.selfId, d: msg }); }, 1800);
-      }
+  /* ---------- fin de manche et manche suivante (décidées en solo, ou par l'hôte) ---------- */
+  function roundOver() {
+    const el = S.rt - S.goAt, part = S.part.filter(id => S.players.has(id));
+    if (S.round === 1) { if (S.fin.length >= Math.min(S.target, part.length) || el > S.def.time) return S.fin.map(f => f.id).filter(id => S.players.has(id)); return null; }
+    const alive = part.filter(id => !S.out.has(id));
+    if (alive.length <= S.target || el > S.def.time) return alive;
+    return null;
+  }
+  function decideTick() {
+    if (S.decided || S.results || !S.ctl) return;
+    if (!S.solo && !BR.Net.isHost()) return;
+    let q = roundOver();
+    // en solo, si je suis éliminé de la survie, inutile d'attendre
+    if (!q && S.solo && S.round === 2 && !S.me.active) q = S.part.filter(id => !S.out.has(id));
+    if (!q) return;
+    S.decided = true; S.ctl = S.round === 2 ? S.ctl : S.ctl;
+    big(S.round === 1 ? 'FIN DE LA COURSE' : 'FIN DE LA MANCHE', q.includes(S.selfId) ? 'Tu es qualifié(e) !' : '', 2200);
+    setTimeout(() => { if (S) nextRound(q); }, 2600);
+  }
+  function pickMap() { const used = S.usedMaps; let last = -1; try { last = BR.store.get('br_party_map', -1); } catch (e) {} const pool = MAPS.map((m, i) => i).filter(i => !used.includes(i) && i !== last); const arr = pool.length ? pool : MAPS.map((m, i) => i).filter(i => !used.includes(i)); return arr[Math.floor(Math.random() * arr.length)] || 0; }
+  function pickR2b() { const ks = Object.keys(R2).filter(k => !S.usedR2.includes(k)); const arr = ks.length ? ks : Object.keys(R2); let last = ''; try { last = BR.store.get('br_party_r2', ''); } catch (e) {} const a2 = arr.filter(k => k !== last); const f = a2.length ? a2 : arr; return f[Math.floor(Math.random() * f.length)]; }
+  function nextRound(q) {
+    const n = q.length; let msg;
+    if (S.final || n <= 1) msg = { k: 'res', win: q.slice() };
+    else if (S.solo && !q.includes(S.selfId)) msg = { k: 'res', win: [], q };
+    else {
+      const final = n <= 2, type = final ? 'surv' : S.round === 1 ? 'surv' : 'race';
+      msg = { k: 'rd', rn: S.rn + 1, type, q, final, seed: (Math.random() * 2 ** 31) >>> 0 };
+      if (type === 'race') { msg.map = pickMap(); msg.target = Math.max(2, Math.min(n - 1, Math.round(n * 0.66))); }
+      else { msg.kind = pickR2b(); msg.target = final ? 1 : Math.max(1, Math.ceil(n / 2)); }
     }
+    if (!S.solo) BR.Net.relay(msg);
+    onRelay({ f: S.selfId, d: msg });
   }
-  function ranking() {
-    const ids = [...S.players.keys()];
-    const alive = S.part.filter(id => S.players.has(id) && !S.out.has(id));
-    const outs = S.outOrder.filter(id => S.players.has(id) && S.part.includes(id)).reverse();
-    const rest = ids.filter(id => !alive.includes(id) && !outs.includes(id)).sort((a, b) => (S.players.get(b).maxZ || 0) - (S.players.get(a).maxZ || 0));
-    return alive.concat(outs, rest);
+  // éliminés de la manche qui se termine, du moins bon au meilleur
+  function elimFrom(q) {
+    const gone = S.part.filter(id => !q.includes(id));
+    let order;
+    if (S.round === 1) order = gone.sort((a, b) => ((S.players.get(a) || {}).maxZ || 0) - ((S.players.get(b) || {}).maxZ || 0));
+    else { const o = S.outOrder.filter(id => gone.includes(id)); order = gone.filter(id => !o.includes(id)).concat(o); }
+    for (const id of order) if (!S.elim.includes(id)) { S.elim.push(id); S.elimRn[id] = S.rn; }
   }
+  function finalRank(win) { const ids = [...S.players.keys()], rk = win.slice(); for (const id of S.elim.slice().reverse()) if (!rk.includes(id)) rk.push(id); for (const id of ids) if (!rk.includes(id)) rk.push(id); return rk; }
 
   /* ===================== réseau ===================== */
   function onRelay(m) {
-    if (!S) return; const d = m.d || {}, p = S.players.get(m.f); if (!p) return;
+    if (!S) return; const d = m.d || {}, from = S.players.get(m.f); if (!from) return;
+    const pid = d.id || m.f, p = S.players.get(pid);
     switch (d.k) {
-      case 'p': if (p === S.me) return; p.tx = d.x; p.ty = d.y; p.tz = d.z; p.tf = d.f; p.vx = d.v[0]; p.vy = d.v[1]; p.vz = d.v[2]; p.st = d.s; p.grabVis = !!d.g; p.maxZ = Math.max(p.maxZ || 0, d.z); if (d.r !== S.round) p.st = ST.spec; break;
-      case 'fin': onFin(m.f, d.t); break;
-      case 'out': onOut(m.f); break;
+      case 'p': if (from === S.me) return; from.tx = d.x; from.ty = d.y; from.tz = d.z; from.tf = d.f; from.vx = d.v[0]; from.vy = d.v[1]; from.vz = d.v[2]; from.st = d.s; from.grabVis = !!d.g; from.maxZ = Math.max(from.maxZ || 0, d.z); if (d.r !== S.rn) from.st = ST.spec; break;
+      case 'pb': if (BR.Net.isHost() || d.r !== S.rn) return; for (const e of d.b) { const b = S.players.get(e[0]); if (!b) continue; b.tx = e[1]; b.ty = e[2]; b.tz = e[3]; b.tf = e[4]; b.vx = e[5]; b.vy = e[6]; b.vz = e[7]; b.st = e[8]; b.grabVis = !!e[9]; b.maxZ = Math.max(b.maxZ || 0, e[3]); } break;
+      case 'fin': onFin(pid, d.t); break;
+      case 'out': onOut(pid); break;
       case 'tl': crumble(d.i); break;
-      case 'tk': if (d.r === S.round && !BR.Net.isHost()) { const tgt = d.t + (BR.Net.rtt || 80) / 2000, df = tgt - S.rt; if (Math.abs(df) > 0.04) S.rt += Math.abs(df) > 0.6 ? df : df * 0.5; } break;
-      case 'gr': if (d.to === S.selfId && S.me.active) { S.me.grabbed = { by: m.f, t: 1.3 }; shout('ON T\'ATTRAPE !', '#ff4f9e'); snd('grab'); } break;
-      case 'bp': if (d.to === S.selfId && S.me.active && (S.me.bumpCd || 0) <= 0) { S.me.bumpCd = 0.7; knock(S.me, { x: d.v[0], y: d.v[1], z: d.v[2] }); shout('BOUSCULÉ !', '#ff4f9e'); } break;
-      case 'hi': p.crowns = d.c || 0; retag(p); break;
-      case 'rd': if (d.r === 2 && S.round === 1) { if (!d.q.length) { showResults(ranking(), []); return; } S.outOrder = []; startRound(2, d.q.filter(id => S.players.has(id)), d.kind); } break;
-      case 'res': showResults(d.rank || [], d.win || []); break;
+      case 'tk': if (d.r === S.rn && !BR.Net.isHost()) { const tgt = d.t + (BR.Net.rtt || 80) / 2000, df = tgt - S.rt; if (Math.abs(df) > 0.04) S.rt += Math.abs(df) > 0.6 ? df : df * 0.5; } break;
+      case 'gr': { const tp = S.players.get(d.to); if (tp && simHere(tp)) grabPlayer(tp, d.by || m.f); } break;
+      case 'bp': { const tp = S.players.get(d.to); if (tp && simHere(tp)) hitPlayer(tp, { x: d.v[0], y: d.v[1], z: d.v[2] }); } break;
+      case 'hi': from.crowns = d.c || 0; retag(from); break;
+      case 'rd': if (d.rn === S.rn + 1) { elimFrom(d.q); if (!d.q.includes(S.selfId) && S.me.active !== false) big('ÉLIMINÉ', 'Tu regardes la suite', 2200); startRound(d); } break;
+      case 'res': elimFrom(d.q || d.win); showResults(finalRank(d.q ? d.q.concat() : d.win), d.win || []); break;
       case 'quit': onLeft({ id: m.f }); break;
     }
   }
@@ -1262,31 +1431,29 @@
   function sendState(dt) {
     if (S.solo) return; S.sendT -= dt; if (S.sendT > 0) return; S.sendT = 1 / 20;
     const m = S.me, r2 = v => Math.round(v * 100) / 100;
-    BR.Net.relay({ k: 'p', r: S.round, x: r2(m.x), y: r2(m.y), z: r2(m.z), f: r2(m.face), v: [r2(m.vx), r2(m.vy), r2(m.vz)], s: m.active ? (m.st === 'run' && !m.ground ? ST.air : m.st === 'wall' && m.wallSide < 0 ? 6 : ST[m.st]) : ST.spec, g: m.grabT > 0 || m.holding ? 1 : 0 });
-    if (BR.Net.isHost()) { S.tkT = (S.tkT || 0) - 1 / 20; if (S.tkT <= 0) { S.tkT = 1; BR.Net.relay({ k: 'tk', r: S.round, t: Math.round(S.rt * 1000) / 1000 }); } }
+    BR.Net.relay({ k: 'p', r: S.rn, x: r2(m.x), y: r2(m.y), z: r2(m.z), f: r2(m.face), v: [r2(m.vx), r2(m.vy), r2(m.vz)], s: m.active ? stOf(m) : ST.spec, g: m.grabT > 0 || m.holding ? 1 : 0 });
+    if (BR.Net.isHost()) {
+      S.tkT = (S.tkT || 0) - 1 / 20; if (S.tkT <= 0) { S.tkT = 1; BR.Net.relay({ k: 'tk', r: S.rn, t: Math.round(S.rt * 1000) / 1000 }); }
+      S.pbT = (S.pbT || 0) - 1 / 20;
+      if (S.pbT <= 0) { S.pbT = 1 / 12; const b = []; for (const p of S.players.values()) if (p.bot) b.push([p.id, r2(p.x), r2(p.y), r2(p.z), r2(p.face), r2(p.vx), r2(p.vy), r2(p.vz), p.active ? stOf(p) : ST.spec, p.grabT > 0 || p.holding ? 1 : 0]); if (b.length) BR.Net.relay({ k: 'pb', r: S.rn, b }); }
+    }
   }
 
   /* ===================== résultats ===================== */
   function showResults(rank, win) {
     if (S.results) return; S.results = true; S.ctl = false; unlock();
-    const me = S.selfId, pos = rank.indexOf(me), names = id => (S.players.get(id) || {}).name || '?';
-    let pts, xp, title, sub;
-    if (S.solo) {
-      const fin = S.soloT != null, surv = S.soloSurv != null ? S.soloSurv : ROUND[1].time;
-      pts = 10 + (fin ? 15 : 0) + Math.floor(surv / 4); title = fin ? 'BIEN JOUÉ !' : 'ENTRAÎNEMENT TERMINÉ';
-      sub = (fin ? 'Parcours : ' + fmt(S.soloT) + (S.newBest ? ' (record !)' : '') : 'Parcours non terminé') + ' · ' + (R2[S.r2] || R2.toupie).name.toLowerCase() + ' : ' + fmt(surv);
-    } else {
-      const won = win.includes(me), qual = S.round === 2 && S.part.includes(me);
-      pts = won ? 60 : qual ? 25 : 10; title = won ? 'VICTOIRE !' : pos === 1 ? '2e PLACE !' : 'PERDU…'; sub = win.length ? 'Gagnant : ' + win.map(names).join(', ') : 'Personne n\'est resté debout';
-    }
-    xp = pts * 3;
+    const me = S.selfId, pos = rank.indexOf(me) + 1, names = id => { const p = S.players.get(id); return p ? (p.bot ? '🤖 ' : '') + p.name : '?'; }, tot = rank.length;
+    const won = win.includes(me), lastRn = S.elimRn[me] || S.rn;
+    const pts = won ? 70 : pos <= 3 ? 40 : 12 + lastRn * 6, xp = pts * 3;
+    const title = won ? 'VICTOIRE !' : pos === 2 ? '2e PLACE !' : pos === 3 ? '3e PLACE !' : 'ÉLIMINÉ';
+    const sub = won ? 'Tu as gagné les ' + S.rn + ' manches ! 👑' : 'Classement : ' + pos + (pos === 1 ? 'er' : 'e') + ' sur ' + tot + ' · éliminé(e) à la manche ' + lastRn + (win.length ? ' · gagnant : ' + win.map(names).join(', ') : '');
     const pb = PB(), c0 = pb.bz_c || 0; pb.bz_g = (pb.bz_g || 0) + 1; let crownTxt = '';
-    if (!S.solo && S.part.includes(me) && S.round === 2) pb.bz_q = (pb.bz_q || 0) + 1;
-    if (!S.solo && win.includes(me) && rank.length > 1) { pb.bz_c = c0 + 1; crownTxt = '<div class="pt-gain" style="color:#e0a800;font-size:22px">+1 couronne 👑 (' + pb.bz_c + ')' + (P.title(pb.bz_c) !== P.title(c0) ? ' · nouveau titre : ' + P.title(pb.bz_c) : '') + '</div>'; }
+    if (S.final && (won || S.part.includes(me))) pb.bz_q = (pb.bz_q || 0) + 1;
+    if (won && tot > 1) { pb.bz_c = c0 + 1; crownTxt = '<div class="pt-gain" style="color:#e0a800;font-size:22px">+1 couronne 👑 (' + pb.bz_c + ')' + (P.title(pb.bz_c) !== P.title(c0) ? ' · nouveau titre : ' + P.title(pb.bz_c) : '') + '</div>'; }
     let lv = null; try { lv = BR.Account.applyResult({ points: pts, xp, multi: !S.solo, time: S.rt }); } catch (e) {}
-    fx('land', { g: 1, rate: 1.2 }); sfx(title.startsWith('VICT') || title.startsWith('BIEN') ? 'buy' : 'back');
-    const rows = S.solo ? '' : `<table>${rank.map((id, i) => `<tr class="${id === me ? 'me' : ''}"><td>${i + 1}</td><td>${BR.esc(names(id))}</td><td>${win.includes(id) ? '👑 Vainqueur' : S.part.includes(id) ? 'Finaliste' : 'Manche 1'}</td></tr>`).join('')}</table>`;
-    DOM.card.innerHTML = `<h2>${title}</h2><p>${BR.esc(sub)}</p>${S.map ? '<p style="margin-top:-8px;color:#7a6cff">' + BR.esc(S.map.name) + (S.mapT ? ' · ton temps : ' + fmt(S.mapT) + (S.newBest ? ' (record !)' : '') : '') + '</p>' : ''}${rows}${crownTxt}<div class="pt-gain">+${pts} points · +${xp} XP${lv && lv.levelUp ? ' · NIVEAU ' + lv.after.level + ' !' : ''}</div>
+    snd(won ? 'cheer' : 'aww'); sfx(won ? 'buy' : 'back'); if (won) { S.excite = 1.5; emit(S.me.x, S.me.y + 1, S.me.z, 200, { cols: CONF, spd: 8, up: 10, life: 2.4, grav: 7, spread: 4 }); }
+    const rows = `<table>${rank.slice(0, 8).map((id, i) => `<tr class="${id === me ? 'me' : ''}"><td>${i + 1}</td><td>${BR.esc(names(id))}</td><td>${win.includes(id) ? '👑 Vainqueur' : S.elimRn[id] ? 'Manche ' + S.elimRn[id] : 'Finaliste'}</td></tr>`).join('')}</table>`;
+    DOM.card.innerHTML = `<h2>${title}</h2><p>${BR.esc(sub)}</p>${S.mapT ? '<p style="margin-top:-8px;color:#7a6cff">Meilleur temps de course : ' + fmt(S.mapT) + (S.newBest ? ' (record !)' : '') + '</p>' : ''}${rows}${crownTxt}<div class="pt-gain">+${pts} points · +${xp} XP${lv && lv.levelUp ? ' · NIVEAU ' + lv.after.level + ' !' : ''}</div>
       <div class="pt-b">${S.solo ? '<button data-a="replay">Rejouer</button><button class="alt" data-a="menu">Menu</button>' : '<button data-a="lobby">Retour au salon</button>'}</div>`;
     DOM.panel.classList.add('on');
     DOM.card.querySelectorAll('button').forEach(b => b.addEventListener('click', () => { sfx('click'); const a = b.dataset.a, cb = S.o.onEnd; P.stop(); if (cb) cb(a); }));
@@ -1301,36 +1468,50 @@
     step(dt);
     R.render(S.scene, S.cam);
   }
+  function pollPad(dt) {
+    const gps = navigator.getGamepads ? navigator.getGamepads() : []; let g = null; for (const x of gps) if (x && x.connected) { g = x; break; }
+    if (!g) { S.gp = null; return; }
+    const dz = v => Math.abs(v || 0) < 0.18 ? 0 : v, b = i => !!(g.buttons[i] && g.buttons[i].pressed), prev = S.gpPrev || [], edge = i => b(i) && !prev[i];
+    S.gp = { lx: dz(g.axes[0]), ly: dz(g.axes[1]), rx: dz(g.axes[2]), ry: dz(g.axes[3]) };
+    if (edge(0)) { S.me.jbuf = 0.13; if (S.solo && S.rt < S.introT - 0.3) { S.introT = S.rt; S.goAt = S.rt + 3.2; } }
+    if (edge(1) || edge(2)) S.diveReq = true;
+    if (edge(5) || edge(7) || edge(3)) S.grabReq = true;
+    if (edge(9) && !S.results) pauseMenu();
+    S.gpPrev = g.buttons.map(x => x.pressed);
+    if (S.gp.rx || S.gp.ry) { S.yaw -= S.gp.rx * 2.6 * dt; S.pitch = clamp(S.pitch + S.gp.ry * 1.8 * dt, -0.25, 1.15); S.lastLook = S.rt; }
+  }
   function step(dt) {
     S.rt += dt;
+    pollPad(dt);
     updateWorld(S.round === 2 ? Math.max(0, S.rt - S.goAt) : S.rt, dt);
     // compte à rebours
-    if (!S.ctl && !S.results && S.rt < S.goAt + 0.1) {
+    if (!S.ctl && !S.results && !S.decided && S.rt < S.goAt + 0.1) {
       const left = Math.ceil(S.goAt - S.rt);
       if (S.rt > S.introT && left !== S.cd && left > 0 && left <= 3) { S.cd = left; big(String(left), '', 700); snd('tick'); }
       if (S.rt >= S.goAt) { S.ctl = true; S.cd = 0; big('GO !', '', 800); snd('go'); MUS.lvl = 1; S.excite = 0.9; }
     }
-    if (S.round === 2 && S.r2 === 'ile' && S.low && S.low.off && S.rt - S.goAt > 35) { S.low.off = false; S.low.g.visible = true; feed('La barre arrive : saute-la !'); shout('ATTENTION !', '#ff4f9e'); }
-    if (S.round === 2 && S.high && S.high.off && S.rt - S.goAt > 25) { S.high.off = false; S.high.g.visible = true; feed('Attention : la barre HAUTE arrive — ne saute pas dessus !'); }
-    // physique (2 sous-pas pour la précision)
-    S.fdt = dt; const n = dt > 1 / 70 ? 2 : 1; for (let i = 0; i < n; i++) stepMe(dt / n);
+    if (S.round === 2 && S.r2 === 'ile' && S.low && S.low.off && S.rt - S.goAt > 25) { S.low.off = false; S.low.g.visible = true; feed('La barre arrive : saute-la !'); shout('ATTENTION !', '#ff4f9e'); }
+    if (S.round === 2 && S.high && S.high.off && S.rt - S.goAt > 18) { S.high.off = false; S.high.g.visible = true; feed('Attention : la barre HAUTE arrive — ne saute pas dessus !'); }
+    // physique (2 sous-pas pour la précision) : moi, puis les bots simulés ici
+    S.fdt = dt; const n = dt > 1 / 70 ? 2 : 1;
+    const bots = [...S.players.values()].filter(p => p.bot && simHere(p) && p.active), binp = bots.map(b => botThink(b, dt));
+    for (let i = 0; i < n; i++) {
+      stepPlayer(S.me, dt / n, myInput());
+      bots.forEach((b, j) => { stepPlayer(b, dt / n, binp[j]); if (i === 0) { binp[j].jump = binp[j].dive = binp[j].grab = false; } });
+    }
     updateAvatars(dt);
     updateFx(dt); S.excite = Math.max(0, (S.excite || 0) - dt * 0.4);
     if (S.rt < S.introT) introCam(S.rt / S.introT);
     else {
-      if (!S.introDone) { S.introDone = true; DOM.intro.classList.remove('on'); DOM.root.classList.remove('intro'); flash(); const m = S.me, tg = m; S.camP.set(tg.x - Math.sin(S.yaw) * 7.6, tg.y + 1.6 + Math.sin(S.pitch) * 7.6, tg.z - Math.cos(S.yaw) * 7.6); S.cam.fov = 68; }
+      if (!S.introDone) { S.introDone = true; DOM.intro.classList.remove('on'); DOM.root.classList.remove('intro'); flash(); const tg = S.me; S.camP.set(tg.x - Math.sin(S.yaw) * 7.6, tg.y + 1.6 + Math.sin(S.pitch) * 7.6, tg.z - Math.cos(S.yaw) * 7.6); S.cam.fov = 68; }
       updateCam(dt);
     }
     paintPos();
     sendState(dt);
-    hostTick();
+    decideTick();
     // chrono
-    const el = S.rt - S.goAt, lim = ROUND[S.round - 1].time;
+    const el = S.rt - S.goAt, lim = S.def.time;
     DOM.time.textContent = S.ctl ? (S.round === 1 ? fmt(Math.max(0, el)) : fmt(Math.max(0, lim - el))) : '';
-    if (S.solo && !S.results) {
-      if (S.endAt != null && S.rt > S.endAt) { S.endAt = null; if (S.round === 1) startRound(2, [S.selfId], P.pickR2()); else showResults([S.selfId], []); }
-      else if (S.endAt == null && S.ctl && el > lim) { if (S.round === 1) { big('TEMPS ÉCOULÉ', '', 1600); S.endAt = S.rt + 1.8; } else { S.soloSurv = lim; showResults([S.selfId], [S.selfId]); } }
-    }
     DOM.click.classList.toggle('on', !S.locked && !S.results && !S.paused);
   }
 
@@ -1354,7 +1535,7 @@
     if (e.button !== 0) return;
     if (!S.me.active) S.specI = (S.specI || 0) + 1; else S.grabReq = true;
   }
-  function onMouse(e) { if (!S || !S.locked) return; const k = 0.0024 * ((BR.settings.sens || 1)); S.yaw -= e.movementX * k; S.pitch = clamp(S.pitch + e.movementY * k, -0.25, 1.15); }
+  function onMouse(e) { if (!S || !S.locked) return; S.lastLook = S.rt; const k = 0.0024 * ((BR.settings.sens || 1)); S.yaw -= e.movementX * k; S.pitch = clamp(S.pitch + e.movementY * k, -0.25, 1.15); }
   function onKey(e) {
     if (!S) return;
     if (e.target && /input|textarea/i.test(e.target.tagName)) return;
@@ -1384,6 +1565,7 @@
     o.roster.forEach(r => S.players.set(r.id, { id: r.id, name: r.name, look: r.look || BR.Avatar.defaultLook(), x: 0, y: 0, z: 0, tx: 0, ty: 0, tz: 0, vx: 0, vy: 0, vz: 0, face: 0, tf: 0, st: 0,
       ground: false, active: true, jbuf: 0, coyote: 0, ghost: 0, diveUsed: false, stT: 0 }));
     S.me = S.players.get(S.selfId);
+    makeBots(S.seed); S.usedMaps = []; S.usedR2 = []; S.elim = []; S.elimRn = {};
     S.cam = new THREE.PerspectiveCamera(68, window.innerWidth / window.innerHeight, 0.1, 900);
     makeAvatars();
     if (!S.solo) {
@@ -1393,7 +1575,7 @@
     }
     DOM.panel.classList.remove('on'); DOM.root.classList.add('on'); DOM.big.classList.remove('on');
     bindInput(true); resize();
-    startRound(1, [...S.players.keys()]);
+    { const n = S.players.size; startRound({ rn: 1, type: 'race', map: ((S.seed % MAPS.length) + MAPS.length) % MAPS.length, seed: S.seed, q: [...S.players.keys()], target: Math.max(2, Math.min(n - 1, Math.round(n * 0.66))), final: false }); }
     P.active = true;
     try { BR.MenuBG && BR.MenuBG.stop(); } catch (e) {}
     S.raf = requestAnimationFrame(frame);
@@ -1418,5 +1600,6 @@
   P._step = dt => S && step(dt);
   P._ground = (x, z, y) => S && groundAt(x, z, y);
   P._render = () => { if (S && R) R.render(S.scene, S.cam); };
+  P._round = cfg => S && startRound(cfg);
   P._freeze = on => { if (!S) return; if (on) cancelAnimationFrame(S.raf); else S.raf = requestAnimationFrame(frame); };
 })();

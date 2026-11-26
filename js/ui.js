@@ -1056,8 +1056,9 @@
 
   /* ================= jeu 4 : BOUSCULADE ================= */
   function partyRules() {
-    return `<ul class="d-rules"><li><b>Manche 1 · La Course</b> : une des 11 cartes, jamais la même deux fois de suite — Toboggans géants, Fête foraine (grande roue, canons, flipper), Tempête (ventilateurs géants), Banquise (glace), Usine folle (tapis roulants, murs troués qui avancent), Parc à ressorts (geysers), Vagues, Défi des murs, Grand huit, Château gonflable, Grand mix. Les premiers arrivés sont qualifiés (60 %).</li>
-      <li><b>Manche 2 · la finale (tirée au sort)</b> : <b>La Toupie</b> (dalles qui s'effritent + barre rouge à sauter, barre jaune à NE PAS sauter), <b>Les Trois Étages</b> (les dalles tombent, il reste deux étages dessous) ou <b>L'Île qui rétrécit</b> (le bord s'effondre). Le dernier debout gagne une couronne 👑.</li>
+    return `<ul class="d-rules"><li><b>Une partie = 4 manches</b> à 8 joueurs (les places libres sont prises par des bots) : <b>course</b> → <b>survie</b> → <b>course</b> → <b>finale</b>. À chaque manche, une partie des joueurs est éliminée.</li>
+      <li><b>Courses</b> : une des 11 cartes (Toboggans géants, Fête foraine, Tempête, Banquise, Usine folle, Parc à ressorts, Vagues, Défi des murs, Grand huit, Château gonflable, Grand mix), jamais deux fois la même. Les premiers arrivés passent.</li>
+      <li><b>Survies</b> : <b>La Toupie</b> (barre rouge à sauter, jaune à NE PAS sauter), <b>Les Trois Étages</b> (les dalles tombent, deux étages dessous) ou <b>L'Île qui rétrécit</b>. La manche s'arrête dès qu'il ne reste que la moitié des joueurs (ex. 6 → 3). En finale, le dernier debout gagne la couronne 👑.</li>
       <li><b>Cours sur les murs</b> : saute contre un mur en allant vite, tu cours dessus 0,8 s puis tu glisses ; ressaute pour rebondir. <b>Plonge</b> (Maj ou A) pour aller plus loin ou faire tomber les autres. <b>Attrape</b> (clic gauche, toutes les 3,5 s) pour ralentir et tirer quelqu'un. Tomber pendant la course = retour au dernier point de passage.</li></ul>`;
   }
   function partyRulesBox() { return el('div', { class: 'd-lrules', html: `<h4>Règles de la Bousculade</h4>${partyRules()}` }); }
@@ -1083,7 +1084,7 @@
           <div class="logo"><div class="logo-t" style="color:#ff4f9e;text-shadow:0 5px 0 #7a2a8a">BOUSCULADE</div><div class="logo-s">C O U R S , &nbsp; S A U T E , &nbsp; P L O N G E , &nbsp; B O U S C U L E .</div></div>
           <nav class="menu">
             <button class="mi d-hot" data-go="multi"><span>Multijoueur</span><small>Jusqu'à 8 potes · le dernier debout gagne</small></button>
-            <button class="mi" data-go="solo"><span>Entraînement solo</span><small>Les 2 manches, contre la montre</small></button>
+            <button class="mi" data-go="solo"><span>Entraînement solo</span><small>4 manches contre 7 bots</small></button>
             <button class="mi" data-go="rules"><span>Règles</span><small>Les manches, les obstacles, le plongeon</small></button>
             <button class="mi" data-go="char"><span>Personnage</span><small>Ce que voient les autres joueurs</small></button>
             <button class="mi back" data-go="hub"><span>${ICO('back', 16)} Changer de jeu</span></button>
