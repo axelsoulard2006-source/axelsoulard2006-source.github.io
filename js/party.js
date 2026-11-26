@@ -249,7 +249,7 @@
         g.fillStyle = 'rgba(255,255,255,.9)'; rr(g, 28, 24, 70, 14, 7); g.fill(); g.beginPath(); g.arc(112, 31, 7, 0, 7); g.fill(); }),
       side: mk(128, 128, (g, w) => { const gr = g.createLinearGradient(0, 0, 0, w); gr.addColorStop(0, '#ffffff'); gr.addColorStop(1, '#d6d1e6'); g.fillStyle = gr; g.fillRect(0, 0, w, w); g.fillStyle = 'rgba(80,60,140,.10)'; for (let i = 0; i < 4; i++) { g.beginPath(); g.arc(16 + i * 32, 64, 9, 0, 7); g.fill(); } }),
       pad: mk(128, 128, (g, w) => { g.clearRect(0, 0, w, w); g.lineJoin = 'round'; g.lineCap = 'round';
-        const chev = (col, lw) => { g.strokeStyle = col; g.lineWidth = lw; g.beginPath(); g.moveTo(22, 88); g.lineTo(64, 38); g.lineTo(106, 88); g.stroke(); };
+        const chev = (col, lw) => { g.strokeStyle = col; g.lineWidth = lw; g.beginPath(); g.moveTo(22, 38); g.lineTo(64, 88); g.lineTo(106, 38); g.stroke(); };   // (le haut de l'image est vers l'arrière une fois posée au sol)
         chev('#ff4f9e', 30); chev('#ffffff', 16); }),
       cloud: mk(256, 256, (g, w) => { g.fillStyle = '#c7dcf5'; g.fillRect(0, 0, w, w); const R = rng(7);
         for (let i = 0; i < 70; i++) { const x = R() * w, y = R() * w, r = 14 + R() * 36; for (const ox of [-w, 0, w]) for (const oy of [-w, 0, w]) { const gr = g.createRadialGradient(x + ox, y + oy, 0, x + ox, y + oy, r); gr.addColorStop(0, 'rgba(255,255,255,.95)'); gr.addColorStop(1, 'rgba(255,255,255,0)'); g.fillStyle = gr; g.fillRect(x + ox - r, y + oy - r, r * 2, r * 2); } } }),
@@ -431,7 +431,7 @@
     for (let i = 0; i < 9; i++) { const f = mesh(S.flag || (S.flag = own(new THREE.ConeGeometry(0.32, 0.7, 3))), mat(PAL[(i + n) % PAL.length]), false); f.position.set(-4.8 + i * 1.2, y + 4.1, zz); f.rotation.x = Math.PI; S.scene.add(f); }
   }
   function pad(x, y, z, w, d) {
-    const s = addBox(x, y + 0.08, z, w, 0.16, d, '#ffcf2e', { plain: true }); s.pad = true;
+    const s = addBox(x, y + 0.08, z, w, 0.16, d, '#ffcf2e', { plain: true }); s.pad = true; S.pads.push(s);
     const t = texs().pad.clone(); t.needsUpdate = true; t.repeat.set(Math.max(1, Math.round(w / 2.4)), Math.max(1, Math.round(d / 1.7)));
     const pm = new THREE.MeshBasicMaterial({ map: t, transparent: true, depthWrite: false }); S.disp.push(pm, t);
     const geo = own(new THREE.PlaneGeometry(w * 0.86, d * 0.9)); geo.rotateX(-Math.PI / 2);
@@ -841,7 +841,7 @@
       } else if (s.t === 'disc' && s.w) { const a = s.w * t; s.dry = a - s.ang; s.ang = a; s.g.rotation.y = a; }
     }
     for (const h of S.haz) h.update(t, dt);
-    if (S.scroll) for (const sc of S.scroll) sc.t.offset.y = ((sc.t.offset.y - dt * sc.k) % 1 + 1) % 1;
+    if (S.scroll) for (const sc of S.scroll) sc.t.offset.y = ((sc.t.offset.y + dt * sc.k) % 1 + 1) % 1;   // défile vers l'avant
     if (S.anim) for (const f of S.anim) f(t, dt);
     if (S.bob) for (const b of S.bob) b.g.position.y = b.y + Math.sin(S.rt * 1.3 + b.ph) * 0.5;
     if (S.cloudTex) S.cloudTex.offset.x = (S.cloudTex.offset.x + dt * 0.004) % 1;
@@ -1006,7 +1006,6 @@
       if (!wasG && m.vy < -7) { if (me) fx('land', { g: clamp(-m.vy / 25, 0.3, 1) }); emit(m.x, g.y + 0.05, m.z, Math.min(16, Math.round(-m.vy / 2)), { col: '#ffffff', spd: 4, up: 1.2, life: 0.5, grav: 3 }); }
       m.y = g.y; m.vy = 0; m.ground = true; m.gObj = g.obj; m.diveUsed = false; m.lastWJS = null;
       if (m.st === 'dive') { m.st = 'slide'; m.stT = 0.32; }
-      if (g.obj && g.obj.pad) { const k = Math.hypot(m.vx, m.vz); if (k < PAD) { m.vx *= 0.4; m.vz = Math.max(m.vz, PAD); if (!m.padFx) { if (me) snd('whoosh'); emit(m.x, m.y + 0.2, m.z, 14, { col: '#ffe14a', spd: 3, up: 2.5, life: 0.5, vz: 10 }); } } m.padFx = 0.3; }
       if (g.obj && g.obj.slide && m.vz > -2) { m.vz = Math.min(m.vz + 18 * dt, 23); }
       if (g.obj && g.obj.cannon) { const cn = g.obj.cannon; m.vx = cn[0]; m.vy = cn[1]; m.vz = cn[2]; m.ground = false; m.gObj = null; if (me) { S.shake = Math.max(S.shake, 0.4); snd('boom'); shout('BOUM !', '#ff8a3d'); } emit(m.x, m.y + 0.5, m.z, 20, { cols: ['#ffcf2e', '#ff8a3d', '#ffffff'], spd: 4, up: 3, life: 0.6 }); }
       if (g.obj && g.obj.tramp) { if (me) { snd('boing'); shout('BOING !', '#ff4f9e'); fx('jump', { g: 1, rate: 0.8 }); } m.vy = TRAMP; m.ground = false; m.gObj = null; g.obj.sq = 1; emit(m.x, m.y + 0.3, m.z, 18, { cols: ['#ff4f9e', '#ffffff'], spd: 4, up: 4, life: 0.6 }); }
@@ -1015,6 +1014,9 @@
       if (wasG) m.coyote = 0.11;
       m.ground = false; m.gObj = null;
     }
+    // bandes d'accélération : on prend le boost même en passant au-dessus en sautant
+    if (S.pads) for (const s of S.pads) { const top = s.y + s.hy; if (m.y < top - 0.6 || m.y > top + 4 || Math.abs(m.x - s.x) > s.hx + 0.35 || Math.abs(m.z - s.z) > s.hz + 0.35) continue;
+      if (m.vz < PAD - 0.5) { m.vx *= 0.4; m.vz = PAD; if (m.st === 'slide' || m.st === 'tumble') m.st = 'run'; if (!m.padFx) { if (me) { snd('whoosh'); shout('TURBO !', '#ffe14a'); } emit(m.x, m.y + 0.2, m.z, 14, { col: '#ffe14a', spd: 3, up: 2.5, life: 0.5, vz: 10 }); } } m.padFx = 0.3; }
     // dangers
     if (S.ctl) for (const h of S.haz) { const v = h.hit(m); if (!v) continue; if (v.launch) { if (m.vy < v.y - 1) { m.vy = v.y; m.vz = Math.max(m.vz, v.z); m.ground = false; m.gObj = null; if (m.st !== 'tumble') m.st = 'run'; if (me) snd('jet'); emit(m.x, m.y, m.z, 10, { col: '#c8efff', spd: 3, up: 4, life: 0.6 }); } continue; } knock(m, v); break; }
     // bousculade entre joueurs
@@ -1286,7 +1288,7 @@
     if (S.round === 2) { S.r2 = cfg.kind; S.def = Object.assign({}, R2[S.r2], { time: S.final ? 90 : 75 }); S.usedR2.push(cfg.kind); try { BR.store.set('br_party_r2', S.r2); } catch (e) {} }
     else { S.def = RACE_DEF; S.usedMaps.push(cfg.map); }
     S.high = S.low = null; S.part = cfg.q.filter(id => S.players.has(id)); S.out = new Set(); S.outOrder = []; S.fin = []; S.decided = false; S.tiles = null; S.tramps = [];
-    S.scene = new THREE.Scene(); S.solids = []; S.haz = []; S.checks = []; S.scroll = []; S.anim = []; S.winds = []; S.gyB = S.gyG = S.canG = S.bulb = null; S.bob = []; S.cloudTex = null; S.seaM = null; S.post = S.flag = S.fanG = null;
+    S.scene = new THREE.Scene(); S.solids = []; S.haz = []; S.checks = []; S.scroll = []; S.anim = []; S.winds = []; S.pads = []; S.gyB = S.gyG = S.canG = S.bulb = null; S.bob = []; S.cloudTex = null; S.seaM = null; S.post = S.flag = S.fanG = null;
     initFx();
     if (S.round === 1) buildCourse(cfg.map); else buildSpin(S.r2);
     if (S.round === 1) S.checks.sort((a, b) => a.z - b.z);
