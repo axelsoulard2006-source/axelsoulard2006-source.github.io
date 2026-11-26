@@ -6,6 +6,7 @@
     { id: 'backrooms', name: 'BACKROOMS', tag: 'Survie coopérative', desc: 'Fuyez les entités, trouvez les fusibles, échappez-vous ensemble.', ready: true, hue: 48 },
     { id: 'ascension', name: 'COLOSSES', sub: 'L\'ASCENSION', tag: 'Roguelite en équipe · 10 étages', desc: 'Grimpez une tour de 10 étages entre amis : hordes, élites, gardiens géants. Choisissez des bénédictions qui se combinent, votez pour la prochaine porte, relevez vos potes. Chaque course est différente.', ready: true, hue: 28, pres: 'colosses', isNew: true },
     { id: 'colosses', name: 'COLOSSES', sub: 'CLASSIQUE', tag: 'Boss en équipe · Duels', desc: 'La version d\'origine : boss géants, duels entre amis, compétences à la roulette.', ready: true, hue: 18, old: true },
+    { id: 'bousculade', name: 'BOUSCULADE', tag: 'Party game · jusqu\'à 8 potes', desc: 'Course d\'obstacles complètement folle : moulinets, marteaux, rondins, toupies et trampolines, puis survie sur un plateau qui s\'effrite. Saute, plonge, bouscule… le dernier debout gagne !', ready: true, hue: 320, isNew: true },
     { id: 'portes', name: 'PORTES', tag: 'Salles à défis · quiz BUT GMP', desc: 'Une suite de salles toutes différentes : lave, plancher pourri, 1-2-3 soleil, lasers, labyrinthe, digicode… entre deux questions de génie mécanique. Attention à ce qui te poursuit.', ready: true, hue: 135 },
   ];
 

@@ -16,9 +16,14 @@
   const DOOR_MARK = '⁣';
   const doorsRoom = r => !!(r && (isDoorsMap(r.map) || String(r.name || '').includes(DOOR_MARK)));
   const DD = () => BR.Doors.DIFFS;
-  const gameOfRoom = r => arenaRoom(r) ? (r.map === 'a_asc' ? 'asc' : 'arena') : doorsRoom(r) ? 'portes' : 'backrooms';
-  const curKind = () => arenaGame() ? (BR.ascMode ? 'asc' : 'arena') : doorsGame() ? 'portes' : 'backrooms';
-  const brandName = () => BR.curGame === 'arena' ? (BR.ascMode ? 'COLOSSES · L\'ASCENSION' : 'COLOSSES') : BR.curGame === 'portes' ? 'LES PORTES' : 'BACKROOMS';
+  // jeu 4 « BOUSCULADE » : salons dont la carte commence par « p_ »
+  const partyGame = () => BR.curGame === 'bousculade';
+  const isPartyMap = m => /^p_/.test(String(m || ''));
+  const partyRoom = r => !!(r && isPartyMap(r.map));
+  const PDIFF = { id: 'normal', name: 'Fiesta', color: '#ff4f9e', desc: '2 manches : le Grand Parcours (les premiers arrivés passent), puis la Toupie (le dernier debout gagne).' };
+  const gameOfRoom = r => arenaRoom(r) ? (r.map === 'a_asc' ? 'asc' : 'arena') : partyRoom(r) ? 'bousculade' : doorsRoom(r) ? 'portes' : 'backrooms';
+  const curKind = () => arenaGame() ? (BR.ascMode ? 'asc' : 'arena') : partyGame() ? 'bousculade' : doorsGame() ? 'portes' : 'backrooms';
+  const brandName = () => BR.curGame === 'arena' ? (BR.ascMode ? 'COLOSSES · L\'ASCENSION' : 'COLOSSES') : BR.curGame === 'portes' ? 'LES PORTES' : BR.curGame === 'bousculade' ? 'BOUSCULADE' : 'BACKROOMS';
   const ui = () => BR.$('#ui');
   const ICO = (n, sz, c) => BR.Icons.svg(n, sz, c), COIN = sz => BR.Icons.coin(sz);
   const ico = (n, sz) => el('span', { class: 'icw', html: ICO(n, sz) }), coinEl = sz => el('span', { class: 'icw', html: COIN(sz) });
@@ -263,7 +268,7 @@
         const g = BR.GAMES.find(x => x.id === c.dataset.game);
         if (!g.ready) { Au.ui('error'); UI.toast('Ce jeu arrive bientôt !'); return; }
         Au.ui('ok'); BR.ascMode = g.id === 'ascension';
-        UI.show(g.id === 'ascension' ? 'asc' : g.id === 'colosses' ? 'arena' : g.id === 'portes' ? 'portes' : 'main');
+        UI.show(g.id === 'ascension' ? 'asc' : g.id === 'colosses' ? 'arena' : g.id === 'portes' ? 'portes' : g.id === 'bousculade' ? 'party' : 'main');
       }));
     },
   });
@@ -398,7 +403,7 @@
   screen('multi', {
     enter(n) {
       n.innerHTML = `<div class="panel wide">
-        <div class="ph"><button class="btn ghost back" data-act="back">${ICO('back', 18)}</button><h2>Multijoueur — ${arenaGame() ? 'Colosses' : doorsGame() ? 'Les Portes' : 'Backrooms'}</h2><div class="srv"><i class="dot"></i><span class="st"></span></div></div>
+        <div class="ph"><button class="btn ghost back" data-act="back">${ICO('back', 18)}</button><h2>Multijoueur — ${arenaGame() ? 'Colosses' : doorsGame() ? 'Les Portes' : partyGame() ? 'Bousculade' : 'Backrooms'}</h2><div class="srv"><i class="dot"></i><span class="st"></span></div></div>
         <div class="multi">
           <div class="col">
             <div class="mactions">
@@ -463,8 +468,8 @@
     const list = N.rooms.filter(r => gameOfRoom(r) === curKind());
     if (!list.length) { box.innerHTML = `<div class="empty">Aucun salon public pour ce jeu.<br><b>Crée le tien</b> et partage le code à tes amis !</div>`; return; }
     list.forEach(r => {
-      const ar = arenaRoom(r), dr = doorsRoom(r), bd = ar && r.map !== 'a_duel' && r.map !== 'a_random' ? AR().boss(r.map.slice(2)) : null;
-      const m = dr ? { name: 'Les Portes', color: '#7dffa8' } : ar ? { name: AR().mapLabel(r.map), color: bd ? bd.color : '#ffc84a' } : BR.MAPS.find(x => x.id === r.map), d = dr ? (DD()[r.diff] || DD().normal) : ar ? AR().roomDiff(r.map, r.diff) : (BR.DIFFS[r.diff] || BR.DIFFS.normal), full = r.n >= r.max, ing = r.state !== 'lobby';
+      const ar = arenaRoom(r), pr = partyRoom(r), dr = doorsRoom(r) || pr, bd = ar && r.map !== 'a_duel' && r.map !== 'a_random' ? AR().boss(r.map.slice(2)) : null;
+      const m = pr ? { name: 'Bousculade', color: '#ff4f9e' } : dr ? { name: 'Les Portes', color: '#7dffa8' } : ar ? { name: AR().mapLabel(r.map), color: bd ? bd.color : '#ffc84a' } : BR.MAPS.find(x => x.id === r.map), d = pr ? PDIFF : dr ? (DD()[r.diff] || DD().normal) : ar ? AR().roomDiff(r.map, r.diff) : (BR.DIFFS[r.diff] || BR.DIFFS.normal), full = r.n >= r.max, ing = r.state !== 'lobby';
       box.appendChild(el('div', { class: 'room' + (full || ing ? ' dis' : '') },
         el('div', Object.assign({ class: 'r-map', style: { '--mc': m ? m.color : '#888' } }, !ar && !dr && m && m.id ? { 'data-thumb': m.id } : {}), el('span', null, m ? m.name : 'Aléatoire')),
         el('div', { class: 'r-info' }, el('b', null, r.name), el('span', null, 'Hôte : ' + r.hostName + ' · ', el('i', { style: { color: d.color } }, d.name))),
@@ -475,15 +480,15 @@
   }
   function createRoomModal() {
     let sel = { map: 'l0', diff: 'normal', max: 6, priv: false };
-    const ag = arenaGame(), dg = doorsGame();
+    const ag = arenaGame(), pg = partyGame(), dg = doorsGame() || pg;
     const mapSel = dg ? '<option value="d_portes">Les Portes — couloir sans fin</option>' : ag ? AR().ROOM_MAPS.map(id => `<option value="${id}">${AR().mapLabel(id)}</option>`).join('') : BR.MAPS.map(m => `<option value="${m.id}">${m.name} — ${m.sub}</option>`).join('') + '<option value="random">Aléatoire</option>';
-    const diffs = dg ? Object.values(DD()) : ag ? AR().roomDiffList(BR.ascMode ? 'a_asc' : '') : Object.values(BR.DIFFS);
+    const diffs = pg ? [PDIFF] : dg ? Object.values(DD()) : ag ? AR().roomDiffList(BR.ascMode ? 'a_asc' : '') : Object.values(BR.DIFFS);
     void mapSel;
     const kind = ag ? 'arena' : 'backrooms';
-    const cfg = { map: dg ? 'd_portes' : ag ? (AR().ROOM_MAPS[0] || 'a_random') : (BR.store.get('br_solo', {}).map || BR.MAPS[0].id), diff: ag && BR.ascMode && BR.Asc ? 'p' + BR.Asc.selPal() : 'normal', max: ag ? 4 : 6, priv: false };
+    const cfg = { map: pg ? 'p_bousc' : dg ? 'd_portes' : ag ? (AR().ROOM_MAPS[0] || 'a_random') : (BR.store.get('br_solo', {}).map || BR.MAPS[0].id), diff: ag && BR.ascMode && BR.Asc ? 'p' + BR.Asc.selPal() : 'normal', max: ag ? 4 : pg ? 8 : 6, priv: false };
     if (!dg && !ag && !BR.MAPS.some(m => m.id === cfg.map)) cfg.map = BR.MAPS[0].id;
     modal((box, close) => {
-      box.innerHTML = `<h3>Créer un salon${ag ? (BR.ascMode ? ' — L\'Ascension' : ' — Colosses') : dg ? ' — Les Portes' : ''}</h3>
+      box.innerHTML = `<h3>Créer un salon${ag ? (BR.ascMode ? ' — L\'Ascension' : ' — Colosses') : pg ? ' — Bousculade' : dg ? ' — Les Portes' : ''}</h3>
         <label class="fld">Nom du salon<input class="rn" maxlength="28" value="${esc(Acc.p.name)} — salon"></label>
         ${dg || (ag && BR.ascMode) ? '' : `<div class="ls-lbl">${ag ? 'Combat' : 'Niveau'}</div><div class="ls-tiles cr-tiles"></div>`}
         <div class="ls-opts">
@@ -502,7 +507,7 @@
       paint();
       box.querySelector('.ok').addEventListener('click', () => {
         sel = { name: box.querySelector('.rn').value.trim() || Acc.p.name + ' — salon', map: cfg.map, diff: cfg.diff, max: cfg.max, priv: cfg.priv };
-        if (dg) sel.name = sel.name.replace(/⁣/g, '').slice(0, 27) + DOOR_MARK;
+        if (dg && !pg) sel.name = sel.name.replace(/⁣/g, '').slice(0, 27) + DOOR_MARK;
         if (!N.create(sel)) { UI.toast('Pas connecté au serveur : réessaie dans quelques secondes.', 'error'); return; }
         Au.ui('ok'); close();
         const was = N.room && N.room.code;
@@ -549,7 +554,7 @@
             ${lobbyChatHtml()}
           </div>
         </div></div>`;
-      n.querySelector('.lo-slot').appendChild(doorsRoom(N.room) ? doorsRulesBox() : N.room && N.room.map === 'a_asc' && BR.Asc ? BR.Asc.lobbyBox() : arenaRoom(N.room) && BR.ArenaUI ? BR.ArenaUI.kitBox('lobby') : loadoutBox());
+      n.querySelector('.lo-slot').appendChild(partyRoom(N.room) ? partyRulesBox() : doorsRoom(N.room) ? doorsRulesBox() : N.room && N.room.map === 'a_asc' && BR.Asc ? BR.Asc.lobbyBox() : arenaRoom(N.room) && BR.ArenaUI ? BR.ArenaUI.kitBox('lobby') : loadoutBox());
       const log = n.querySelector('.lchat .log'); lobbyChat.forEach(h => log.appendChild(el('div', { class: 'cl', html: h }))); log.scrollTop = log.scrollHeight;
       n.querySelector('.lcode').addEventListener('click', () => { const r = N.room; if (!r) return; try { navigator.clipboard.writeText(r.code); UI.toast('Code ' + r.code + ' copié !', 'good'); } catch (e) { UI.toast('Code : ' + r.code); } Au.ui('ok'); });
       const inp = n.querySelector('.lchat .in');
@@ -591,12 +596,12 @@
     n.querySelector('.lname').textContent = r.name;
     n.querySelector('.lcode b').textContent = r.code;
     const dis = host ? '' : 'disabled';
-    const ar = arenaRoom(r), dr = doorsRoom(r);
+    const ar = arenaRoom(r), pr = partyRoom(r), dr = doorsRoom(r) || pr;
     const mapOpts = dr ? '<option value="d_portes" selected>Les Portes</option>' : ar ? AR().ROOM_MAPS.map(id => `<option value="${id}" ${r.map === id ? 'selected' : ''}>${AR().mapLabel(id)}</option>`).join('') : BR.MAPS.map(m => `<option value="${m.id}" ${r.map === m.id ? 'selected' : ''}>${m.name} — ${m.sub}</option>`).join('') + `<option value="random" ${r.map === 'random' ? 'selected' : ''}>Aléatoire</option>`;
     const bd = ar && AR().BOSSES.some(x => 'a_' + x.id === r.map) ? AR().boss(r.map.slice(2)) : null;
-    const m = dr ? { name: 'Les Portes', sub: 'Couloir sans fin · quiz BUT GMP', color: '#7dffa8' } : ar ? { name: AR().mapLabel(r.map), sub: r.map === 'a_asc' ? '15 étages · bénédictions · entraide' : r.map === 'a_duel' ? 'Premier à 2 manches' : bd ? bd.sub : 'Surprise…', color: r.map === 'a_asc' ? '#ffb24a' : bd ? bd.color : '#ffc84a' } : BR.MAPS.find(x => x.id === r.map);
-    const d = dr ? (DD()[r.diff] || DD().normal) : ar ? AR().roomDiff(r.map, r.diff) : (BR.DIFFS[r.diff] || BR.DIFFS.normal);
-    const diffList = dr ? Object.values(DD()) : ar ? AR().roomDiffList(r.map) : Object.values(BR.DIFFS);
+    const m = pr ? { name: 'Bousculade', sub: 'Course d\'obstacles puis survie · jusqu\'à 8', color: '#ff4f9e' } : dr ? { name: 'Les Portes', sub: 'Couloir sans fin · quiz BUT GMP', color: '#7dffa8' } : ar ? { name: AR().mapLabel(r.map), sub: r.map === 'a_asc' ? '15 étages · bénédictions · entraide' : r.map === 'a_duel' ? 'Premier à 2 manches' : bd ? bd.sub : 'Surprise…', color: r.map === 'a_asc' ? '#ffb24a' : bd ? bd.color : '#ffc84a' } : BR.MAPS.find(x => x.id === r.map);
+    const d = pr ? PDIFF : dr ? (DD()[r.diff] || DD().normal) : ar ? AR().roomDiff(r.map, r.diff) : (BR.DIFFS[r.diff] || BR.DIFFS.normal);
+    const diffList = pr ? [PDIFF] : dr ? Object.values(DD()) : ar ? AR().roomDiffList(r.map) : Object.values(BR.DIFFS);
     void mapOpts; void dis;
     const kind = ar ? 'arena' : 'backrooms', thumbId = !ar && !dr && r.map !== 'random' ? r.map : null;
     if (lobby3d) { renderLobby3d(n, r, host, me, diffList, d); return; }
@@ -689,6 +694,7 @@
     const r = N.room; if (!r || !N.isHost()) return;
     const others = r.players.filter(p => p.id !== r.host);
     const go = () => {
+      if (partyRoom(r)) { N.send({ t: 'start', seed: (Math.random() * 2 ** 31) >>> 0, map: 'p_bousc' }); Au.ui('ok'); return; }
       if (doorsRoom(r)) {
         // l'hôte tire les images des portes (sans répétition) : tout le monde voit les mêmes
         N.send({ t: 'start', seed: (Math.random() * 2 ** 31) >>> 0, map: 'd_portes', cfg: { imgs: BR.Doors.planImages(150) } }); Au.ui('ok'); return;
@@ -1048,6 +1054,56 @@
   }
   UI.startDoorsSolo = startDoorsSolo;
 
+  /* ================= jeu 4 : BOUSCULADE ================= */
+  function partyRules() {
+    return `<ul class="d-rules"><li><b>Manche 1 · Le Grand Parcours</b> : moulinets, plateformes mobiles, marteaux, rondins, toupies, champignons et trampolines. Les premiers arrivés sont qualifiés (60 %).</li>
+      <li><b>Manche 2 · La Toupie</b> : les dalles s'effritent sous tes pieds. Saute la barre <b style="color:#ff3b3b">rouge</b> (basse), ne saute PAS sous la barre <b style="color:#e0b400">jaune</b> (haute). Le dernier debout gagne.</li>
+      <li><b>Plonge</b> (Maj ou clic droit) pour aller plus loin ou faire tomber les autres. Tomber pendant le parcours = retour au dernier point de passage.</li></ul>`;
+  }
+  function partyRulesBox() { return el('div', { class: 'd-lrules', html: `<h4>Règles de la Bousculade</h4>${partyRules()}` }); }
+  function launchParty(o) {
+    BR.$$('.modal-back').forEach(m => m.remove());
+    killPreview(); BR.MenuBG.stop(); if (BR.ArenaUI) BR.ArenaUI.bg(false);
+    o.onEnd = a => { BR.MenuBG.start(); if (a === 'replay') startPartySolo(); else UI.show(o.mode === 'multi' && N.room ? 'lobby' : 'party'); };
+    try { BR.Party.start(o); }
+    catch (e) { console.error(e); try { BR.Party.stop(); } catch (_) {} UI.toast('Erreur au lancement : ' + e.message, 'error'); UI.show(o.mode === 'multi' ? (N.room ? 'lobby' : 'multi') : 'party'); }
+  }
+  function startPartySolo() {
+    Au.ui('ok');
+    const p = Acc.p;
+    launchParty({ mode: 'solo', seed: (Math.random() * 2 ** 31) >>> 0, roster: [{ id: 'me', name: p.name, look: p.look, level: lvl().level }], selfId: 'me', hostId: 'me' });
+  }
+  UI.startPartySolo = startPartySolo;
+  screen('party', {
+    enter(n) {
+      BR.curGame = 'bousculade'; Au.track('music', 'menu', 0.8);
+      const best = BR.store.get('br_party_best', 0);
+      n.innerHTML = `<div class="main pt-main">
+        <div class="main-left">
+          <div class="logo"><div class="logo-t" style="color:#ff4f9e;text-shadow:0 5px 0 #7a2a8a">BOUSCULADE</div><div class="logo-s">C O U R S , &nbsp; S A U T E , &nbsp; P L O N G E , &nbsp; B O U S C U L E .</div></div>
+          <nav class="menu">
+            <button class="mi d-hot" data-go="multi"><span>Multijoueur</span><small>Jusqu'à 8 potes · le dernier debout gagne</small></button>
+            <button class="mi" data-go="solo"><span>Entraînement solo</span><small>Les 2 manches, contre la montre</small></button>
+            <button class="mi" data-go="rules"><span>Règles</span><small>Les manches, les obstacles, le plongeon</small></button>
+            <button class="mi" data-go="char"><span>Personnage</span><small>Ce que voient les autres joueurs</small></button>
+            <button class="mi back" data-go="hub"><span>${ICO('back', 16)} Changer de jeu</span></button>
+          </nav>
+        </div>
+        <div class="main-right"><div class="d-lrules" style="max-width:520px"><h4>Comment ça marche</h4>${partyRules()}
+          <p class="muted" style="margin-top:10px">${best ? ICO('trophy', 13) + ' Ton record sur le Grand Parcours : <b>' + Math.floor(best / 60) + ':' + String((best % 60).toFixed(1)).padStart(4, '0') + '</b>' : 'Pas encore de record sur le Grand Parcours'}</p>
+          <p class="muted"><b>ZQSD</b> courir · <b>Espace</b> sauter · <b>Maj / clic droit</b> plonger · <b>Souris</b> caméra</p></div>
+          <button class="btn primary big pt-go" style="margin-top:14px">${ICO('play', 18)} JOUER EN MULTIJOUEUR</button></div></div>`;
+      n.querySelectorAll('[data-go]').forEach(bt => bt.addEventListener('click', () => {
+        const go = bt.dataset.go;
+        if (go === 'solo') { startPartySolo(); return; }
+        if (go === 'rules') { Au.ui('click'); modal(box => box.insertAdjacentHTML('beforeend', `<h3>Bousculade — règles</h3>${partyRules()}`)); return; }
+        Au.ui(go === 'hub' ? 'back' : 'click');
+        UI.show(go, go === 'char' ? { back: 'party' } : {});
+      }));
+      n.querySelector('.pt-go').addEventListener('click', () => { Au.ui('click'); UI.show('multi'); });
+    },
+  });
+
   screen('portes', {
     enter(n) {
       BR.curGame = 'portes'; Au.track('music', 'menu', 0.8);
@@ -1208,7 +1264,7 @@
     const act = a.dataset.act;
     if (act === 'account') { Au.ui('click'); accountModal(); }
     if (act === 'settings') { Au.ui('click'); if (curId !== 'settings') UI.show('settings', { back: curId === 'results' || curId === 'boot' ? 'main' : curId === 'd-end' ? 'portes' : curId }); }
-    if (act === 'back') { Au.ui('back'); UI.show(curId === 'main' || curId === 'arena' || curId === 'portes' || curId === 'asc' ? 'hub' : doorsGame() && (curId === 'multi' || curId === 'lb' || curId.startsWith('d-')) ? 'portes' : arenaGame() && (curId === 'multi' || curId === 'lb' || curId.startsWith('a-') || curId.startsWith('asc')) ? (BR.ascMode ? 'asc' : 'arena') : 'main'); }
+    if (act === 'back') { Au.ui('back'); UI.show(curId === 'main' || curId === 'arena' || curId === 'portes' || curId === 'party' || curId === 'asc' ? 'hub' : partyGame() && (curId === 'multi' || curId === 'lb') ? 'party' : doorsGame() && (curId === 'multi' || curId === 'lb' || curId.startsWith('d-')) ? 'portes' : arenaGame() && (curId === 'multi' || curId === 'lb' || curId.startsWith('a-') || curId.startsWith('asc')) ? (BR.ascMode ? 'asc' : 'arena') : 'main'); }
     if (act === 'daily') { const r = Acc.claimDaily(); if (r.ok) { Au.ui('buy'); UI.toast('+' + r.reward + ' points ! Série : ' + r.streak + ' jour' + (r.streak > 1 ? 's' : ''), 'good'); if (cur && curId) UI.show(curId, curId === 'shop' ? { keep: true } : {}); } else UI.toast(r.msg); }
   });
   let lastHover = 0;
@@ -1243,6 +1299,7 @@
     N.on('start', m => {
       if (inGame()) return;
       const room = m.room;
+      if (isPartyMap(m.map)) { launchParty({ mode: 'multi', seed: m.seed, roster: room.players.map(p => ({ id: p.id, name: p.name, look: p.look, level: p.level })), selfId: N.id, hostId: room.host }); return; }
       if (isDoorsMap(m.map)) {
         launchDoors({ mode: 'multi', diff: m.diff, seed: m.seed, imgs: m.cfg && Array.isArray(m.cfg.imgs) ? m.cfg.imgs : null, roster: room.players.map(p => ({ id: p.id, name: p.name, look: p.look, level: p.level })), selfId: N.id, hostId: room.host });
         return;
