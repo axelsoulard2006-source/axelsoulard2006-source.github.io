@@ -694,7 +694,7 @@
     const r = N.room; if (!r || !N.isHost()) return;
     const others = r.players.filter(p => p.id !== r.host);
     const go = () => {
-      if (partyRoom(r)) { N.send({ t: 'start', seed: (Math.random() * 2 ** 31) >>> 0, map: 'p_bousc' }); Au.ui('ok'); return; }
+      if (partyRoom(r)) { N.send({ t: 'start', seed: BR.Party.pickSeed(), map: 'p_bousc' }); Au.ui('ok'); return; }
       if (doorsRoom(r)) {
         // l'hôte tire les images des portes (sans répétition) : tout le monde voit les mêmes
         N.send({ t: 'start', seed: (Math.random() * 2 ** 31) >>> 0, map: 'd_portes', cfg: { imgs: BR.Doors.planImages(150) } }); Au.ui('ok'); return;
@@ -1056,7 +1056,7 @@
 
   /* ================= jeu 4 : BOUSCULADE ================= */
   function partyRules() {
-    return `<ul class="d-rules"><li><b>Manche 1 · La Course d'adresse</b> : un long parcours de 10 sections tirées au sort parmi 16 (murs à courir, sauts muraux, toboggans, tremplins, damier, piliers, poutres, trampolines…). Jamais deux fois le même, rien ne bouge : que du skill. Les premiers arrivés sont qualifiés (60 %).</li>
+    return `<ul class="d-rules"><li><b>Manche 1 · La Course</b> : une des 11 cartes, jamais la même deux fois de suite — Toboggans géants, Fête foraine (grande roue, canons, flipper), Tempête (ventilateurs géants), Banquise (glace), Usine folle (tapis roulants, murs troués qui avancent), Parc à ressorts (geysers), Vagues, Défi des murs, Grand huit, Château gonflable, Grand mix. Les premiers arrivés sont qualifiés (60 %).</li>
       <li><b>Manche 2 · La Toupie</b> : les dalles s'effritent sous tes pieds. Saute la barre <b style="color:#ff3b3b">rouge</b> (basse), ne saute PAS sous la barre <b style="color:#e0b400">jaune</b> (haute). Le dernier debout gagne.</li>
       <li><b>Cours sur les murs</b> : saute contre un mur en allant vite, tu cours dessus 0,8 s puis tu glisses ; ressaute pour rebondir. <b>Plonge</b> (Maj ou clic droit) pour aller plus loin ou faire tomber les autres. Tomber pendant le parcours = retour au dernier point de passage.</li></ul>`;
   }
@@ -1071,7 +1071,7 @@
   function startPartySolo() {
     Au.ui('ok');
     const p = Acc.p;
-    launchParty({ mode: 'solo', seed: (Math.random() * 2 ** 31) >>> 0, roster: [{ id: 'me', name: p.name, look: p.look, level: lvl().level }], selfId: 'me', hostId: 'me' });
+    launchParty({ mode: 'solo', seed: BR.Party.pickSeed(), roster: [{ id: 'me', name: p.name, look: p.look, level: lvl().level }], selfId: 'me', hostId: 'me' });
   }
   UI.startPartySolo = startPartySolo;
   screen('party', {
