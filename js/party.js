@@ -819,6 +819,10 @@
     { name: 'LE CHÂTEAU', desc: 'Pont-levis tournant, donjon en spirale, dalles fantômes', sky: ['#5a4cb0', '#e0dcff'], sea: '#d8d2ff', build: (r, MP) => buildCastle(r, MP) },
     { name: 'LA PLAGE', desc: 'Vagues qui poussent, canons à eau, toboggan aquatique', sky: ['#3fb6ff', '#fff2c8'], sea: '#7fd8ff', build: (r, MP) => buildBeach(r, MP) },
     { name: 'LA CITÉ NÉON', desc: 'Tapis, couloirs de murs, mixeur, spirale vertigineuse', sky: ['#1a0f3a', '#5a2a8a'], sea: '#3a1f6a', build: (r, MP) => buildNeon(r, MP) },
+    { name: 'LE DÉSERT', desc: 'Dunes, canons, pyramides et tyrolienne au-dessus du sable', sky: ['#ffb060', '#fff0c8'], sea: '#ffe6b0', build: (r, MP) => buildDesert(r, MP) },
+    { name: 'LES NUAGES', desc: 'Trampolines, dalles fantômes et ventilateurs au-dessus du ciel', sky: ['#8ac8ff', '#ffffff'], sea: '#ffffff', build: (r, MP) => buildClouds(r, MP) },
+    { name: 'LE PORT PIRATE', desc: 'Pont qui tangue, canons, voile à escalader, saut du mât', sky: ['#3f9cff', '#d8f0ff'], sea: '#5ab8ff', build: (r, MP) => buildPirate(r, MP) },
+    { name: 'L\'USINE À ROBOTS', desc: 'Tapis, presses géantes, mixeur et spirale d\'acier', sky: ['#5a6478', '#d8dee8'], sea: '#c8ccd4', build: (r, MP) => buildRobots(r, MP) },
     { name: 'LE TUTORIEL', desc: 'Apprends tous les mouvements en un parcours', sky: ['#6fb9ff', '#f4fbff'], sea: '#ffffff', tuto: true, build: (r, MP) => buildTuto(r, MP) },
   ];
   const pathIdx = () => MAPS.map((m, i) => m.build && !m.tuto ? i : -1).filter(i => i >= 0);
@@ -2351,7 +2355,7 @@
     if (S.round === 2) { S.r2 = cfg.kind; S.def = Object.assign({}, R2[S.r2], { time: R2[S.r2].score ? R2[S.r2].time + (S.final ? 15 : 0) : S.final ? 90 : 75 }); S.usedR2.push(cfg.kind); try { BR.store.set('br_party_r2', S.r2); } catch (e) {} }
     else { S.def = RACE_DEF; S.usedMaps.push(cfg.map); }
     S.high = S.low = null; S.part = cfg.q.filter(id => S.players.has(id)); S.out = new Set(); S.outOrder = []; S.fin = []; S.decided = false; S.tiles = null; S.tramps = [];
-    S.scene = new THREE.Scene(); S.solids = []; S.haz = []; S.checks = []; S.scroll = []; S.anim = []; S.winds = []; S.pads = []; S.zips = []; S.crs = []; S.path = []; S.pathMode = false; S.finishBox = null; S.gyB = S.gyG = S.canG = S.bulb = null; S.bob = []; S.cloudTex = null; S.seaM = null; S.post = S.flag = S.fanG = S.pine = S.trunk = S.leaf = S.tower = S.troof = S.pole = S.umb = null; S.crown = S.paint = S.teams = S.spawnFor = S.bomb = S.hill = S.ball = S.eggs = S.nests = null; S.ctime = {}; S.csT = 0; S.goals = [0, 0]; S.ggT = 0;
+    S.scene = new THREE.Scene(); S.solids = []; S.haz = []; S.checks = []; S.scroll = []; S.anim = []; S.winds = []; S.pads = []; S.zips = []; S.crs = []; S.path = []; S.pathMode = false; S.finishBox = null; S.gyB = S.gyG = S.canG = S.bulb = null; S.bob = []; S.cloudTex = null; S.seaM = null; S.post = S.flag = S.fanG = S.pine = S.trunk = S.leaf = S.tower = S.troof = S.pole = S.umb = S.pyr = S.cact = S.puff = S.tank = null; S.crown = S.paint = S.teams = S.spawnFor = S.bomb = S.hill = S.ball = S.eggs = S.nests = null; S.ctime = {}; S.csT = 0; S.goals = [0, 0]; S.ggT = 0;
     initFx();
     if (S.round === 1) buildCourse(cfg.map); else buildSpin(S.r2);
     if (S.round === 1 && !S.pathMode) S.checks.sort((a, b) => a.z - b.z);
@@ -2379,6 +2383,73 @@
   }
 
 
+
+  /* ---------- 12. LE DÉSERT ---------- */
+  function buildDesert(r, MP) {
+    sky(MP.sky[0], MP.sky[1]); lights(); S.scene.fog = new THREE.Fog(new THREE.Color(MP.sky[1]).getHex(), 160, 560); S.pathMode = true; S.secAt = [];
+    const c = { x: 0, y: 0, z: -2, yaw: 0 }, sd = ['#f0c878', '#e0b060', '#c8904a', '#3fb6a8'];
+    startPlaza(c);
+    cpAt(c); pStraight(c, 10, 12, sd[0]); pArc(c, Math.PI / 2, 15, 10, sd[1], 0, { alt: sd[0] });
+    cpAt(c); pStraight(c, 6, 10, sd[2]); pWallRun(c, 18, '#e0b060'); pStraight(c, 8, 12, sd[0]);
+    cpAt(c, c.y - 16); pElev(c, 10); pStraight(c, 8, 12, sd[1]);
+    cpAt(c, c.y - 24); padAt(c, -3, 8, 4); pRamp(c, 30, -9, 11, sd[0], { walls: sd[3] }); pStraight(c, 6, 12, sd[1]);   // la dune
+    cpAt(c, c.y - 14); pCannons(c, 15, 0); pStraight(c, 14, 14, sd[0]);
+    cpAt(c, c.y - 16); pHammers(c, 38, 3, [sd[1], '#3fb6a8', '#ff8a3d', '#ffe14a']);
+    cpAt(c); pArc(c, -Math.PI / 2, 15, 10, sd[0], 0, { alt: sd[1] }); pBlink(c, 5, ['#3fb6a8', '#f0c878', '#ff8a3d']); pStraight(c, 8, 12, sd[0]);
+    cpAt(c, c.y - 14); pStraight(c, 6, 9, sd[2]); pZip(c, 40, 10); pStraight(c, 10, 12, sd[1]);
+    cpAt(c, c.y - 18); padAt(c, -3, 8, 4); pRamp(c, 26, -7, 11, '#ff8a3d', { walls: '#3fb6a8' }); gap(c, 9, -1.5);
+    finishArena(c, '#3fb6a8');
+    decorAround(r, MP, (x, y, z, rr) => { if (rr() < 0.3) { const h = 8 + rr() * 14, py = mesh(S.pyr || (S.pyr = own(new THREE.ConeGeometry(1, 1, 4))), mat(rr() < 0.5 ? '#e0b060' : '#c8904a'), false); py.scale.set(h * 0.9, h, h * 0.9); py.position.set(x, y - 12 + h / 2, z); py.rotation.y = Math.PI / 4; S.scene.add(py); }
+      else if (rr() < 0.3) { const h = 3 + rr() * 3, ca = mesh(S.cact || (S.cact = own(new THREE.CylinderGeometry(0.6, 0.7, 1, 8))), mat('#47a85a'), false); ca.scale.set(1, h, 1); ca.position.set(x, y - 12 + h / 2, z); S.scene.add(ca); } });
+  }
+  /* ---------- 13. LES NUAGES ---------- */
+  function buildClouds(r, MP) {
+    sky(MP.sky[0], MP.sky[1]); lights(); S.scene.fog = new THREE.Fog(new THREE.Color(MP.sky[1]).getHex(), 170, 600); S.pathMode = true; S.secAt = [];
+    const c = { x: 0, y: 0, z: -2, yaw: 0 }, cw = ['#ffffff', '#eef4ff', '#ffd6ea', '#bfe6ff'];
+    startPlaza(c);
+    cpAt(c); pStraight(c, 8, 12, cw[0]); pTramp(c, 6); pStraight(c, 14, 12, cw[1]);
+    cpAt(c, c.y - 14); pBlink(c, 6, ['#ffd6ea', '#bfe6ff', '#ffffff']); pStraight(c, 8, 12, cw[0]);
+    cpAt(c, c.y - 16); pArc(c, -Math.PI / 2, 15, 10, cw[1], 2, { alt: cw[0] }); pFans(c, 3, 4, '#bfe6ff'); pStraight(c, 10, 14, cw[0]);
+    cpAt(c, c.y - 16); pTramp(c, 7); pStraight(c, 12, 12, cw[2]);
+    cpAt(c, c.y - 14); crumbleBridge(c, 18, 3.4, '#ffd6ea'); pStraight(c, 8, 12, cw[0]);
+    cpAt(c, c.y - 16); pArc(c, Math.PI / 2, 15, 10, cw[1], 0, { alt: cw[3] }); pStraight(c, 6, 9, cw[0]); pZip(c, 46, 12); pStraight(c, 10, 12, cw[1]);
+    cpAt(c, c.y - 18); pDisc(c, 13, '#bfe6ff'); pStraight(c, 6, 12, cw[0]);
+    cpAt(c, c.y - 16); padAt(c, -3, 8, 4); pRamp(c, 30, -10, 11, '#ffd6ea', { walls: '#bfe6ff' }); gap(c, 9, -1.5);
+    finishArena(c, '#ff8ac4');
+    decorAround(r, MP, (x, y, z, rr) => { if (rr() < 0.5) { for (let k = 0; k < 4; k++) { const s2 = 2 + rr() * 3, cl = mesh(S.puff || (S.puff = own(new THREE.SphereGeometry(1, 10, 8))), mat('#ffffff', { roughness: 1 }), false); cl.scale.set(s2 * 1.4, s2 * 0.7, s2); cl.position.set(x + (rr() - 0.5) * 6, y - 6 + rr() * 10, z + (rr() - 0.5) * 6); S.scene.add(cl); } } });
+  }
+  /* ---------- 14. LE PORT PIRATE ---------- */
+  function buildPirate(r, MP) {
+    sky(MP.sky[0], MP.sky[1]); lights(); S.scene.fog = new THREE.Fog(new THREE.Color(MP.sky[1]).getHex(), 150, 540); S.pathMode = true; S.secAt = [];
+    const c = { x: 0, y: 0, z: -2, yaw: 0 }, wd = ['#a8743f', '#8a5a2f', '#c8925a', '#e0302a'];
+    startPlaza(c);
+    cpAt(c); pStraight(c, 8, 12, wd[0]); pBelt(c, 24, 10, 0, 5); pStraight(c, 6, 12, wd[1]);   // le pont qui tangue
+    cpAt(c); pArc(c, -Math.PI / 2, 15, 10, wd[2], 0, { alt: wd[0] }); pCannons(c, 15, 2); pStraight(c, 14, 14, wd[0]);
+    cpAt(c, c.y - 16); pHammers(c, 40, 3, [wd[1], '#e0302a', '#ffe14a', '#2a2a3a']);
+    cpAt(c); pStraight(c, 5, 10, wd[2]); pWallRun(c, 16, '#e0302a'); pStraight(c, 8, 12, wd[0]);   // la voile
+    cpAt(c, c.y - 16); pElev(c, 12); pStraight(c, 8, 12, wd[1]); pZip(c, 44, 12); pStraight(c, 10, 12, wd[0]);   // du mât à l'île
+    cpAt(c, c.y - 16); pBelt(c, 20, 10, 0, -5); pArc(c, Math.PI / 2, 15, 10, wd[2], 0, { alt: wd[1] });
+    cpAt(c); pBlink(c, 5, ['#c8925a', '#e0302a', '#ffe14a']); pStraight(c, 8, 12, wd[0]);
+    cpAt(c, c.y - 16); padAt(c, -3, 8, 4); pRamp(c, 28, -8, 11, '#3fb6ff', { ice: true, walls: wd[3] }); gap(c, 9, -1.5);
+    finishArena(c, '#e0302a');
+    decorAround(r, MP, (x, y, z, rr) => { if (rr() < 0.25) { const hull = mesh(BOXG, mat('#6a4424'), false); hull.scale.set(4, 2.5, 10); hull.position.set(x, y - 9, z); hull.rotation.y = rr() * 3; S.scene.add(hull); const mast = mesh(BOXG, mat('#5a3a20'), false); mast.scale.set(0.4, 9, 0.4); mast.position.set(x, y - 4, z); S.scene.add(mast); const sail = mesh(BOXG, mat(rr() < 0.5 ? '#ffffff' : '#e0302a'), false); sail.scale.set(0.15, 4, 5); sail.position.set(x, y - 2.5, z); sail.rotation.y = hull.rotation.y; S.scene.add(sail); } });
+  }
+  /* ---------- 15. L'USINE À ROBOTS ---------- */
+  function buildRobots(r, MP) {
+    sky(MP.sky[0], MP.sky[1]); lights(); S.scene.fog = new THREE.Fog(new THREE.Color(MP.sky[1]).getHex(), 160, 560); S.pathMode = true; S.secAt = [];
+    const c = { x: 0, y: 0, z: -2, yaw: 0 }, mt = ['#9aa4b0', '#7a8490', '#ffb13d', '#3fd0ff'];
+    startPlaza(c);
+    cpAt(c); pBelt(c, 22, 9, 10); pStraight(c, 6, 12, mt[0]);
+    cpAt(c); pHammers(c, 40, 3, [mt[1], '#ffb13d', '#3fd0ff', '#ff3b3b']);
+    cpAt(c); pArc(c, Math.PI / 2, 14, 9, mt[0], 0, { alt: mt[2] }); pDisc(c, 13, mt[1]); pStraight(c, 6, 12, mt[0]);
+    cpAt(c, c.y - 16); pStraight(c, 5, 10, mt[1]); pWallRun(c, 16, '#3fd0ff'); pStraight(c, 6, 10, mt[0]); pWallRun(c, 16, '#ffb13d'); pStraight(c, 8, 12, mt[1]);
+    cpAt(c, c.y - 16); pElev(c, 12); pStraight(c, 8, 12, mt[0]); pBelt(c, 18, 9, 0, -5); pStraight(c, 6, 12, mt[1]);
+    cpAt(c); pArc(c, -Math.PI / 2, 15, 10, mt[0], 0, { alt: mt[1] }); pCannons(c, 15, 0); pStraight(c, 12, 14, mt[0]);
+    cpAt(c, c.y - 16); pSpiral(c, 1, 9, -12, 4.6, [mt[0], mt[1]], '#ffb13d', true); pStraight(c, 8, 10, mt[1]);
+    cpAt(c, c.y - 14); padAt(c, -3, 8, 4); pRamp(c, 26, -7, 11, '#3fd0ff', { walls: '#ffb13d' }); gap(c, 9, -1.5);
+    finishArena(c, '#ffb13d');
+    decorAround(r, MP, (x, y, z, rr) => { if (rr() < 0.4) { const h = 6 + rr() * 16, t = mesh(S.tank || (S.tank = own(new THREE.CylinderGeometry(2.4, 2.4, 1, 14))), mat(rr() < 0.5 ? '#9aa4b0' : '#7a8490'), false); t.scale.set(1, h, 1); t.position.set(x, y - 12 + h / 2, z); S.scene.add(t); const ring = mesh(BOXG, mat(rr() < 0.5 ? '#ffb13d' : '#3fd0ff', { emissive: '#ffb13d', emissiveIntensity: 0.3 }), false); ring.scale.set(5, 0.4, 5); ring.position.set(x, y - 12 + h * 0.7, z); S.scene.add(ring); } });
+  }
   /* ---------- TUTORIEL : un parcours avec des panneaux ---------- */
   function sign(c, lz, text) {
     const [x, z] = tp(c, 0, lz), cv = document.createElement('canvas'); cv.width = 1024; cv.height = 160; const g = cv.getContext('2d');

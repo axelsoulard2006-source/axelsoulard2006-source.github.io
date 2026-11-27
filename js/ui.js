@@ -1060,7 +1060,7 @@
   /* ================= jeu 4 : BOUSCULADE ================= */
   function partyRules() {
     return `<ul class="d-rules"><li><b>Une partie = 4 manches</b> à 8 joueurs (les places libres sont prises par des bots) : <b>course</b> → <b>survie</b> → <b>course</b> → <b>finale</b>. À chaque manche, une partie des joueurs est éliminée.</li>
-      <li><b>Courses</b> : 19 cartes (dont 8 grands tracés : Grand Tour, Cité des toits, Temple perdu, Fabrique de bonbons, Montagnes russes, Station de ski, Volcan, Base spatiale), jamais deux fois la même. Les premiers arrivés passent.</li>
+      <li><b>Courses</b> : 27 cartes (dont 16 grands tracés : Grand Tour, Temple perdu, Volcan, Base spatiale, Jungle, Château, Plage, Cité néon, Désert, Nuages, Port pirate, Usine à robots…), jamais deux fois la même. Les premiers arrivés passent.</li>
       <li><b>Manches de survie</b> : <b>La Toupie</b>, <b>Les Trois Étages</b>, <b>L'Île qui rétrécit</b> (le poteau du milieu ne tombe jamais… si tu arrives à y rester), <b>La Bombe</b> (refile-la au toucher avant le BOUM). Elles s'arrêtent dès qu'il ne reste que la moitié des joueurs.</li>
       <li><b>Manches à score</b> : <b>La Couronne</b> (garde-la le plus longtemps : plonge ou attrape celui qui l'a pour la voler), <b>Le Roi de la colline</b> (reste dans la zone qui se déplace), <b>Le Foot fou</b> (en équipe, ballon géant, but en or en cas d'égalité), <b>La Chasse aux œufs</b> (rapporte les œufs dans le nid de ton équipe, vole ceux d'en face) et <b>La Guerre des couleurs</b> (2 équipes peignent le sol ; l'équipe qui en a le moins est éliminée). En finale, le dernier qualifié gagne la couronne 👑.</li>
       <li><b>Classé</b> (avec un compte) : gagne des points de rang selon ta place, de Bronze à Champion. Saison mensuelle, classement mondial.</li>
@@ -1133,7 +1133,7 @@
           <nav class="menu">
             <button class="mi d-hot pt-rkbtn" data-go="ranked"><span>🏆 Classé</span><small>${N.rk ? BR.Party.tier(N.rk.rp).label + ' · ' + N.rk.rp + ' RP' : 'Grimpe de Bronze à Champion · saison mensuelle'}</small></button>
             <button class="mi d-hot" data-go="multi"><span>Multijoueur</span><small>Jusqu'à 8 potes · le dernier debout gagne</small></button>
-            <button class="mi d-hot" data-go="solo"><span>▶ Jouer contre des bots</span><small>4 manches · 23 cartes, 10 manches spéciales</small></button>
+            <button class="mi d-hot" data-go="solo"><span>▶ Jouer contre des bots</span><small>4 manches · 27 cartes, 10 manches spéciales</small></button>
             <button class="mi d-hot" data-go="trial"><span>⏱ Défi du jour</span><small>${(() => { const d = BR.Party.dailyInfo(); return esc(d.name) + (d.best ? ' · ton record : ' + d.best.toFixed(1) + ' s' : ' · seul contre le chrono'); })()}</small></button>
             <button class="mi d-hot" data-go="rewards"><span>🎁 Récompenses</span><small>${(() => { const R = BR.Party.rewards(); return R.quests.filter(q => !q.c).length + ' quête(s) du jour · passe palier ' + R.lv + '/' + R.PASS.length; })()}</small></button>
             <button class="mi" data-go="tuto"><span>🎓 Tutoriel</span><small>Apprends les mouvements en 1 minute</small></button>
