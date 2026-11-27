@@ -104,6 +104,9 @@
 .pt-main .d-lrules h4,.pt-main .d-lrules b{color:#ff4f9e!important}.pt-main .d-lrules .muted{color:#5a4a7a!important}
 .pt-main .logo-s{color:#fff!important;text-shadow:0 2px 0 rgba(0,0,0,.25)}.pt-main .logo-t{font-family:inherit!important;font-weight:900!important;color:#fff!important;text-shadow:0 6px 0 #b8246c,0 0 30px rgba(255,255,255,.5)!important;letter-spacing:4px}
 .pt-main .pt-go{background:#ffe14a!important;color:#3a1f6a!important;border:none!important;box-shadow:0 6px 0 #c77b00!important;border-radius:18px!important;font-weight:900!important}
+.ed-pal{display:grid;grid-template-columns:repeat(auto-fill,minmax(118px,1fr));gap:6px;margin:8px 0}.ed-pal button{font:inherit;font-size:12px;font-weight:700;padding:6px 4px;border-radius:10px;border:none;background:rgba(122,108,255,.2);color:inherit;cursor:pointer}.ed-pal button:hover{background:rgba(255,79,158,.3)}.ed-pal b{display:block;font-size:20px}
+.ed-seq{display:flex;flex-wrap:wrap;gap:5px;max-height:150px;overflow:auto;padding:6px;border-radius:10px;background:rgba(0,0,0,.18);margin-bottom:8px}.ed-seq span{font-size:12px;padding:3px 8px;border-radius:999px;background:rgba(255,255,255,.12)}.ed-seq i{cursor:pointer;color:#ff6a8a;font-style:normal;margin-left:4px}
+.ed-row{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:6px 0}.ed-row input:not([type=checkbox]){flex:1;min-width:160px;font:inherit;padding:6px 8px;border-radius:8px;border:none}.ed-row button{font:inherit;cursor:pointer}
 .rk-banner{margin:0 0 10px;padding:10px 16px;border-radius:12px;background:linear-gradient(90deg,#ff4f9e,#7a6cff);color:#fff;font-weight:800;text-align:center;box-shadow:0 4px 0 #4636c9}.rk-banner small{opacity:.85;font-weight:600}`;
     document.head.appendChild(st);
     const root = document.createElement('div'); root.id = 'party';
@@ -825,8 +828,8 @@
     { name: 'L\'USINE À ROBOTS', desc: 'Tapis, presses géantes, mixeur et spirale d\'acier', sky: ['#5a6478', '#d8dee8'], sea: '#c8ccd4', build: (r, MP) => buildRobots(r, MP) },
     { name: 'LE TUTORIEL', desc: 'Apprends tous les mouvements en un parcours', sky: ['#6fb9ff', '#f4fbff'], sea: '#ffffff', tuto: true, build: (r, MP) => buildTuto(r, MP) },
   ];
-  const pathIdx = () => MAPS.map((m, i) => m.build && !m.tuto ? i : -1).filter(i => i >= 0);
-  const raceIdx = () => MAPS.map((m, i) => m.tuto ? -1 : i).filter(i => i >= 0);
+  const pathIdx = () => MAPS.map((m, i) => m.build && !m.tuto && !m.custom ? i : -1).filter(i => i >= 0);
+  const raceIdx = () => MAPS.map((m, i) => m.tuto || m.custom ? -1 : i).filter(i => i >= 0);
   const mapFromSeed = s => { const pm = pathIdx(), all = raceIdx(); return s % 4 !== 0 && pm.length ? pm[Math.floor(s / 4) % pm.length] : all[s % all.length]; };
   P.pathMaps = pathIdx;
   P.pickSeed = function () {
@@ -2450,6 +2453,40 @@
     finishArena(c, '#ffb13d');
     decorAround(r, MP, (x, y, z, rr) => { if (rr() < 0.4) { const h = 6 + rr() * 16, t = mesh(S.tank || (S.tank = own(new THREE.CylinderGeometry(2.4, 2.4, 1, 14))), mat(rr() < 0.5 ? '#9aa4b0' : '#7a8490'), false); t.scale.set(1, h, 1); t.position.set(x, y - 12 + h / 2, z); S.scene.add(t); const ring = mesh(BOXG, mat(rr() < 0.5 ? '#ffb13d' : '#3fd0ff', { emissive: '#ffb13d', emissiveIntensity: 0.3 }), false); ring.scale.set(5, 0.4, 5); ring.position.set(x, y - 12 + h * 0.7, z); S.scene.add(ring); } });
   }
+
+  /* ---------- PARCOURS PERSO : une suite de pièces, partageable par un code (BZ1-…) ---------- */
+  const PIECES = {
+    S: { n: 'Ligne droite', e: '➖', f: c => pStraight(c, 12, 11, '#7a6cff') },
+    L: { n: 'Virage à gauche', e: '↰', f: c => pArc(c, -Math.PI / 2, 14, 10, '#3fd0ff', 0, { alt: '#7a6cff' }) },
+    R: { n: 'Virage à droite', e: '↱', f: c => pArc(c, Math.PI / 2, 14, 10, '#3fd0ff', 0, { alt: '#7a6cff' }) },
+    U: { n: 'Montée', e: '⬆️', f: c => pRamp(c, 14, 4, 10, '#47d16c') },
+    D: { n: 'Toboggan', e: '🛝', f: c => { padAt(c, -3, 8, 4); pRamp(c, 26, -8, 11, '#3fd0ff', { ice: true, walls: '#ff4f9e' }); pStraight(c, 6, 11, '#7a6cff'); } },
+    G: { n: 'Trou à sauter', e: '🕳️', f: c => { gap(c, 6, 0); pStraight(c, 8, 10, '#ffb13d'); } },
+    T: { n: 'Trampoline', e: '🤸', f: c => { pStraight(c, 4, 10, '#ff4f9e'); pTramp(c, 6); pStraight(c, 10, 11, '#ffb13d'); } },
+    Z: { n: 'Tyrolienne', e: '🪢', f: c => { pStraight(c, 6, 9, '#7a6cff'); pZip(c, 36, 9); pStraight(c, 10, 12, '#47d16c'); } },
+    W: { n: 'Course sur les murs', e: '🧗', f: c => { pStraight(c, 5, 10, '#7a6cff'); pWallRun(c, 16, '#ff4f9e'); pStraight(c, 7, 10, '#3fd0ff'); } },
+    H: { n: 'Marteaux', e: '🔨', f: c => pHammers(c, 36, 3, ['#7a6cff', '#ff4f9e', '#ffb13d', '#3fd0ff']) },
+    X: { n: 'Mixeur', e: '🌀', f: c => { pDisc(c, 12, '#47d16c'); pStraight(c, 6, 11, '#7a6cff'); } },
+    C: { n: 'Canons', e: '💥', f: c => { pStraight(c, 4, 12, '#ff3b3b'); pCannons(c, 15, 0); pStraight(c, 12, 14, '#ffb13d'); } },
+    F: { n: 'Ventilateurs', e: '🌬️', f: c => { pFans(c, 2, 3, '#3fd0ff'); pStraight(c, 8, 12, '#7a6cff'); } },
+    B: { n: 'Dalles fantômes', e: '👻', f: c => { pBlink(c, 5, ['#ff8ac4', '#7fd8ff', '#ffe14a']); pStraight(c, 6, 11, '#7a6cff'); } },
+    P: { n: 'Pont fragile', e: '🧱', f: c => { crumbleBridge(c, 16, 3.4, '#c8925a'); pStraight(c, 6, 11, '#47d16c'); } },
+    E: { n: 'Ascenseur', e: '🛗', f: c => { pElev(c, 10); pStraight(c, 8, 11, '#ffb13d'); } },
+    K: { n: 'Tapis roulant', e: '⏩', f: c => pBelt(c, 20, 9, 9) },
+    V: { n: 'Vagues (tapis de côté)', e: '🌊', f: c => pBelt(c, 20, 10, 0, 5) },
+  };
+  P.PIECES = Object.fromEntries(Object.entries(PIECES).map(([k, v]) => [k, { n: v.n, e: v.e }]));
+  P.parseCode = code => { const m = /^BZ1-([A-Z]{1,30})$/.exec(String(code || '').trim().toUpperCase()); return m && [...m[1]].every(ch => PIECES[ch]) ? m[1] : null; };
+  P.makeCode = seq => 'BZ1-' + seq;
+  function buildCustom(r, MP, seq) {
+    sky(MP.sky[0], MP.sky[1]); lights(); S.scene.fog = new THREE.Fog(new THREE.Color(MP.sky[1]).getHex(), 160, 560); S.pathMode = true; S.secAt = [];
+    const c = { x: 0, y: 0, z: -2, yaw: 0 };
+    startPlaza(c);
+    [...seq].forEach((ch, i) => { cpAt(c, i ? c.y - 16 : undefined); PIECES[ch].f(c); });
+    pStraight(c, 8, 11, '#7a6cff'); finishArena(c, '#ff4f9e');
+    decorAround(r, MP, () => {});
+  }
+  P.setCustom = seq => { const i = MAPS.findIndex(m => m.custom), e = { name: 'PARCOURS PERSO', desc: 'Créé par un joueur : ' + P.makeCode(seq), sky: ['#ff8ac4', '#fff0f8'], sea: '#ffe6f2', custom: true, build: (r, MP) => buildCustom(r, MP, seq) }; if (i >= 0) { MAPS[i] = e; return i; } MAPS.push(e); return MAPS.length - 1; };
   /* ---------- TUTORIEL : un parcours avec des panneaux ---------- */
   function sign(c, lz, text) {
     const [x, z] = tp(c, 0, lz), cv = document.createElement('canvas'); cv.width = 1024; cv.height = 160; const g = cv.getContext('2d');
@@ -2825,6 +2862,7 @@
     }
     DOM.panel.classList.remove('on'); DOM.root.classList.add('on'); DOM.big.classList.remove('on');
     bindInput(true); resize();
+    if (o.customSeq) o.forceMap = P.setCustom(o.customSeq);
     { const n = S.players.size; startRound({ rn: 1, type: 'race', map: o.forceMap != null ? o.forceMap : mapFromSeed(S.seed), seed: S.seed, q: [...S.players.keys()], target: Math.max(2, Math.min(n - 1, Math.round(n * 0.66))), final: false }); }
     P.active = true;
     try { BR.MenuBG && BR.MenuBG.stop(); } catch (e) {}

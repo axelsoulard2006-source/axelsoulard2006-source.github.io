@@ -695,7 +695,7 @@
     const r = N.room; if (!r || !N.isHost()) return;
     const others = r.players.filter(p => p.id !== r.host);
     const go = () => {
-      if (partyRoom(r)) { N.send({ t: 'start', seed: BR.Party.pickSeed(), map: 'p_bousc' }); Au.ui('ok'); return; }
+      if (partyRoom(r)) { const cs = !r.ranked && BR.store.get('bz_custom_mp', 0) && BR.Party.parseCode(BR.store.get('bz_custom', '')); N.send({ t: 'start', seed: BR.Party.pickSeed(), map: 'p_bousc', cfg: cs ? { custom: cs } : null }); Au.ui('ok'); return; }
       if (doorsRoom(r)) {
         // l'hôte tire les images des portes (sans répétition) : tout le monde voit les mêmes
         N.send({ t: 'start', seed: (Math.random() * 2 ** 31) >>> 0, map: 'd_portes', cfg: { imgs: BR.Doors.planImages(150) } }); Au.ui('ok'); return;
@@ -1114,6 +1114,33 @@
     const n = SCR.lobby && SCR.lobby.node; if (n) { let b = n.querySelector('.rk-banner'); if (!b) { b = el('div', { class: 'rk-banner' }); n.prepend(b); } b.innerHTML = `🏆 <b>Partie classée</b> · ${r.players.length}/${r.max || 8} joueurs · départ ${full ? 'immédiat' : 'dans ' + left + ' s'} <small>(les places vides sont prises par des bots)</small>`; }
     if (N.isHost() && (full || left <= 0) && !inGame() && !BR.Party.session()) { rkT0 = Date.now() + 1e9; hostStart(true); }
   }, 1000);
+  // créateur de parcours
+  function partyEditor() {
+    Au.ui('click');
+    let seq = BR.Party.parseCode(BR.store.get('bz_custom', '')) || 'SRGTLZ';
+    modal(box => {
+      const draw = () => {
+        const PC = BR.Party.PIECES, code = BR.Party.makeCode(seq), mp = !!BR.store.get('bz_custom_mp', 0);
+        box.innerHTML = `<h3>🛠️ Créateur de parcours</h3><p class="muted" style="margin-top:-4px">Clique sur les pièces pour construire ta course (30 max). Départ et arrivée sont ajoutés tout seuls.</p>
+          <div class="ed-pal">${Object.entries(PC).map(([k, p]) => `<button data-add="${k}"><b>${p.e}</b>${esc(p.n)}</button>`).join('')}</div>
+          <div class="ed-seq">${[...seq].map((k, i) => `<span>${i + 1}. ${PC[k].e} ${esc(PC[k].n)} <i data-del="${i}">✕</i></span>`).join('') || '<em>Vide : ajoute des pièces !</em>'}</div>
+          <div class="ed-row"><b>Code à partager :</b> <input class="ed-code" value="${code}" readonly> <button data-a="copy">Copier</button></div>
+          <div class="ed-row"><input class="ed-in" placeholder="Colle le code d'un pote (BZ1-…)"> <button data-a="load">Charger</button></div>
+          <label class="ed-row"><input type="checkbox" class="ed-mp" ${mp ? 'checked' : ''}> Quand je suis l'hôte d'un salon : la manche 1 se joue sur ce parcours</label>
+          <div class="ed-row"><button class="btn primary" data-a="test">▶ Tester contre des bots</button><button class="btn" data-a="rand">🎲 Au hasard</button><button class="btn" data-a="clear">Vider</button></div>`;
+        box.querySelectorAll('[data-add]').forEach(b => b.onclick = () => { if (seq.length < 30) { seq += b.dataset.add; save(); Au.ui('click'); draw(); } });
+        box.querySelectorAll('[data-del]').forEach(b => b.onclick = () => { const i = +b.dataset.del; seq = seq.slice(0, i) + seq.slice(i + 1); save(); draw(); });
+        box.querySelector('[data-a=copy]').onclick = () => { try { navigator.clipboard.writeText(code); UI.toast('Code copié : ' + code, 'ok'); } catch (e) { box.querySelector('.ed-code').select(); } };
+        box.querySelector('[data-a=load]').onclick = () => { const s2 = BR.Party.parseCode(box.querySelector('.ed-in').value); if (!s2) { UI.toast('Code invalide (exemple : BZ1-SRGTLZ)', 'error'); return; } seq = s2; save(); Au.ui('ok'); draw(); };
+        box.querySelector('.ed-mp').onchange = e => { BR.store.set('bz_custom_mp', e.target.checked ? 1 : 0); };
+        box.querySelector('[data-a=rand]').onclick = () => { const ks = Object.keys(PC); seq = ''; for (let i = 0; i < 9; i++) seq += ks[Math.floor(Math.random() * ks.length)]; save(); draw(); };
+        box.querySelector('[data-a=clear]').onclick = () => { seq = ''; save(); draw(); };
+        box.querySelector('[data-a=test]').onclick = () => { if (!seq) { UI.toast('Ajoute au moins une pièce.', 'error'); return; } const p = Acc.p; launchParty({ mode: 'solo', customSeq: seq, seed: BR.Party.pickSeed(), roster: [{ id: 'me', name: p.name, look: p.look, level: lvl().level }], selfId: 'me', hostId: 'me' }); };
+      };
+      const save = () => BR.store.set('bz_custom', BR.Party.makeCode(seq));
+      draw();
+    });
+  }
   function startTuto() { Au.ui('ok'); const p = Acc.p; launchParty({ mode: 'solo', tuto: true, forceMap: BR.Party.tutoIdx(), seed: 99, roster: [{ id: 'me', name: p.name, look: p.look, level: lvl().level }], selfId: 'me', hostId: 'me' }); }
   function startPartySolo(forceMap) {
     if (forceMap == null && !BR.store.get('bz_tuto', 0) && BR.Party.progress().games === 0) { startTuto(); return; }   // toute première partie : le tutoriel
@@ -1136,6 +1163,7 @@
             <button class="mi d-hot" data-go="solo"><span>▶ Jouer contre des bots</span><small>4 manches · 27 cartes, 10 manches spéciales</small></button>
             <button class="mi d-hot" data-go="trial"><span>⏱ Défi du jour</span><small>${(() => { const d = BR.Party.dailyInfo(); return esc(d.name) + (d.best ? ' · ton record : ' + d.best.toFixed(1) + ' s' : ' · seul contre le chrono'); })()}</small></button>
             <button class="mi d-hot" data-go="rewards"><span>🎁 Récompenses</span><small>${(() => { const R = BR.Party.rewards(); return R.quests.filter(q => !q.c).length + ' quête(s) du jour · passe palier ' + R.lv + '/' + R.PASS.length; })()}</small></button>
+            <button class="mi d-hot" data-go="editor"><span>🛠️ Créateur de parcours</span><small>Construis ta course et partage son code</small></button>
             <button class="mi" data-go="tuto"><span>🎓 Tutoriel</span><small>Apprends les mouvements en 1 minute</small></button>
             <button class="mi" data-go="lb"><span>Classement mondial</span><small>Les meilleurs joueurs de la saison</small></button>
             <button class="mi" data-go="char"><span>Personnage</span><small>Ce que voient les autres joueurs</small></button>
@@ -1153,6 +1181,7 @@
         if (go === 'rewards') { partyRewards(); return; }
         if (go === 'trial') { startTrial(); return; }
         if (go === 'tuto') { startTuto(); return; }
+        if (go === 'editor') { partyEditor(); return; }
         if (go === 'solo') { startPartySolo(); return; }
         if (go === 'tour') { const pm = BR.Party.pathMaps(); startPartySolo(pm[Math.floor(Math.random() * pm.length)]); return; }
         if (go === 'rules') { Au.ui('click'); modal(box => box.insertAdjacentHTML('beforeend', `<h3>Bousculade — règles</h3>${partyRules()}`)); return; }
@@ -1358,7 +1387,7 @@
     N.on('start', m => {
       if (inGame()) return;
       const room = m.room;
-      if (isPartyMap(m.map)) { launchParty({ mode: 'multi', ranked: !!room.ranked, seed: m.seed, roster: room.players.map(p => ({ id: p.id, name: p.name, look: p.look, level: p.level })), selfId: N.id, hostId: room.host }); return; }
+      if (isPartyMap(m.map)) { launchParty({ mode: 'multi', ranked: !!room.ranked, customSeq: m.cfg && BR.Party.parseCode('BZ1-' + (m.cfg.custom || '')) || undefined, seed: m.seed, roster: room.players.map(p => ({ id: p.id, name: p.name, look: p.look, level: p.level })), selfId: N.id, hostId: room.host }); return; }
       if (isDoorsMap(m.map)) {
         launchDoors({ mode: 'multi', diff: m.diff, seed: m.seed, imgs: m.cfg && Array.isArray(m.cfg.imgs) ? m.cfg.imgs : null, roster: room.players.map(p => ({ id: p.id, name: p.name, look: p.look, level: p.level })), selfId: N.id, hostId: room.host });
         return;
