@@ -23,7 +23,7 @@
   const PDIFF = { id: 'normal', name: 'Fiesta', color: '#ff4f9e', desc: '2 manches : la Course d’adresse (les premiers arrivés passent), puis la Toupie (le dernier debout gagne).' };
   const gameOfRoom = r => arenaRoom(r) ? (r.map === 'a_asc' ? 'asc' : 'arena') : partyRoom(r) ? 'bousculade' : doorsRoom(r) ? 'portes' : 'backrooms';
   const curKind = () => arenaGame() ? (BR.ascMode ? 'asc' : 'arena') : partyGame() ? 'bousculade' : doorsGame() ? 'portes' : 'backrooms';
-  const brandName = () => BR.curGame === 'arena' ? (BR.ascMode ? 'COLOSSES · L\'ASCENSION' : 'COLOSSES') : BR.curGame === 'portes' ? 'LES PORTES' : BR.curGame === 'bousculade' ? 'BOUSCULADE' : 'BACKROOMS';
+  const brandName = () => curId === 'hub' ? 'LA VILLE DES JEUX' : BR.curGame === 'arena' ? (BR.ascMode ? 'COLOSSES · L\'ASCENSION' : 'COLOSSES') : BR.curGame === 'portes' ? 'LES PORTES' : BR.curGame === 'bousculade' ? 'BOUSCULADE' : 'BACKROOMS';
   const ui = () => BR.$('#ui');
   const ICO = (n, sz, c) => BR.Icons.svg(n, sz, c), COIN = sz => BR.Icons.coin(sz);
   const ico = (n, sz) => el('span', { class: 'icw', html: ICO(n, sz) }), coinEl = sz => el('span', { class: 'icw', html: COIN(sz) });
@@ -63,7 +63,7 @@
     // (fenêtre en arrière-plan : les images d'animation arrivent toutes d'un coup ; seul l'écran encore actuel s'affiche)
     requestAnimationFrame(() => { if (curId === id && def.node === node) node.classList.add('on'); });
     BR.$('#topbar').style.display = def.noTop ? 'none' : '';
-    reportWhere(id === 'hub' || id === 'boot' ? null : BR.curGame === 'arena' ? 'colosses' : BR.curGame === 'portes' ? 'portes' : 'backrooms');
+    reportWhere(id === 'hub' || id === 'games' || id === 'boot' ? null : BR.curGame === 'arena' ? 'colosses' : BR.curGame === 'portes' ? 'portes' : 'backrooms');
     const brand = BR.$('#topbar .tb-brand'); if (brand) brand.textContent = brandName(); document.body.classList.toggle('arenamenu', BR.curGame === 'arena' && id !== 'hub');
     document.body.classList.toggle('doorsmenu', BR.curGame === 'portes' && id !== 'hub' && id !== 'boot');
     if (def.ownBg && def.ownBg()) { if (BR.ArenaUI) BR.ArenaUI.bg(false); BR.MenuBG.stop(); }   // l'écran dessine son propre décor 3D
@@ -138,11 +138,11 @@
     noTop: true,
     enter(n) {
       n.innerHTML = `<div class="boot">
-        <div class="boot-logo glitch" data-t="BACKROOMS">BACKROOMS</div>
-        <div class="boot-sub">Ne restez pas seuls dans le noir.</div>
+        <div class="boot-logo glitch" data-t="LA VILLE DES JEUX">LA VILLE DES JEUX</div>
+        <div class="boot-sub">Backrooms · Colosses · Bousculade · Portes · Blocaria</div>
         <div class="boot-bar"><i></i></div><div class="boot-msg">Chargement…</div>
         <button class="btn primary big boot-go" style="visibility:hidden">CLIQUER POUR ENTRER</button>
-        <div class="boot-warn">Jeu d'horreur : sons forts, apparitions soudaines. Casque conseillé.</div></div>`;
+        <div class="boot-warn">Certains jeux font peur (sons forts, apparitions) : casque conseillé.</div></div>`;
     },
   });
   UI.bootProgress = function (k, msg) { const b = BR.$('.boot-bar i'); if (b) b.style.width = Math.round(k * 100) + '%'; const m = BR.$('.boot-msg'); if (m && msg) m.textContent = msg; };
@@ -161,7 +161,7 @@
   let presence = null, presTimer = null, presAsked = 0;
   N.on('presence', m => { presence = m.p || null; paintPresence(); });
   function paintPresence() {
-    const n = SCR.hub && SCR.hub.node; if (!n || curId !== 'hub') return;
+    const n = SCR.hub && SCR.hub.node; if (!n || curId !== 'games') return;
     n.querySelectorAll('.gc-pl').forEach(b => {
       const L = presence && presence[b.dataset.pg];
       if (!L) { b.innerHTML = `${ICO('users', 14)} <span>${N.status !== 'on' ? 'hors ligne' : presAsked && performance.now() - presAsked > 6000 ? 'indisponible' : '…'}</span>`; b.classList.add('off'); return; }
@@ -196,7 +196,7 @@
       if (k === 'arena' && BR.ArenaUI) { BR.MenuBG.stop(); BR.ArenaUI.bg(true); }
       else { if (BR.ArenaUI) BR.ArenaUI.bg(false); BR.MenuBG.start(k); }
     } catch (e) { console.warn('fond accueil', e); }
-    const cap = BR.$('#s-hub .hub-bgcap'); if (cap) { cap.classList.remove('on'); void cap.offsetWidth; cap.textContent = hubBgName(k); cap.classList.add('on'); }
+    const cap = BR.$('#s-games .hub-bgcap'); if (cap) { cap.classList.remove('on'); void cap.offsetWidth; cap.textContent = hubBgName(k); cap.classList.add('on'); }
   }
   function hubBgStart() {
     hubBgStop();
@@ -205,12 +205,12 @@
     const maps = BR.shuffle(BR.MAPS.map(m => m.id)); HB.list = [];
     maps.forEach((id, i) => { HB.list.push(id); if (i % 3 === 2) HB.list.push('arena'); });
     HB.step = 0;
-    const cap = BR.$('#s-hub .hub-bgcap'); if (cap) { cap.textContent = hubBgName(BR.MAPS[0].id); cap.classList.add('on'); }
+    const cap = BR.$('#s-games .hub-bgcap'); if (cap) { cap.textContent = hubBgName(BR.MAPS[0].id); cap.classList.add('on'); }
     HB.timer = setInterval(() => {
-      if (curId !== 'hub' || inGame() || document.hidden) return;
+      if (curId !== 'games' || inGame() || document.hidden) return;
       const k = HB.list[HB.step++ % HB.list.length];
       fade.classList.add('on');
-      setTimeout(() => { if (curId !== 'hub') { fade.classList.remove('on'); return; } hubBgShow(k); setTimeout(() => fade.classList.remove('on'), 120); }, 750);
+      setTimeout(() => { if (curId !== 'games') { fade.classList.remove('on'); return; } hubBgShow(k); setTimeout(() => fade.classList.remove('on'), 120); }, 750);
     }, 13000);
   }
   function hubBgStop() {
@@ -233,28 +233,38 @@
   function toggleOld() {
     oldGames = !oldGames; Au.ui(oldGames ? 'buy' : 'back');
     UI.toast(oldGames ? 'Code accepté : les anciens jeux sont de retour !' : 'Anciens jeux cachés.', oldGames ? 'good' : '');
-    if (curId === 'hub') { UI.show('hub'); if (oldGames) setTimeout(() => { const o = BR.$('#s-hub .hub-old'); if (o) o.scrollIntoView({ behavior: 'smooth', block: 'center' }); }, 80); }
+    if (curId === 'games') { UI.show('games'); if (oldGames) setTimeout(() => { const o = BR.$('#s-games .hub-old'); if (o) o.scrollIntoView({ behavior: 'smooth', block: 'center' }); }, 80); }
   }
   document.addEventListener('keydown', e => {
-    if (curId !== 'hub' || inGame() || e.ctrlKey || e.metaKey || e.altKey) return;
+    if (curId !== 'games' || inGame() || e.ctrlKey || e.metaKey || e.altKey) return;
     if (e.target && /^(INPUT|TEXTAREA)$/.test(e.target.tagName)) return;
     if (!/^[a-zA-Z]$/.test(e.key)) return;
     codeBuf = (codeBuf + e.key.toLowerCase()).slice(-3);
     if (codeBuf === 'gmp') { codeBuf = ''; toggleOld(); }
   });
+  // l'accueil : la ville des jeux (BR.City) ; l'ancienne liste des jeux devient « Accès rapide » (écran 'games')
   screen('hub', {
+    leave() { try { BR.City.stop(); } catch (e) { console.warn(e); } },
+    enter(n) {
+      try { BR.MenuBG.stop(); } catch (e) {} if (BR.ArenaUI) BR.ArenaUI.bg(false); Au.track('music', 'menu', 0.8);
+      n.innerHTML = ''; n.classList.add('city-screen');
+      try { BR.City.start(n); } catch (e) { console.error('ville', e); UI.show('games'); }
+    },
+  });
+  screen('games', {
     leave() { clearInterval(presTimer); presTimer = null; BR.$$('.pres-pop').forEach(x => x.remove()); hubBgStop(); if (BR.ArenaUI) BR.ArenaUI.bg(false); },
     enter(n) {
       BR.MenuBG.start(); Au.track('music', 'menu', 0.8);
       const L = lvl();
       n.innerHTML = `<div class="hub">
-        <div class="hub-head"><h1>CHOISIS TON CAUCHEMAR</h1><p class="muted">Bienvenue, <b>${esc(Acc.p.name)}</b> — niveau ${L.level} · ${BR.rankName(L.level)}</p></div>
+        <div class="hub-head"><button class="btn ghost hub-city" data-city="1">🏙️ Retour à la ville</button><h1>CHOISIS TON JEU</h1><p class="muted">Bienvenue, <b>${esc(Acc.p.name)}</b> — niveau ${L.level} · ${BR.rankName(L.level)}</p></div>
         <div class="hub-cards">${BR.GAMES.filter(g => !g.old).map(g => gameCard(g)).join('')}</div>
         ${oldGames ? `<div class="hub-old"><div class="ho-h"><b>ANCIENS JEUX</b><span>Code GMP accepté — retape-le pour les cacher</span></div><div class="hub-cards old">${BR.GAMES.filter(g => g.old).map(g => gameCard(g)).join('')}</div></div>` : ''}
         ${Acc.logged ? '' : `<div class="hub-acc"><span>${ICO('cloud', 18)} Joue en invité ou <b>crée un compte</b> pour retrouver ta progression sur n'importe quel PC.</span><button class="btn small" data-act="account">Créer un compte</button></div>`}
       <label class="hub-code" title="Code secret">${ICO('lock', 14)}<input maxlength="10" placeholder="Code secret" spellcheck="false" autocomplete="off"></label>
       </div><div class="hub-bgcap"></div>`;
       hubBgStart();
+      { const cb = n.querySelector('[data-city]'); if (cb) cb.onclick = () => { Au.ui('back'); UI.show('hub'); }; }
       const codeIn = n.querySelector('.hub-code input');
       codeIn.addEventListener('input', () => { if (codeIn.value.trim().toLowerCase() === 'gmp') { codeIn.value = ''; codeIn.blur(); toggleOld(); } });
       codeIn.addEventListener('keydown', e => { if (e.key === 'Enter') { const v = codeIn.value.trim(); codeIn.value = ''; if (v.toLowerCase() === 'gmp') toggleOld(); else if (v) { Au.ui('error'); UI.toast('Code inconnu.', 'error'); } } });

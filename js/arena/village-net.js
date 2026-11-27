@@ -27,7 +27,7 @@
   };
   V.move = function (x, y, z, r, a) {
     if (!V.inside) return;
-    const n = { x: round(x), y: round(y), z: round(z), r: round(r), a: a || 'Idle' };
+    const n = { x: round(x), y: round(y), z: round(z), r: round(r), a: a || 'Idle', w: last.w };
     if (n.x !== last.x || n.y !== last.y || n.z !== last.z || Math.abs(n.r - last.r) > 0.02 || n.a !== last.a) { last = n; dirty = true; }
   };
   function flush() {
