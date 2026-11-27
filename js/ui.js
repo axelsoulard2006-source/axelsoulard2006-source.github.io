@@ -1070,7 +1070,7 @@
   function launchParty(o) {
     BR.$$('.modal-back').forEach(m => m.remove());
     killPreview(); BR.MenuBG.stop(); if (BR.ArenaUI) BR.ArenaUI.bg(false);
-    o.onEnd = a => { BR.MenuBG.start(); if (a === 'replay') startPartySolo(o.forceMap); else UI.show(o.mode === 'multi' && N.room ? 'lobby' : 'party'); };
+    o.onEnd = a => { BR.MenuBG.start(); if (a === 'trial') { startTrial(); return; } if (a === 'replay') startPartySolo(o.forceMap); else UI.show(o.mode === 'multi' && N.room ? 'lobby' : 'party'); };
     try { BR.Party.start(o); }
     catch (e) { console.error(e); try { BR.Party.stop(); } catch (_) {} UI.toast('Erreur au lancement : ' + e.message, 'error'); UI.show(o.mode === 'multi' ? (N.room ? 'lobby' : 'multi') : 'party'); }
   }
@@ -1120,6 +1120,7 @@
     launchParty({ mode: 'solo', forceMap: typeof forceMap === 'number' ? forceMap : undefined, seed: BR.Party.pickSeed(), roster: [{ id: 'me', name: p.name, look: p.look, level: lvl().level }], selfId: 'me', hostId: 'me' });
   }
   UI.startPartySolo = startPartySolo;
+  function startTrial() { Au.ui('ok'); const p = Acc.p; launchParty({ mode: 'solo', trial: true, forceMap: BR.Party.dailyMap(), seed: 777, roster: [{ id: 'me', name: p.name, look: p.look, level: lvl().level }], selfId: 'me', hostId: 'me' }); }
   screen('party', {
     enter(n) {
       BR.curGame = 'bousculade'; Au.track('music', 'menu', 0.8); try { BR.Party.prep(); } catch (e) {}
@@ -1131,6 +1132,7 @@
             <button class="mi d-hot pt-rkbtn" data-go="ranked"><span>🏆 Classé</span><small>${N.rk ? BR.Party.tier(N.rk.rp).label + ' · ' + N.rk.rp + ' RP' : 'Grimpe de Bronze à Champion · saison mensuelle'}</small></button>
             <button class="mi d-hot" data-go="multi"><span>Multijoueur</span><small>Jusqu'à 8 potes · le dernier debout gagne</small></button>
             <button class="mi d-hot" data-go="solo"><span>▶ Jouer contre des bots</span><small>4 manches · 23 cartes, 9 manches spéciales</small></button>
+            <button class="mi d-hot" data-go="trial"><span>⏱ Défi du jour</span><small>${(() => { const d = BR.Party.dailyInfo(); return esc(d.name) + (d.best ? ' · ton record : ' + d.best.toFixed(1) + ' s' : ' · seul contre le chrono'); })()}</small></button>
             <button class="mi d-hot" data-go="rewards"><span>🎁 Récompenses</span><small>${(() => { const R = BR.Party.rewards(); return R.quests.filter(q => !q.c).length + ' quête(s) du jour · passe palier ' + R.lv + '/' + R.PASS.length; })()}</small></button>
             <button class="mi" data-go="lb"><span>Classement mondial</span><small>Les meilleurs joueurs de la saison</small></button>
             <button class="mi" data-go="char"><span>Personnage</span><small>Ce que voient les autres joueurs</small></button>
@@ -1146,6 +1148,7 @@
         const go = bt.dataset.go;
         if (go === 'ranked') { rankedQueue(); return; }
         if (go === 'rewards') { partyRewards(); return; }
+        if (go === 'trial') { startTrial(); return; }
         if (go === 'solo') { startPartySolo(); return; }
         if (go === 'tour') { const pm = BR.Party.pathMaps(); startPartySolo(pm[Math.floor(Math.random() * pm.length)]); return; }
         if (go === 'rules') { Au.ui('click'); modal(box => box.insertAdjacentHTML('beforeend', `<h3>Bousculade — règles</h3>${partyRules()}`)); return; }

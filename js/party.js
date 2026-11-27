@@ -75,6 +75,7 @@
 #party .pt-card button.alt{background:#ff4f9e;box-shadow:0 5px 0 #c42a74}
 #party .pt-card button:active{transform:translateY(3px);box-shadow:0 2px 0 #4636c9}
 #party .pt-set{display:grid;gap:10px;margin:6px 0 16px;font-weight:800;font-size:14px}#party .pt-set label{display:grid;grid-template-columns:1fr 1.3fr;align-items:center;gap:10px}#party .pt-set select{font:inherit;padding:4px 8px;border-radius:8px}#party .pt-set input[type=range]{-webkit-appearance:auto!important;appearance:auto!important;width:100%;accent-color:#ff4f9e;background:transparent!important;height:auto!important}
+#party .pt-lb{background:#f3eaff;border-radius:12px;padding:8px 12px;margin:6px 0 12px;font-size:14px}#party .pt-lb>b{display:block;margin-bottom:4px;color:#7a6cff}#party .pt-lbl div{display:flex;justify-content:space-between;padding:1px 0}#party .pt-lbl div.me{color:#ff4f9e;font-weight:900}
 #party .pt-gain{text-align:center;font-weight:900;color:#2a9a55;margin-bottom:12px}
 .pt-rk{--rc:#c77b3b;display:grid;grid-template-columns:1fr auto;gap:4px 10px;align-items:center;margin:8px auto 12px;max-width:420px;padding:10px 14px;border-radius:14px;background:linear-gradient(135deg,color-mix(in srgb,var(--rc) 22%,#fff),#fff);border:3px solid var(--rc);color:#2a1a4a;box-shadow:0 4px 0 color-mix(in srgb,var(--rc) 60%,#000)}
 .pt-rk b{font-size:20px;font-weight:900;color:color-mix(in srgb,var(--rc) 70%,#000)}.pt-rk span{font-weight:900;font-size:16px}
@@ -2292,12 +2293,36 @@
     if (S.solo === false && S.rn === 1) BR.Net.relay({ k: 'hi', c: P.progress().crowns, h: S.me.hat || '', tr: S.me.trail || '', rk: S.me.rk || '' });
     paintList();
   }
+
+  /* ---------- DÉFI DU JOUR : une carte imposée, seul contre le chrono, classement mondial du jour ---------- */
+  const dayKey = () => new Date().toISOString().slice(0, 10);
+  P.dailyMap = () => { const pm = P.pathMaps(), d = dayKey(); let h = 0; for (const c of d) h = (Math.imul(h, 31) + c.charCodeAt(0)) >>> 0; return pm[h % pm.length]; };
+  P.dailyInfo = () => { const b = BZ(), dj = b.dj && b.dj.day === dayKey() ? b.dj : null, mi = P.dailyMap(); return { map: mi, name: MAPS[mi].name, best: dj ? dj.t / 10 : 0, tries: dj ? dj.n || 0 : 0 }; };
+  function trialEnd(t) {
+    if (S.results || t < 5) return; S.results = true; S.ctl = false; unlock();
+    const b = BZ(), d = dayKey(); let best = false;
+    if (!b.dj || b.dj.day !== d) b.dj = { day: d, t: 0, m: S.mapIdx, n: 0 };
+    b.dj.n = (b.dj.n || 0) + 1; const tt = Math.round(t * 10); if (!b.dj.t || tt < b.dj.t) { b.dj.t = tt; best = true; }
+    if (best) { passXp(30); bzEv('trial'); }
+    try { BR.Account.save(true); } catch (e) {}
+    snd('cheer'); sfx(best ? 'buy' : 'click');
+    DOM.card.innerHTML = `<h2>⏱ DÉFI DU JOUR</h2><p>${BR.esc(MAPS[S.mapIdx].name)}</p><div class="pt-gain" style="font-size:30px;color:#7a6cff">${fmt(t)}</div>
+      <p>${best ? '🏆 Nouveau meilleur temps du jour !' : 'Ton record du jour : <b>' + fmt(b.dj.t / 10) + '</b>'} · essai n° ${b.dj.n}</p>
+      <div class="pt-lb"><b>Classement du jour</b><div class="pt-lbl">Chargement…</div></div>
+      <div class="pt-b"><button data-a="trial">Réessayer</button><button class="alt" data-a="menu">Menu</button></div>`;
+    DOM.panel.classList.add('on');
+    DOM.card.querySelectorAll('button').forEach(bt => bt.addEventListener('click', () => { sfx('click'); const a = bt.dataset.a, cb = S.o.onEnd; P.stop(); if (cb) cb(a); }));
+    const fill = j => { const el = DOM && DOM.card.querySelector('.pt-lbl'); if (!el) return; const L = (j && j.bzDay && j.bzDay.day === d ? j.bzDay.top : []) || []; const me = (BR.Account.p.name || '').toLowerCase();
+      el.innerHTML = L.length ? L.slice(0, 8).map((e, i) => `<div class="${e.name.toLowerCase() === me ? 'me' : ''}"><span>${i + 1}. ${BR.esc(e.name)}</span><b>${fmt(e.t / 10)}</b></div>`).join('') : '<i>Personne encore… ' + (BR.Account.logged ? 'ton temps arrive dans le classement dès la sauvegarde.' : 'crée un compte pour y apparaître !') + '</i>'; };
+    setTimeout(() => { try { BR.Net.api('/api/leaderboard', { retries: 1, timeout: 20000 }).then(fill).catch(() => fill(null)); } catch (e) { fill(null); } }, 1500);
+  }
   function finishP(m) {
     if (m.finished || S.round !== 1) return; m.finished = true; const t = S.rt - S.goAt;
     if (m === S.me) {
       snd('cheer'); S.excite = 1.2; sfx('buy'); emit(m.x, m.y + 1, m.z, 160, { cols: CONF, spd: 7, up: 9, life: 2.2, grav: 7, spread: 3 });
       try { m.av.act('Cheer', { speed: 1 }); } catch (e) {}
       const rec = recordMap(t); S.newBest = rec.best; S.mapT = t;
+      if (S.o.trial) { trialEnd(t); return; }
       const k = S.fin.length + 1; if (k <= 3) bzEv('top3'); big('QUALIFIÉ !', k + (k === 1 ? 'er' : 'e') + ' · ' + fmt(t) + (S.newBest ? ' · RECORD' : ''), 2400);
       try { BR.Account.save(); } catch (e) {}
     }
@@ -2354,6 +2379,7 @@
     return null;
   }
   function decideTick() {
+    if (S.o.trial) return;
     if (S.decided || S.results || !S.ctl) return;
     if (!S.solo && !BR.Net.isHost()) return;
     let q = roundOver();
@@ -2591,7 +2617,7 @@
     o.roster.forEach(r => S.players.set(r.id, { id: r.id, name: r.name, look: r.look || BR.Avatar.defaultLook(), x: 0, y: 0, z: 0, tx: 0, ty: 0, tz: 0, vx: 0, vy: 0, vz: 0, face: 0, tf: 0, st: 0,
       ground: false, active: true, jbuf: 0, coyote: 0, ghost: 0, diveUsed: false, stT: 0 }));
     S.me = S.players.get(S.selfId);
-    makeBots(S.seed); S.usedMaps = []; S.usedR2 = []; S.elim = []; S.elimRn = {};
+    if (!o.trial) makeBots(S.seed); S.usedMaps = []; S.usedR2 = []; S.elim = []; S.elimRn = {};
     S.cam = new THREE.PerspectiveCamera(68, window.innerWidth / window.innerHeight, 0.1, 900);
     makeAvatars();
     if (!S.solo) {
