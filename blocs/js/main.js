@@ -10,6 +10,7 @@
   const G = VX.G = {
     inv: Array(36).fill(null), sel: 0, cursor: null, craft2: Array(4).fill(null), craft3: Array(9).fill(null),
     armor: [null, null, null, null],   // casque, plastron, jambières, bottes
+    offhand: null,                      // main secondaire (bouclier, torches…) : même format qu'une case d'inventaire
     mode: 'survie', R: 4, seed: 0, dim: 'surface', mods: { surface: {}, braises: {} }, worlds: {}, furnaces: {}, chests: {}, links: {}, items: [], time: 0.28,
     known: {},                          // objets déjà possédés (livre de recettes)
     player: new VX.Player(), spawn: null, world: null, mine: null,
@@ -101,7 +102,9 @@
   }
   // retire un bloc du monde avec tous ses effets (conteneurs, portail, torche posée dessus) — partagé avec les explosions
   function destroyBlock(x, y, z, id, drops) {
-    const w = G.world; w.set(x, y, z, B.AIR);
+    const w = G.world;
+    if (id === COFFRE() && VX.ensureChestLoot) VX.ensureChestLoot(x, y, z);   // coffre d'une structure jamais ouvert : son trésor tombe aussi
+    w.set(x, y, z, B.AIR);
     if (drops) dropItem(drops[0], drops[1], new THREE.Vector3(x + 0.5, y + 0.5, z + 0.5));
     spillContainer(x, y, z, id);
     for (const [dx, dy, dz] of [[1, 0, 0], [-1, 0, 0], [0, 1, 0], [0, -1, 0], [0, 0, 1], [0, 0, -1]]) { const nid = w.getG(x + dx, y + dy, z + dz); if (nid === B.PORTAIL) removePortalAround(x + dx, y + dy, z + dz); if (nid === B.TORCHE && dy === 1) { w.set(x, y + 1, z, B.AIR); if (G.mode !== 'creatif') dropItem(B.TORCHE, 1, new THREE.Vector3(x + 0.5, y + 1.5, z + 0.5)); } }
@@ -126,9 +129,11 @@
     if (t && !P.sneak) {
       if (t.id === B.ETABLI) { UI.openInv({ kind: 'table' }); return; }
       if (t.id === B.FOUR) { const k = fKey(t.x, t.y, t.z); const f = G.furnaces[k] = G.furnaces[k] || { in: null, fuel: null, out: null, burn: 0, burnMax: 0, prog: 0 }; UI.openInv({ kind: 'four', furnace: f }); return; }
-      if (t.id === COFFRE()) { const k = fKey(t.x, t.y, t.z); const c = G.chests[k] = G.chests[k] || Array(27).fill(null); G.sfx('chest'); UI.openInv({ kind: 'coffre', chest: c }); return; }
+      if (t.id === COFFRE()) { const k = fKey(t.x, t.y, t.z); const c = G.chests[k] = G.chests[k] || (VX.ensureChestLoot && VX.ensureChestLoot(t.x, t.y, t.z)) || Array(27).fill(null); G.sfx('chest'); UI.openInv({ kind: 'coffre', chest: c }); return; }
     }
     if (!st) return;
+    // modules (agriculture, arc, bouclier…) : un écouteur qui renvoie false a consommé l'action
+    if (!H.emit('use', { target: t, stack: st, player: P, world: w })) { UI.hud(); return; }
     const itd = VX.ITEMS[st.id];
     if (itd && itd.food) { if (P.food < 20 || G.mode === 'creatif') { P.food = Math.min(20, P.food + itd.food); P.sat = Math.min(P.food, P.sat + itd.food * 0.6); if (G.mode !== 'creatif') { st.n--; if (st.n <= 0) G.inv[G.sel] = null; } G.sfx('eat'); H.emit('swing'); UI.hud(); } return; }
     // armure : clic droit = l'enfiler (échange avec la pièce portée)
@@ -208,6 +213,8 @@
     if (e.code === 'Space') { e.preventDefault(); const now = performance.now(); if (G.mode === 'creatif' && now - lastSpace < 300) { G.player.fly = !G.player.fly; UI.toast(G.player.fly ? 'Vol activé' : 'Vol désactivé'); } lastSpace = now; }
     // sprint : double appui sur Z (touche physique « W » en QWERTY)
     if (e.code === 'KeyW' && !e.repeat) { const now = performance.now(); if (now - lastW < 300) sprintTap = true; lastW = now; }
+    // F : échange l'objet tenu et la main secondaire
+    if (e.code === 'KeyF' && !e.repeat) { const s = G.inv[G.sel]; G.inv[G.sel] = G.offhand || null; G.offhand = s || null; if (G.offhand || G.inv[G.sel]) G.sfx('equip'); UI.hud(); }
     if (e.code === 'KeyQ') { const s = G.inv[G.sel]; if (s) { const P = G.player, d = new THREE.Vector3(-Math.sin(P.yaw) * Math.cos(P.pitch), Math.sin(P.pitch), -Math.cos(P.yaw) * Math.cos(P.pitch)); const n = e.ctrlKey ? s.n : 1; dropItem(s.id, n, new THREE.Vector3(P.pos.x, P.eye - 0.3, P.pos.z), d.multiplyScalar(6).add(new THREE.Vector3(0, 1.5, 0)), s.d); s.n -= n; if (s.n <= 0) G.inv[G.sel] = null; H.emit('swing'); UI.hud(); } }
   });
   document.addEventListener('keyup', e => { keys[e.code] = false; if (e.code === 'KeyW') sprintTap = false; });
@@ -227,13 +234,29 @@
       const v = a === 'jour' ? 0.3 : a === 'nuit' ? 0.8 : a === 'aube' ? 0.02 : parseFloat(a);
       if (!isFinite(v)) UI.say('Utilisation : /temps jour | nuit | aube | 0 à 1', 'err'); else { G.time = ((v % 1) + 1) % 1; UI.say('Le temps file… (' + G.time.toFixed(2) + ')', 'ok'); }
     } else if (cmd === 'graine') UI.say('Graine du monde : ' + G.seed, 'ok');
-    else if (cmd === 'aide' || cmd === '?') UI.say('Commandes : /mode survie|creatif · /temps jour|nuit · /graine · /aide', 'ok');
+    else if (cmd === 'meteo') {
+      const m = a === 'pluie' ? 'pluie' : a === 'orage' ? 'orage' : a === 'clair' || a === 'soleil' ? 'clair' : null;
+      if (!VX.Weather) UI.say('La météo n’est pas chargée.', 'err');
+      else if (!m) UI.say('Utilisation : /meteo pluie | orage | clair (actuellement : ' + VX.Weather.mode() + ')', 'err');
+      else { VX.Weather.set(m); UI.say(m === 'clair' ? 'Le ciel se dégage.' : m === 'pluie' ? 'Il commence à pleuvoir…' : 'Un orage gronde !', 'ok'); }
+    } else if (cmd === 'xp') {
+      if (G.mode !== 'creatif') { UI.say('/xp : seulement en mode créatif.', 'err'); return; }
+      const n = parseInt(a, 10); if (!isFinite(n)) { UI.say('Utilisation : /xp 50', 'err'); return; }
+      G.player.xp = Math.max(0, (G.player.xp || 0) + n); UI.hud(); UI.say('Expérience : ' + G.player.xp + ' (niveau ' + VX.xpLevel(G.player.xp).level + ')', 'ok');
+    } else if (cmd === 'localiser') {
+      if (G.mode !== 'creatif') { UI.say('/localiser : seulement en mode créatif.', 'err'); return; }
+      const g = G.world.gen, P = G.player.pos, kinds = { ruine: 'ruine', ruines: 'ruine', puits: 'puits', arbre: 'geant', geant: 'geant', portail: 'portail' };
+      if (!g || !g.nearestStructure || !kinds[a] || G.dim !== 'surface') { UI.say('Utilisation (Surface) : /localiser ruine | puits | arbre | portail', 'err'); return; }
+      const s = g.nearestStructure(P.x, P.z, 1500, kinds[a]); if (!s) { UI.say('Rien de tel à moins de 1500 blocs.', 'err'); return; }
+      UI.say('Le plus proche : X ' + s.x + '  Z ' + s.z + ' (à ' + Math.round(Math.hypot(s.x - P.x, s.z - P.z)) + ' blocs)', 'ok');
+    }
+    else if (cmd === 'aide' || cmd === '?') UI.say('Commandes : /mode survie|creatif · /temps jour|nuit · /meteo pluie|orage|clair · /graine · /localiser · /xp · /aide', 'ok');
     else UI.say('Commande inconnue : /' + cmd + ' (essaie /aide)', 'err');
   };
 
   G.menuAction = function (a) {
     if (a === 'play') { UI.menu(null); lock(); }
-    else if (a === 'respawn') { const P = G.player; P.hp = 20; P.food = 20; P.sat = 5; P.air = AIR_MAX; if (G.dim !== 'surface') useWorld('surface'); P.pos.set(G.spawn.x, G.spawn.y + 0.2, G.spawn.z); P.vel.set(0, 0, 0); P.fallTop = null; preload(); UI.menu(null); UI.hud(); lock(); }
+    else if (a === 'respawn') { H.emit('respawn', { player: G.player }); const P = G.player; P.hp = 20; P.food = 20; P.sat = 5; P.air = AIR_MAX; if (G.dim !== 'surface') useWorld('surface'); P.pos.set(G.spawn.x, G.spawn.y + 0.2, G.spawn.z); P.vel.set(0, 0, 0); P.fallTop = null; preload(); UI.menu(null); UI.hud(); lock(); }
     else if (a === 'mphost') VX.MP.host_();
     else if (a === 'mpjoin') VX.MP.join();
     else if (a === 'mpleave') { VX.MP.leave(); UI.menu('pause'); }
@@ -251,8 +274,8 @@
   function state() {
     const P = G.player, r = v => Math.round(v * 100) / 100;
     return { v: 1, seed: G.seed, dim: G.dim, mode: G.mode, time: r(G.time), spawn: G.spawn,
-      player: { x: r(P.pos.x), y: r(P.pos.y), z: r(P.pos.z), yaw: r(P.yaw), pitch: r(P.pitch), hp: P.hp, food: P.food, sat: r(P.sat), fly: P.fly, air: r(P.air) },
-      inv: G.inv, sel: G.sel, armor: G.armor, mods: G.mods, furnaces: G.furnaces, chests: G.chests, links: G.links, known: Object.keys(G.known).map(Number) };
+      player: { x: r(P.pos.x), y: r(P.pos.y), z: r(P.pos.z), yaw: r(P.yaw), pitch: r(P.pitch), hp: P.hp, food: P.food, sat: r(P.sat), fly: P.fly, air: r(P.air), xp: P.xp || 0 },
+      inv: G.inv, sel: G.sel, armor: G.armor, offhand: G.offhand || null, weather: VX.Weather ? VX.Weather.save() : undefined, mods: G.mods, furnaces: G.furnaces, chests: G.chests, links: G.links, known: Object.keys(G.known).map(Number) };
   }
   G.save = function (quiet) {
     if (G.guest) return;   // invité dans le monde d'un pote : on ne touche pas à sa propre sauvegarde
@@ -268,6 +291,8 @@
       G.known = {}; for (const id of s.known || []) G.known[id] = 1;
       useWorld(s.dim || 'surface'); const P = G.player, p = s.player || {}; P.pos.set(p.x || 0.5, p.y || 40, p.z || 0.5); P.yaw = p.yaw || 0; P.pitch = p.pitch || 0; P.hp = p.hp || 20; P.food = p.food != null ? p.food : 20; P.sat = p.sat || 5; P.fly = !!p.fly && G.mode === 'creatif';
       P.air = p.air != null ? Math.max(0, Math.min(AIR_MAX, p.air)) : AIR_MAX;
+      P.xp = Math.max(0, +p.xp || 0); G.offhand = s.offhand && s.offhand.id ? s.offhand : null;   // champs facultatifs (anciennes sauvegardes)
+      if (s.weather && VX.Weather) VX.Weather.load(s.weather);
       if (!G.spawn) G.spawn = { x: 0.5, y: 40, z: 0.5 };
       return true;
     }
@@ -280,19 +305,30 @@
   /* ---------- dégâts et armure ---------- */
   // types de dégâts que l'armure réduit (pas la chute, la noyade, la faim ni la lave)
   const ARMORED = { mob: 1, fleche: 1, explosion: 1 };
+  // bouclier levé (G.blocking, géré par combat.js) : un coup venu de face (src = {x, z}) est entièrement paré
+  function parried(n, kind, src) {
+    const P = G.player; if (!G.blocking || !src || !ARMORED[kind]) return false;
+    const dx = src.x - P.pos.x, dz = src.z - P.pos.z, d = Math.hypot(dx, dz) || 1, fx = -Math.sin(P.yaw), fz = -Math.cos(P.yaw);
+    if ((dx * fx + dz * fz) / d < 0.2) return false;   // de côté ou de dos : le bouclier ne protège pas
+    const sh = VX.Combat && VX.Combat.shieldStack(); if (sh && sh.d != null) { sh.d -= 1 + Math.floor(n / 3); if (sh.d <= 0) { VX.Combat.breakShield(); UI.toast('Ton bouclier s’est brisé !'); G.sfx('toolbreak'); } }
+    G.sfx('shield'); H.emit('parry', { n, kind, src }); UI.hud(); return true;
+  }
   G.armorPts = () => { let p = 0; if (VX.ARMOR) for (const s of G.armor) if (s && VX.ARMOR[s.id]) p += VX.ARMOR[s.id].pts; return p; };
-  function hurt(n, kind) {
-    const P = G.player; if (G.mode === 'creatif' || n <= 0 || P.hp <= 0) return;
+  // renvoie false si le coup n'a rien fait (paré, créatif…), true sinon
+  function hurt(n, kind, src) {
+    const P = G.player; if (G.mode === 'creatif' || n <= 0 || P.hp <= 0) return false;
+    if (parried(n, kind, src)) return false;
     if (ARMORED[kind]) {
       const pts = G.armorPts();
       if (pts > 0) {
         n = n * (1 - Math.min(0.8, pts * 0.04)); n = Math.floor(n) + (Math.random() < n % 1 ? 1 : 0);   // arrondi aléatoire : pas de demi-cœur perdu
         for (let i = 0; i < 4; i++) { const s = G.armor[i]; if (s && s.d != null) { s.d--; if (s.d <= 0) { G.armor[i] = null; UI.toast('Une pièce d\'armure s\'est brisée !'); G.sfx('toolbreak'); } } }
-        if (n <= 0) { G.sfx('block'); UI.hud(); return; }
+        if (n <= 0) { G.sfx('block'); UI.hud(); return false; }
       }
     }
     P.hp = Math.max(0, P.hp - n); P.hurtT = 0.4; G.sfx(kind === 'fall' ? 'fall' : 'hurt'); UI.flashHearts(); UI.hud();
-    if (P.hp <= 0) { UI.closeInv(); UI.closeChat && UI.closeChat(); UI.menu('mort'); }
+    if (P.hp <= 0) { H.emit('death', { player: P, kind }); UI.closeInv(); UI.closeChat && UI.closeChat(); UI.menu('mort'); }
+    return true;
   }
 
   /* ---------- boucle ---------- */
@@ -305,6 +341,7 @@
     const P = G.player, w = G.world, paused = !!UI.menuOpen;
     if (!paused) {
       const inp = locked && !UI.open && !UI.chatOpen ? { f: keys.KeyW, b: keys.KeyS, l: keys.KeyA, r: keys.KeyD, jump: keys.Space, sneak: keys.ShiftLeft || keys.ShiftRight, sprint: keys.ControlLeft || keys.ControlRight || sprintTap } : {};
+      inp.slow = !!(G.blocking || G.bowDraw > 0);   // bouclier levé, arc tendu : on avance au pas
       const fall = P.step(w, inp, dt, G.mode === 'creatif'); if (fall) hurt(fall, 'fall');
       H.emit('playerTick', { dt, player: P });
       // faim, vie, oxygène
@@ -367,14 +404,14 @@
     H.emit('afterRender', { dt, gl: R.gl, camera });   // fx.js : la main à la première personne par-dessus la scène
   }
 
-  G.hurt = (n, kind) => hurt(n, kind || 'mob'); G.dropItem = dropItem; G.scene = scene;
+  G.hurt = (n, kind, src) => hurt(n, kind || 'mob', src); G.dropItem = dropItem; G.scene = scene;
   G._dbg = { breakBlock: t => breakBlock(t), useItem: () => useItem(), lightPortal, travel, setTarget: t => { target = t; G._dbgTarget = t; }, dropItem, useWorld, breakTime, tick: dt => tick(last + dt * 1000), keys, setMining: v => { mining = v; } };   // tests
   /* ---------- démarrage : après le chargement de tous les scripts (les modules ajoutent objets et icônes avant le premier affichage) ---------- */
   function start() {
     UI.init(G);
     const had = load();
     preload();
-    for (const s of G.inv.concat(G.armor)) if (s) G.known[s.id] = 1;
+    for (const s of G.inv.concat(G.armor, [G.offhand])) if (s) G.known[s.id] = 1;
     if (!had) UI.menu('aide'); else UI.menu('pause');
     UI.hud();
     window.addEventListener('beforeunload', () => G.save(true));

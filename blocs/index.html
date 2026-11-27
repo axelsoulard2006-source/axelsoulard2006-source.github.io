@@ -4,34 +4,42 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Blocaria</title>
-  <link rel="stylesheet" href="style.css?v=6">
+  <link rel="stylesheet" href="style.css?v=8">
 </head>
 <body>
   <canvas id="gl"></canvas>
   <div id="boot"><b>BLOCARIA</b><span>Génération du monde…</span></div>
   <script src="../lib/three.min.js"></script>
   <!-- cœur partagé avec le Worker (sans DOM) -->
-  <script src="js/noise.js?v=6"></script>
-  <script src="js/registry.js?v=6"></script>
-  <script src="js/gen.js?v=6"></script>
-  <script src="js/mesher.js?v=6"></script>
+  <script src="js/noise.js?v=8"></script>
+  <script src="js/registry.js?v=8"></script>
+  <script src="js/gen.js?v=8"></script>
+  <script src="js/mesher.js?v=8"></script>
   <!-- thread principal -->
-  <script src="js/hooks.js?v=6"></script>
-  <script src="js/textures.js?v=6"></script>
-  <script src="js/texpack.js?v=6"></script>
-  <script src="js/renderer.js?v=6"></script>
-  <script src="js/world.js?v=6"></script>
-  <script src="js/crafting.js?v=6"></script>
-  <script src="js/player.js?v=6"></script>
-  <script src="js/ui.js?v=7"></script>
-  <script src="js/main.js?v=7"></script>
+  <script src="js/hooks.js?v=8"></script>
+  <script src="js/textures.js?v=8"></script>
+  <script src="js/texpack.js?v=8"></script>
+  <script src="js/renderer.js?v=8"></script>
+  <script src="js/world.js?v=8"></script>
+  <script src="js/crafting.js?v=8"></script>
+  <script src="js/player.js?v=8"></script>
+  <script src="js/ui.js?v=8"></script>
+  <script src="js/main.js?v=8"></script>
   <!-- modules branchés par les hooks -->
-  <script src="js/mobs.js?v=6"></script>
-  <script src="js/mp.js?v=6"></script>
+  <script src="js/mobs.js?v=8"></script>
+  <script src="js/mp.js?v=8"></script>
   <!-- survie, sons et effets (objets, armures, coffres, audio procédural, fissures, particules, main) -->
-  <script src="js/survie.js?v=6"></script>
-  <script src="js/audio.js?v=6"></script>
-  <script src="js/fx.js?v=7"></script>
-  <script src="js/shaders.js?v=1"></script>
+  <script src="js/survie.js?v=8"></script>
+  <script src="js/audio.js?v=8"></script>
+  <script src="js/fx.js?v=8"></script>
+  <script src="js/shaders.js?v=8"></script>
+  <!-- interface -->
+  <script src="js/preview.js?v=8"></script>
+  <script src="js/title.js?v=8"></script>
+  <script src="js/debug.js?v=8"></script>
+  <!-- contenu -->
+  <script src="js/farm.js?v=8"></script>
+  <script src="js/combat.js?v=8"></script>
+  <script src="js/weather.js?v=8"></script>
 </body>
 </html>

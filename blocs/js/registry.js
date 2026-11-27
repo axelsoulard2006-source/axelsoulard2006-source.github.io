@@ -11,9 +11,13 @@
     // biomes et coffre (ids 36 à 63 réservés au terrain / aux blocs)
     BOULEAU: 36, F_BOULEAU: 37, GRES: 38, ARGILE: 39, COFFRE: 40, HERBES: 41, FLEUR_R: 42, FLEUR_J: 43, ARBUSTE: 44, CACTUS: 45,
     NEIGE_BLOC: 46, GRAVIER: 47,
+    // agriculture et structures (ids 48 à 55)
+    LABOUR: 48, LABOUR_H: 49, BLE_0: 50, BLE_1: 51, BLE_2: 52, BLE_3: 53, P_MOUSSUE: 54, BRIQUES_M: 55,
   };
   const I = {
     BATON: 100, CHARBON: 101, L_FER: 102, L_OR: 103, SAPHIR: 104, ECLAT: 105, L_ASTRIUM: 106, POMME: 107, ALLUMEUR: 108, MORCEAU: 109, ROTI: 110, VIANDE: 111, STEAK: 112, ESSENCE: 113,
+    // agriculture et combat (138 à 159 ; 114 à 137 : survie.js)
+    GRAINES: 138, BLE: 139, PAIN: 140, ARC: 141, BOUCLIER: 142,
   };
   VX.B = B; VX.I = I;
   const D = VX.BLOCKS = [];
@@ -65,7 +69,8 @@
   def(B.ARGILE, 'Argile', T('clay'), { hard: 0.6, tool: 'pelle' });
   // coffre : comportement (inventaire) géré côté jeu ; tex.front = face avant (orientée vers le côté le plus dégagé)
   def(B.COFFRE, 'Coffre', { top: 'chest_top', bottom: 'chest_top', side: 'chest_side', front: 'chest_front' }, { hard: 2.5, tool: 'hache' });
-  def(B.HERBES, 'Hautes herbes', T('tallgrass'), Object.assign({}, PLANT, { drop: null }));
+  // les hautes herbes lâchent parfois des graines de blé
+  def(B.HERBES, 'Hautes herbes', T('tallgrass'), Object.assign({}, PLANT, { drop: r => r() < 0.14 ? [I.GRAINES, 1] : null }));
   def(B.FLEUR_R, 'Fleur rubis', T('flower_red'), PLANT);
   def(B.FLEUR_J, 'Fleur d\'ambre', T('flower_yellow'), PLANT);
   def(B.ARBUSTE, 'Arbuste sec', T('deadbush'), Object.assign({}, PLANT, { drop: r => r() < 0.6 ? [I.BATON, 1] : null }));
@@ -73,6 +78,17 @@
   def(B.CACTUS, 'Cactus', T('cactus_side', 'cactus_top', 'cactus_bottom'), { opaque: false, shape: 'cactus', hard: 0.4, hurt: 1 });
   def(B.NEIGE_BLOC, 'Bloc de neige', T('snow'), { hard: 0.4, tool: 'pelle' });
   def(B.GRAVIER, 'Gravier', T('gravel'), { hard: 0.6, tool: 'pelle' });
+  // --- agriculture : terre labourée (sèche / hydratée près de l'eau) et blé en 4 stades (forme en croix, tombe sans support) ---
+  def(B.LABOUR, 'Terre labourée', T('dirt', 'farmland'), { hard: 0.6, tool: 'pelle', drop: B.TERRE });
+  def(B.LABOUR_H, 'Terre labourée humide', T('dirt', 'farmland_wet'), { hard: 0.6, tool: 'pelle', drop: B.TERRE });
+  const CROP = Object.assign({}, PLANT, { replace: false, crop: true });
+  def(B.BLE_0, 'Pousse de blé', T('wheat_0'), Object.assign({}, CROP, { drop: I.GRAINES, stage: 0 }));
+  def(B.BLE_1, 'Jeune blé', T('wheat_1'), Object.assign({}, CROP, { drop: I.GRAINES, stage: 1 }));
+  def(B.BLE_2, 'Blé en herbe', T('wheat_2'), Object.assign({}, CROP, { drop: I.GRAINES, stage: 2 }));
+  def(B.BLE_3, 'Blé mûr', T('wheat_3'), Object.assign({}, CROP, { drop: I.BLE, stage: 3 }));   // + graines : farm.js
+  // --- pierre moussue des ruines ---
+  def(B.P_MOUSSUE, 'Pierre moussue', T('mossy_cobble'), { hard: 2, tool: 'pioche', tier: 0 });
+  def(B.BRIQUES_M, 'Briques moussues', T('mossy_bricks'), { hard: 1.5, tool: 'pioche', tier: 0 });
   D[B.FEUILLES].leaves = true;
   D[B.EAU].shade = 1; D[B.FEUILLES].shade = 1; D[B.F_BOULEAU].shade = 1;
   // lumière des blocs (0..15), propagée par le mesher
@@ -95,6 +111,11 @@
   it(I.VIANDE, 'Viande de bouffi', 'meat', { food: 3 });
   it(I.STEAK, 'Bouffi rôti', 'steak', { food: 8 });
   it(I.ESSENCE, 'Essence d’ombre', 'essence', { fuel: 60 });
+  it(I.GRAINES, 'Graines de blé', 'seeds', { plant: B.BLE_0 });
+  it(I.BLE, 'Blé', 'wheat');
+  it(I.PAIN, 'Pain', 'bread', { food: 5 });
+  it(I.ARC, 'Arc', 'bow', { stack: 1, dura: 384, bow: true, fuel: 5 });
+  it(I.BOUCLIER, 'Bouclier', 'shield', { stack: 1, dura: 336, shield: true });
   VX.TIERS = [
     { key: 'bois', name: 'en bois', col: '#b08a52', speed: 2, dura: 60, dmg: 4 },
     { key: 'pierre', name: 'en pierre', col: '#8d8d92', speed: 4, dura: 132, dmg: 5 },
@@ -106,6 +127,9 @@
   const TN = { pioche: 'Pioche', hache: 'Hache', pelle: 'Pelle', epee: 'Épée' };
   VX.toolId = (tier, kind) => 200 + tier * 4 + VX.TOOLS.indexOf(kind);
   VX.TIERS.forEach((t, ti) => VX.TOOLS.forEach(k => { const id = VX.toolId(ti, k); IT[id] = { id, name: TN[k] + ' ' + t.name, icon: 'tool_' + k + '_' + ti, stack: 1, tool: { kind: k === 'epee' ? 'epee' : k, tier: ti, speed: t.speed }, dura: t.dura, fuel: ti === 0 ? 10 : 0 }; }));
+  // houes des 5 matériaux (ids 155 à 159 : hors de la grille 200+ des outils, pour garder les anciennes sauvegardes)
+  VX.HOE0 = 155; VX.hoeId = tier => VX.HOE0 + tier;
+  VX.TIERS.forEach((t, ti) => { const id = VX.hoeId(ti); IT[id] = { id, name: 'Houe ' + t.name, icon: 'tool_houe_' + ti, stack: 1, tool: { kind: 'houe', tier: ti, speed: t.speed }, dura: t.dura, fuel: ti === 0 ? 10 : 0 }; });
   // combustibles et nourriture des blocs
   const FUEL = { [B.PLANCHES]: 15, [B.TRONC]: 15, [B.ETABLI]: 15, [B.TIGE]: 15 };
   VX.fuelOf = id => FUEL[id] || (IT[id] && IT[id].fuel) || 0;
@@ -118,7 +142,10 @@
     B.M_CHARBON, B.M_FER, B.M_OR, B.M_SAPHIR, B.B_FER, B.B_OR, B.B_SAPHIR, B.CENDRITE, B.MOUSSE, B.TIGE, B.CHAPEAU, B.BASALTE, B.LUMICRISTAL, B.BRAISIER, B.M_ASTRIUM, B.B_ASTRIUM,
     I.BATON, I.CHARBON, I.L_FER, I.L_OR, I.SAPHIR, I.ECLAT, I.L_ASTRIUM, I.POMME, I.ROTI, I.ALLUMEUR].concat(VX.TIERS.flatMap((t, ti) => VX.TOOLS.map(k => VX.toolId(ti, k))));
   // blocs des biomes : rangés avec les autres blocs (avant les objets)
-  VX.CREATIVE.splice(VX.CREATIVE.indexOf(I.BATON), 0, B.COFFRE, B.BOULEAU, B.F_BOULEAU, B.GRES, B.ARGILE, B.GRAVIER, B.NEIGE_BLOC, B.CACTUS, B.HERBES, B.FLEUR_R, B.FLEUR_J, B.ARBUSTE);
+  VX.CREATIVE.splice(VX.CREATIVE.indexOf(I.BATON), 0, B.COFFRE, B.BOULEAU, B.F_BOULEAU, B.GRES, B.ARGILE, B.GRAVIER, B.NEIGE_BLOC, B.CACTUS, B.HERBES, B.FLEUR_R, B.FLEUR_J, B.ARBUSTE,
+    B.P_MOUSSUE, B.BRIQUES_M, B.LABOUR, B.LABOUR_H);
+  // agriculture et combat : à la suite des objets
+  VX.CREATIVE.push(I.GRAINES, I.BLE, I.PAIN, I.ARC, I.BOUCLIER, ...VX.TIERS.map((t, ti) => VX.hoeId(ti)));
 
   /* ---------- recettes ---------- */
   const R = VX.RECIPES = [];
@@ -146,6 +173,11 @@
   const MAT = [[B.PLANCHES, B.TIGE], [B.GALETS, B.CENDRITE, B.BASALTE], I.L_FER, I.SAPHIR, I.L_ASTRIUM];
   const SHAPES = { pioche: ['XXX', ' S ', ' S '], hache: ['XX', 'XS', ' S'], pelle: ['X', 'S', 'S'], epee: ['X', 'X', 'S'] };
   MAT.forEach((m, ti) => VX.TOOLS.forEach(k => shaped(SHAPES[k], { X: m, S: I.BATON }, VX.toolId(ti, k))));
+  MAT.forEach((m, ti) => shaped(['XX', ' S', ' S'], { X: m, S: I.BATON }, VX.hoeId(ti)));
+  // agriculture, pierre moussue
+  shaped(['BBB'], { B: I.BLE }, I.PAIN);
+  shapeless([B.GALETS, [B.FEUILLES, B.F_BOULEAU]], B.P_MOUSSUE);
+  shapeless([B.BRIQUES, [B.FEUILLES, B.F_BOULEAU]], B.BRIQUES_M);
 
   // cuisson : entrée -> sortie
   VX.SMELT = {

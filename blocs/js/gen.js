@@ -13,12 +13,23 @@
   const M = 4, TM = 3, RS = CS + 2 * M;   // marge autour du chunk (pentes) ; TM : marge des arbres qui débordent
   // types de surface d'une colonne
   const S_GRASS = 0, S_SAND = 1, S_DESERT = 2, S_ROCK = 3, S_SNOW = 4, S_SNOWROCK = 5, S_SEA = 6;
+  /* structures rares : une chance par cellule de la grille (taille « cell »), position tirée dans la cellule.
+     reach = demi-largeur maximale (elles débordent sur les chunks voisins, chacun dessine sa part) */
+  const STRUCTS = {
+    ruine: { cell: 150, chance: 0.6, reach: 6, salt: 301 },     // ruines de pierre moussue avec un coffre au trésor
+    puits: { cell: 104, chance: 0.65, reach: 3, salt: 302 },    // puits de grès dans le désert
+    geant: { cell: 52, chance: 0.5, reach: 7, salt: 303 },      // arbres géants des forêts
+    portail: { cell: 176, chance: 0.6, reach: 7, salt: 304 },   // ancien portail en ruine (vers les Braises)
+  };
+  // rotation d'un décalage (dx, dz) d'un quart de tour r
+  const rot = (dx, dz, r) => r === 1 ? [-dz, dx] : r === 2 ? [-dx, -dz] : r === 3 ? [dz, -dx] : [dx, dz];
   class Gen {
     constructor(seed, dim) {
       this.seed = seed | 0; this.dim = dim; this.n = VX.makeNoise(this.seed + (dim === 'braises' ? 7777 : 0));
       // colonnes de la zone du chunk en cours (réutilisées d'un chunk à l'autre)
       this.cH = new Int16Array(RS * RS); this.cS = new Uint8Array(RS * RS); this.cF = new Float32Array(RS * RS);
       this.cD = new Float32Array(RS * RS); this.cT = new Float32Array(RS * RS); this.cM = new Float32Array(RS * RS);
+      this.sCache = new Map();   // structures déjà évaluées (cellule -> structure ou null)
     }
     generate(cx, cz) { const c = { cx, cz, data: new Uint8Array(CS * CS * H) }; if (this.dim === 'braises') this.genBraises(c); else this.genSurface(c); return c.data; }
 
@@ -60,6 +71,141 @@
     }
     floorAt(x, z) { return Math.floor(16 + this.n.fbm2(x / 50, z / 50, 3) * 12); }
     ceilAt(x, z) { return Math.floor(52 + this.n.fbm2(x / 40 + 300, z / 40, 2) * 8); }
+
+    /* ---------- structures (fonctions pures de la graine : le Worker et le thread principal trouvent les mêmes) ---------- */
+    structAt(kind, gx, gz) {
+      const key = kind + gx + ',' + gz; if (this.sCache.has(key)) return this.sCache.get(key);
+      const T = STRUCTS[kind], S = this.seed, hs = VX.hash; let st = null;
+      if (this.dim === 'surface' && hs(gx, T.salt, gz, S) < T.chance) {
+        const m = T.reach + 2, x = gx * T.cell + m + Math.floor(hs(gx, T.salt + 1, gz, S) * (T.cell - 2 * m)), z = gz * T.cell + m + Math.floor(hs(gx, T.salt + 2, gz, S) * (T.cell - 2 * m));
+        const o = this.climate(x, z, {}), y = o.h, r = T.reach - 1;
+        let flat = 0; for (const [ax, az] of [[r, r], [-r, r], [r, -r], [-r, -r]]) flat = Math.max(flat, Math.abs(this.heightAt(x + ax, z + az) - y));
+        let ok = false;
+        if (kind === 'ruine') ok = o.dw < 0.35 && o.mw < 0.45 && y > SEA + 2 && y < 46 && flat <= 3;
+        else if (kind === 'puits') ok = o.dw > 0.6 && o.mw < 0.3 && y > SEA + 2 && flat <= 3;
+        else if (kind === 'geant') ok = o.fw > 0.5 && o.dw < 0.2 && o.mw < 0.35 && y > SEA + 2 && y <= 44 && flat <= 4;
+        else if (kind === 'portail') ok = y > SEA + 1 && y < 50 && o.mw < 0.6 && flat <= 3;
+        if (ok && !this.carved(x, y, z, y) && !this.carved(x, y - 1, z, y)) st = { kind, x, z, y, rot: Math.floor(hs(gx, T.salt + 3, gz, S) * 4), r: hs(gx, T.salt + 4, gz, S) };
+      }
+      if (this.sCache.size > 6000) this.sCache.clear();
+      this.sCache.set(key, st); return st;
+    }
+    // structures dont l'emprise touche le rectangle [x0..x1] × [z0..z1]
+    structuresIn(x0, z0, x1, z1, only) {
+      const out = [];
+      for (const kind in STRUCTS) {
+        if (only && kind !== only) continue;
+        const T = STRUCTS[kind], R = T.reach;
+        for (let gz = Math.floor((z0 - R) / T.cell); gz <= Math.floor((z1 + R) / T.cell); gz++) for (let gx = Math.floor((x0 - R) / T.cell); gx <= Math.floor((x1 + R) / T.cell); gx++) {
+          const st = this.structAt(kind, gx, gz); if (st && st.x + R >= x0 && st.x - R <= x1 && st.z + R >= z0 && st.z - R <= z1) out.push(st);
+        }
+      }
+      return out;
+    }
+    // la plus proche d'un type donné (commande /localiser, tests)
+    nearestStructure(x, z, maxD, kind) {
+      const T = STRUCTS[kind]; if (!T) return null; let best = null, bd = Infinity;
+      for (let gz = Math.floor((z - maxD) / T.cell); gz <= Math.floor((z + maxD) / T.cell); gz++) for (let gx = Math.floor((x - maxD) / T.cell); gx <= Math.floor((x + maxD) / T.cell); gx++) {
+        const st = this.structAt(kind, gx, gz); if (!st) continue; const d = Math.hypot(st.x - x, st.z - z); if (d < bd && d <= maxD) { bd = d; best = st; }
+      }
+      return best;
+    }
+    // emplacement du coffre d'une structure (ou null)
+    chestPos(st, hAt) {
+      if (st.kind === 'ruine') { const [a, b] = rot(2, 2, st.rot); return [st.x + a, st.y + 1, st.z + b]; }
+      if (st.kind === 'portail') { const ax = st.rot & 1, cx = st.x + (ax ? 2 : 3), cz = st.z + (ax ? 3 : 2); return [cx, (hAt ? hAt(cx, cz) : this.heightAt(cx, cz)) + 1, cz]; }
+      return null;
+    }
+    // type de trésor du coffre généré à cette position (ruine / portail) : utilisé par survie.js à l'ouverture
+    chestKindAt(x, y, z) {
+      for (const st of this.structuresIn(x, z, x, z)) { const p = this.chestPos(st); if (p && p[0] === x && p[1] === y && p[2] === z) return st.kind; }
+      return null;
+    }
+    // dessine une structure ; put(x, y, z, id, mode) en coordonnées du monde — mode 0 : seulement dans l'air (ou une plante), 1 : écrase tout
+    buildStruct(st, put, hAt) {
+      const Bk = B, S = this.seed, X = st.x, Z = st.z, Y = st.y, hs = (a, b, c) => VX.hash(X * 3 + a, b, Z * 3 + c, S + 77);
+      if (st.kind === 'ruine') {
+        const at = (dx, dz) => { const [a, b] = rot(dx, dz, st.rot); return [X + a, Z + b]; };
+        const mossy = r => r < 0.45 ? Bk.BRIQUES_M : r < 0.78 ? Bk.P_MOUSSUE : r < 0.92 ? Bk.GALETS : Bk.BRIQUES;
+        for (let dz = -4; dz <= 4; dz++) for (let dx = -4; dx <= 4; dx++) {
+          const [x, z] = at(dx, dz), h0 = hAt(x, z), edge = Math.abs(dx) === 4 || Math.abs(dz) === 4, corner = Math.abs(dx) === 4 && Math.abs(dz) === 4;
+          for (let y = h0 + 1; y < Y; y++) put(x, y, z, Bk.GALETS, 1);   // fondations
+          const r = hs(dx, 1, dz); put(x, Y, z, r < 0.4 ? Bk.BRIQUES_M : r < 0.72 ? Bk.P_MOUSSUE : r < 0.9 ? Bk.GALETS : Bk.GRAVIER, 1);   // dallage
+          for (let y = Y + 1; y <= Y + 7; y++) put(x, y, z, Bk.AIR, 1);   // on dégage l'intérieur (herbes, troncs)
+          if (edge) {
+            const door = dz === -4 && Math.abs(dx) <= 1;
+            let wh = corner ? 3 + Math.floor(hs(dx, 2, dz) * 3) : Math.floor(hs(dx, 3, dz) * 4.4);
+            if (door) wh = dx === 0 ? 0 : Math.min(wh, 1);
+            for (let k = 1; k <= wh; k++) put(x, Y + k, z, mossy(hs(dx, 10 + k, dz)), 1);
+            if (wh > 0 && hs(dx, 4, dz) < 0.35) put(x, Y + wh + 1, z, Bk.FEUILLES, 1);   // la végétation reprend ses droits
+          } else if (hs(dx, 5, dz) < 0.1) put(x, Y + 1, z, hs(dx, 6, dz) < 0.5 ? Bk.GALETS : Bk.P_MOUSSUE, 1);   // gravats
+          else if (hs(dx, 7, dz) < 0.12) put(x, Y + 1, z, Bk.HERBES, 1);
+        }
+        // deux piliers brisés et le coffre
+        for (const [dx, dz] of [[-2, 1], [2, -1]]) { const [x, z] = at(dx, dz), ph = 1 + Math.floor(hs(dx, 8, dz) * 4); for (let k = 1; k <= ph; k++) put(x, Y + k, z, k === ph ? Bk.BRIQUES_M : Bk.BRIQUES, 1); }
+        const c = this.chestPos(st); put(c[0], c[1], c[2], Bk.COFFRE, 1);
+      } else if (st.kind === 'puits') {
+        for (let dz = -2; dz <= 2; dz++) for (let dx = -2; dx <= 2; dx++) {
+          const x = X + dx, z = Z + dz, h0 = hAt(x, z), inner = Math.abs(dx) <= 1 && Math.abs(dz) <= 1, center = !dx && !dz;
+          for (let y = h0 + 1; y < Y; y++) put(x, y, z, Bk.GRES, 1);
+          for (let y = Y + 1; y <= Y + 5; y++) put(x, y, z, Bk.AIR, 1);
+          if (center) { put(x, Y - 5, z, Bk.GRES, 1); for (let y = Y - 4; y <= Y; y++) put(x, y, z, Bk.EAU, 1); }
+          else {
+            put(x, Y, z, Bk.GRES, 1);
+            if (inner) { for (let y = Y - 5; y < Y; y++) put(x, y, z, Bk.GRES, 1); put(x, Y + 1, z, Bk.GRES, 1); }   // margelle
+            if (Math.abs(dx) === 1 && Math.abs(dz) === 1) { put(x, Y + 2, z, Bk.GRES, 1); put(x, Y + 3, z, Bk.GRES, 1); }   // piliers
+          }
+          if (inner) put(x, Y + 4, z, Bk.GRES, 1);   // toit
+        }
+        for (const [dx, dz] of [[2, 0], [-2, 0], [0, 2], [0, -2]]) put(X + dx, Y + 4, Z + dz, Bk.GRES, 1);
+      } else if (st.kind === 'geant') {
+        const top = Math.min(Y + 14 + Math.floor(st.r * 7), H - 8);
+        for (let dz = 0; dz <= 1; dz++) for (let dx = 0; dx <= 1; dx++) { const x = X + dx, z = Z + dz; for (let y = Math.min(hAt(x, z), Y) - 1; y <= top; y++) if (y > 0) put(x, y, z, y < Y ? Bk.TERRE : y === Y ? Bk.TERRE : Bk.TRONC, 1); }
+        // racines qui s'étalent
+        for (const [dx, dz] of [[-1, 0], [-1, 1], [2, 0], [2, 1], [0, -1], [1, -1], [0, 2], [1, 2]]) {
+          if (hs(dx, 20, dz) < 0.7) { const rh = 1 + Math.floor(hs(dx, 21, dz) * 3); for (let k = 0; k <= rh; k++) put(X + dx, Y + k, Z + dz, Bk.TRONC, 1); }
+          const ex = dx < 0 ? dx - 1 : dx > 1 ? dx + 1 : dx, ez = dz < 0 ? dz - 1 : dz > 1 ? dz + 1 : dz;
+          if (hs(dx, 22, dz) < 0.4) put(X + ex, hAt(X + ex, Z + ez), Z + ez, Bk.TRONC, 1);
+        }
+        // branches maîtresses, chacune terminée par une touffe de feuillage
+        const nb = 3 + Math.floor(st.r * 2);
+        for (let i = 0; i < nb; i++) {
+          const a = (i / nb + hs(i, 23, 0)) * 6.2832, y0 = top - 4 - Math.floor(hs(i, 24, 0) * 5), len = 3 + Math.floor(hs(i, 25, 0) * 2);
+          let bx = X, bz = Z, by = y0;
+          for (let k = 1; k <= len; k++) { bx = X + Math.round(0.5 + Math.cos(a) * (k + 0.6)); bz = Z + Math.round(0.5 + Math.sin(a) * (k + 0.6)); by = y0 + (k >> 1); put(bx, by, bz, Bk.TRONC, 1); }
+          for (let dy = -1; dy <= 2; dy++) for (let dz = -2; dz <= 2; dz++) for (let dx = -2; dx <= 2; dx++) if (dx * dx + dz * dz + dy * dy * 1.5 <= 5 + hs(bx + dx, by + dy, bz + dz) * 2) put(bx + dx, by + dy, bz + dz, Bk.FEUILLES, 0);
+        }
+        // grande couronne (ellipsoïde irrégulière)
+        const R = 5 + Math.floor(st.r * 2);
+        for (let dy = -3; dy <= 3; dy++) for (let dz = -R; dz <= R + 1; dz++) for (let dx = -R; dx <= R + 1; dx++) {
+          const ux = dx - 0.5, uz = dz - 0.5, e = (ux * ux + uz * uz) / (R * R) + (dy * dy) / 10;
+          if (e <= 1 - hs(dx, 30 + dy, dz) * 0.3 && top + 1 + dy < H - 1) put(X + dx, top + 1 + dy, Z + dz, Bk.FEUILLES, 0);
+        }
+      } else if (st.kind === 'portail') {
+        const ax = st.rot & 1, P = (u, w) => ax ? [X + w, Z + u] : [X + u, Z + w];
+        // sol brûlé : roche des Braises, braisiers et un peu de lave autour du cadre
+        for (let w = -6; w <= 6; w++) for (let u = -6; u <= 7; u++) {
+          const [x, z] = P(u, w), d = Math.hypot(u - 0.5, w), h0 = hAt(x, z); if (d > 6.2 - hs(u, 40, w) * 2.6 || Math.abs(h0 - Y) > 3) continue;
+          const r = hs(u, 41, w);
+          put(x, h0, z, d < 3 && r < 0.07 ? Bk.LAVE : r < 0.16 ? Bk.BRAISIER : r < 0.55 ? Bk.CENDRITE : r < 0.75 ? Bk.MOUSSE : Bk.BASALTE, 1);
+          put(x, h0 + 1, z, Bk.AIR, 0);   // brûle les herbes
+          if (d < 2.2 && r > 0.6) put(x, h0 - 1, z, Bk.CENDRITE, 1);
+        }
+        // le cadre d'obsidienne (4 × 5), incomplet : il faudra le réparer pour l'allumer
+        let missing = 0;
+        for (let v = 0; v <= 4; v++) for (let u = -1; u <= 2; u++) {
+          const [x, z] = P(u, 0), inside = u >= 0 && u <= 1 && v >= 1 && v <= 3, corner = (u === -1 || u === 2) && (v === 0 || v === 4);
+          if (v === 0) for (let y = hAt(x, z) + 1; y < Y; y++) put(x, y, z, Bk.PIERRE, 1);
+          if (inside) { put(x, Y + v, z, Bk.AIR, 1); continue; }
+          const gone = hs(u, 50 + v, 0) < (corner ? 0.5 : 0.24) || (v === 4 && u === 1);
+          if (gone) { missing++; const [fx, fz] = P(u + Math.round((hs(u, 51, v) - 0.5) * 5), (hs(u, 52, v) < 0.5 ? -1 : 1) * (2 + Math.floor(hs(u, 53, v) * 3))); if (hs(u, 54, v) < 0.6) put(fx, hAt(fx, fz) + 1, fz, Bk.OBSIDIENNE, 1); }
+          else put(x, Y + v, z, Bk.OBSIDIENNE, 1);
+        }
+        for (const w of [-1, 1]) for (let v = 1; v <= 4; v++) for (let u = -1; u <= 2; u++) { const [x, z] = P(u, w); if (v > 0) put(x, Y + v, z, Bk.AIR, 0); }
+        if (st.r < 0.5) { const [x, z] = P(-3, 1); put(x, hAt(x, z), z, Bk.B_OR, 1); }   // un bloc d'or à demi enfoui
+        const c = this.chestPos(st, hAt); put(c[0], c[1], c[2], Bk.COFFRE, 1); put(c[0], c[1] + 1, c[2], Bk.AIR, 1);
+      }
+    }
 
     genSurface(c) {
       const d = c.data, n = this.n, X0 = c.cx * CS, Z0 = c.cz * CS, S = this.seed, hash = VX.hash;
@@ -159,6 +305,16 @@
             const len = 1 + Math.floor(hash(wx, 22, wz, S) * 3); for (let k = 1; k <= len && h + k < H; k++) d[idx(x, h + k, z)] = B.CACTUS;
           } else if (r > 0.985) d[above] = B.ARBUSTE;
         } else if (s === S_SAND && ground === B.SABLE && h > SEA && r < 0.004) d[above] = B.ARBUSTE;
+      }
+      // 6) structures rares (ruines, puits, arbres géants, portails en ruine) : chaque chunk dessine la part qui le touche
+      const sts = this.structuresIn(X0, Z0, X0 + CS - 1, Z0 + CS - 1);
+      if (sts.length) {
+        const o2 = {}, hAt = (x, z) => { const lx = x - X0, lz = z - Z0; return lx >= -M && lz >= -M && lx < CS + M && lz < CS + M ? cH[ci(lx, lz)] : this.climate(x, z, o2).h; };
+        const wput = (x, y, z, id, mode) => {
+          const lx = x - X0, lz = z - Z0; if (lx < 0 || lz < 0 || lx >= CS || lz >= CS || y < 1 || y >= H - 1) return;
+          const i = idx(lx, y, lz); if (mode === 1 || d[i] === B.AIR || (D[d[i]] && D[d[i]].replace)) d[i] = id;
+        };
+        for (const st of sts) this.buildStruct(st, wput, hAt);
       }
     }
     genBraises(c) {

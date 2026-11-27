@@ -8,6 +8,7 @@
       this.onGround = false; this.fly = false; this.hp = 20; this.food = 20; this.sat = 5; this.exh = 0;
       this.fallTop = null; this.inWater = false; this.inLava = false; this.eyeWater = false; this.sneak = false; this.sprint = false;
       this.hurtT = 0; this.lavaT = 0; this.air = VX.AIR_MAX || 15;   // oxygène (secondes) sous l'eau
+      this.xp = 0;   // points d'expérience (niveau : VX.xpLevel)
     }
     get eye() { return this.pos.y + (this.sneak && !this.fly ? 1.42 : 1.62); }
     solid(world, x, y, z) { const b = D[world.getG(x, y, z)]; return !!(b && b.solid); }
@@ -42,8 +43,9 @@
     // inp : { f, b, l, r, jump, sneak, sprint } ; renvoie les dégâts de chute éventuels
     step(world, inp, dt, creative) {
       const v = this.vel, p = this.pos; this.liquids(world);
-      this.sneak = !!inp.sneak; this.sprint = !!inp.sprint && !inp.sneak && inp.f && this.food > 6;
-      const sp = this.fly ? (this.sprint ? 12 : 7) : this.inWater || this.inLava ? 2.6 : this.sneak ? 1.35 : this.sprint ? 5.7 : 4.3;
+      this.sneak = !!inp.sneak; this.sprint = !!inp.sprint && !inp.sneak && !inp.slow && inp.f && this.food > 6;
+      let sp = this.fly ? (this.sprint ? 12 : 7) : this.inWater || this.inLava ? 2.6 : this.sneak ? 1.35 : this.sprint ? 5.7 : 4.3;
+      if (inp.slow && !this.fly) sp = Math.min(sp, 1.7);   // bouclier levé ou arc tendu
       const fx = -Math.sin(this.yaw), fz = -Math.cos(this.yaw), rx = Math.cos(this.yaw), rz = -Math.sin(this.yaw);
       let wx = (inp.f ? fx : 0) - (inp.b ? fx : 0) + (inp.r ? rx : 0) - (inp.l ? rx : 0), wz = (inp.f ? fz : 0) - (inp.b ? fz : 0) + (inp.r ? rz : 0) - (inp.l ? rz : 0);
       const wl = Math.hypot(wx, wz); if (wl > 0) { wx /= wl; wz /= wl; }
@@ -69,4 +71,11 @@
     }
   }
   VX.Player = Player;
+  // niveau d'expérience : points nécessaires pour passer au niveau suivant (7, 9, 11… puis plus raide après 15 et 30)
+  VX.xpNeed = L => L < 16 ? 2 * L + 7 : L < 31 ? 5 * L - 38 : 9 * L - 158;
+  VX.xpLevel = function (xp) {
+    xp = Math.max(0, xp || 0); let level = 0;
+    while (level < 1000 && xp >= VX.xpNeed(level)) { xp -= VX.xpNeed(level); level++; }
+    return { level, frac: xp / VX.xpNeed(level) };
+  };
 })();

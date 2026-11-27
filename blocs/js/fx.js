@@ -31,6 +31,11 @@
     return { N, pos, col, geo, mat, pts, vel: new Float32Array(N * 3), life: new Float32Array(N), grav: new Float32Array(N), next: 0, alive: 0 };
   }
   const debris = cloud(600, 0.11), smoke = cloud(220, 0.55, { transparent: true, opacity: 0.75, depthWrite: false });
+  // petites étoiles lumineuses (coups critiques, étincelles) : texture d'étoile à 4 branches, additive
+  const starCv = document.createElement('canvas'); starCv.width = starCv.height = 16;
+  (function () { const g = starCv.getContext('2d'); g.fillStyle = '#fff'; for (const [x, y, w, h] of [[7, 1, 2, 14], [1, 7, 14, 2], [6, 5, 4, 6], [5, 6, 6, 4]]) g.fillRect(x, y, w, h); g.fillStyle = 'rgba(255,255,255,0.5)'; g.fillRect(4, 4, 1, 1); g.fillRect(11, 4, 1, 1); g.fillRect(4, 11, 1, 1); g.fillRect(11, 11, 1, 1); })();
+  const starTex = new THREE.CanvasTexture(starCv); starTex.magFilter = starTex.minFilter = THREE.NearestFilter; starTex.generateMipmaps = false;
+  const stars = cloud(160, 0.22, { map: starTex, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, alphaTest: 0.05 });
   function emit(c, x, y, z, vx, vy, vz, r, g, b, life, grav) {
     const i = c.next; c.next = (c.next + 1) % c.N; const k = i * 3;
     c.pos[k] = x; c.pos[k + 1] = y; c.pos[k + 2] = z; c.vel[k] = vx; c.vel[k + 1] = vy; c.vel[k + 2] = vz;
@@ -68,6 +73,16 @@
   FX.burst = function (x, y, z, n, rgb, o) {
     o = o || {}; const sp = o.speed || 2.5, c = o.smoke ? smoke : debris;
     for (let i = 0; i < n; i++) { const v = o.vary ? 1 - Math.random() * o.vary : 1; emit(c, x + (Math.random() - 0.5) * (o.spread || 0.6), y + (Math.random() - 0.5) * (o.spread || 0.6), z + (Math.random() - 0.5) * (o.spread || 0.6), (Math.random() - 0.5) * sp, (o.up != null ? o.up : 1) * Math.random() * sp, (Math.random() - 0.5) * sp, rgb[0] * v, rgb[1] * v, rgb[2] * v, (o.life || 0.6) * (0.6 + Math.random() * 0.6), o.grav != null ? o.grav : 10); }
+  };
+  // étoiles d'un coup critique (blanches, jaunes, cyan) ; sp = vitesse
+  FX.stars = function (x, y, z, n, sp) {
+    sp = sp == null ? 3 : sp;
+    for (let i = 0; i < n; i++) { const k = Math.random(), c = k < 0.4 ? [1, 1, 0.85] : k < 0.75 ? [1, 0.85, 0.3] : [0.6, 0.95, 1]; emit(stars, x + (Math.random() - 0.5) * 0.4, y + (Math.random() - 0.5) * 0.4, z + (Math.random() - 0.5) * 0.4, (Math.random() - 0.5) * sp * 2, Math.random() * sp + 0.5 * sp, (Math.random() - 0.5) * sp * 2, c[0], c[1], c[2], 0.45 + Math.random() * 0.4, 6); }
+  };
+  // poussière d'un bloc qui jaillit vers le haut (labour, semis)
+  FX.dust = function (x, y, z, id, n) {
+    const cols = blockColors(id);
+    for (let i = 0; i < n; i++) { const c = cols[(Math.random() * cols.length) | 0]; emit(debris, x + (Math.random() - 0.5) * 0.9, y, z + (Math.random() - 0.5) * 0.9, (Math.random() - 0.5) * 1.6, 1.5 + Math.random() * 2.5, (Math.random() - 0.5) * 1.6, c[0], c[1], c[2], 0.4 + Math.random() * 0.35, 12); }
   };
   FX.explosion = function (x, y, z, r) {
     for (let i = 0; i < 70; i++) { const a = Math.random() * 6.283, e = Math.random() * 3.14 - 1.57, s = 2 + Math.random() * 7, k = Math.random();
@@ -161,12 +176,22 @@
     else { heldMesh.position.set(0.36, -0.2, -0.82); heldMesh.rotation.set(0, -1.35, 0.35); const it = VX.ITEMS[id]; if (it && it.tool) heldMesh.rotation.set(-0.15, -1.45, 0.55); }
     held.add(heldMesh); arm.visible = !cube;   // un bloc tenu cache le bras (il est « dans la main »)
   }
+  // bouclier en volume (planches cerclées de fer, umbo central), tenu à gauche ; levé devant soi pour parer
+  const shieldMats = { wood: new THREE.MeshBasicMaterial({ color: 0xb07a40 }), seam: new THREE.MeshBasicMaterial({ color: 0x7a5028 }), iron: new THREE.MeshBasicMaterial({ color: 0x8a8e96 }), boss: new THREE.MeshBasicMaterial({ color: 0xc8ccd4 }) };
+  function shieldModel() {
+    const g = new THREE.Group(), add = (w, h, d, m, x, y, z) => { const o = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), shieldMats[m]); o.position.set(x, y, z); g.add(o); };
+    add(0.5, 0.62, 0.05, 'wood', 0, 0, 0); add(0.02, 0.6, 0.055, 'seam', -0.09, 0, 0); add(0.02, 0.6, 0.055, 'seam', 0.09, 0, 0);
+    add(0.54, 0.04, 0.07, 'iron', 0, 0.31, 0); add(0.54, 0.04, 0.07, 'iron', 0, -0.31, 0); add(0.04, 0.62, 0.07, 'iron', 0.25, 0, 0); add(0.04, 0.62, 0.07, 'iron', -0.25, 0, 0);
+    add(0.14, 0.14, 0.09, 'boss', 0, 0, -0.03); return g;
+  }
+  const off = shieldModel(); off.visible = false; off.scale.setScalar(0.7); hScene.add(off);
+  let blockK = 0, drawK = 0;
   let swingT = 1, equipT = 0, lastSel = -1, bob = 0;
   H.on('swing', () => { if (swingT > 0.55) swingT = 0; });
   FX.swing = () => H.emit('swing');
   // mise à jour à chaque image (avant le rendu de la scène principale)
   H.on('renderFrame', ({ dt }) => {
-    stepCloud(debris, dt, true); stepCloud(smoke, dt, false);
+    stepCloud(debris, dt, true); stepCloud(smoke, dt, false); stepCloud(stars, dt, false);
     const k = dayK(); debris.mat.color.setScalar(k); smoke.mat.color.setScalar(Math.min(1, k + 0.2));
     if (flashT > 0) { flashT -= dt; flash.material.opacity = Math.max(0, flashT / 0.25) * 0.8; flash.scale.multiplyScalar(1 + dt * 4); if (flashT <= 0) flash.visible = false; }
     // fissures
@@ -190,11 +215,24 @@
     rig.rotation.set(s * 0.1, s2 * 0.12, s * 0.22);
     const hk = Math.min(1, k + 0.12); skinMat.color.setRGB(0.88 * hk, 0.7 * hk, 0.55 * hk); sleeveMat.color.setRGB(0.18 * hk, 0.49 * hk, 0.48 * hk);
     rig.visible = G.player.hp > 0;
+    // arc tendu : l'arc remonte au centre et tremble à pleine tension ; bouclier levé : il passe devant
+    const bd = G.bowDraw || 0; drawK += ((bd > 0 ? 1 : 0) - drawK) * Math.min(1, dt * 14);
+    if (drawK > 0.01 && heldMesh) { const sh = bd >= 1 ? Math.sin(performance.now() * 0.06) * 0.004 : 0; rig.position.x += -0.1 * drawK + sh; rig.position.y += 0.03 * drawK; rig.position.z += 0.03 * drawK + bd * 0.06; rig.rotation.z += 0.18 * drawK; rig.rotation.y -= 0.1 * drawK; }
+    blockK += ((G.blocking ? 1 : 0) - blockK) * Math.min(1, dt * 16);
+    const offSh = G.offhand && G.offhand.id === (VX.I.BOUCLIER || -1), mainSh = st && st.id === (VX.I.BOUCLIER || -1);
+    off.visible = !!(rig.visible && (offSh || mainSh)); held.visible = !mainSh;
+    if (off.visible) {
+      const sx = mainSh ? 0.5 : -0.6;   // à droite si tenu en main principale
+      off.position.set(sx + (mainSh ? -0.42 : 0.5) * blockK + Math.sin(bob) * 0.02, -0.56 + 0.34 * blockK - Math.abs(Math.cos(bob)) * 0.02 - equipT * 0.3, -0.85 + 0.12 * blockK);
+      off.rotation.set(0, (mainSh ? -0.5 : 0.5) * (1 - blockK), 0);
+      for (const k in shieldMats) { const m = shieldMats[k]; if (!m.userData.base) m.userData.base = m.color.clone(); m.color.copy(m.userData.base).multiplyScalar(hk); }
+    }
   });
   // la main est dessinée après le monde, sur un tampon de profondeur vidé
   H.on('afterRender', ({ gl, camera }) => {
     if (!rig.visible) return;
     if (hCam.aspect !== camera.aspect) { hCam.aspect = camera.aspect; hCam.updateProjectionMatrix(); }
+    if (VX.UI && VX.UI.menuOpen) return;   // pas de main sur l'écran titre ni dans les menus
     const ac = gl.autoClear; gl.autoClear = false; gl.clearDepth(); gl.render(hScene, hCam); gl.autoClear = ac;
   });
 })();

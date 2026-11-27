@@ -90,6 +90,7 @@
     if (drop) {
       if (FX()) FX().burst(m.x, m.y + m.T.h * 0.5, m.z, 18, [0.85, 0.85, 0.85], { smoke: true, speed: 1.6, life: 0.7, grav: -0.5, spread: m.T.w * 2 });
       G.sfx('poof', { dist: dist3(m) });
+      if (G.mode !== 'creatif' && VX.XP) VX.XP.drop(m.x, m.y + 0.5, m.z, m.T.hostile ? 5 + Math.floor(Math.random() * 3) : 1 + Math.floor(Math.random() * 3));   // orbes d'expérience
       if (G.mode !== 'creatif') for (const [key, a, b] of m.T.drops) { const id = idOf(key); if (id == null) continue; const n = a + Math.floor(Math.random() * (b - a + 1)); if (n > 0) G.dropItem(id, n, new THREE.Vector3(m.x, m.y + 0.5, m.z)); }
     }
   }
@@ -120,7 +121,7 @@
       a.v.y -= 14 * dt; const nx = a.p.x + a.v.x * dt, ny = a.p.y + a.v.y * dt, nz = a.p.z + a.v.z * dt;
       // le joueur (boîte AABB)
       if (nx > P.pos.x - 0.4 && nx < P.pos.x + 0.4 && nz > P.pos.z - 0.4 && nz < P.pos.z + 0.4 && ny > P.pos.y && ny < P.pos.y + 1.85) {
-        G.hurt(3, 'fleche'); P.vel.x += a.v.x * 0.15; P.vel.z += a.v.z * 0.15; G.sfx('arrow'); a.on = false; a.g.visible = false; continue;
+        const hit = G.hurt(3, 'fleche', { x: P.pos.x - a.v.x, z: P.pos.z - a.v.z }); if (hit !== false) { P.vel.x += a.v.x * 0.15; P.vel.z += a.v.z * 0.15; } G.sfx('arrow'); a.on = false; a.g.visible = false; continue;
       }
       if (solid(nx, ny, nz)) { a.stuck = true; G.sfx('arrow', { dist: Math.hypot(P.pos.x - nx, P.pos.z - nz) }); continue; }
       a.p.set(nx, ny, nz); a.g.position.copy(a.p); a.g.lookAt(nx + a.v.x, ny + a.v.y, nz + a.v.z);
@@ -142,7 +143,7 @@
     }
     // le joueur
     const P = G.player, px = P.pos.x - x, py = P.pos.y + 0.9 - y, pz = P.pos.z - z, d = Math.hypot(px, py, pz), R2 = r * 2.2;
-    if (d < R2) { const k = 1 - d / R2; G.hurt(Math.round(k * k * 22 + k * 4), 'explosion'); P.vel.x += px / (d || 1) * k * 14; P.vel.z += pz / (d || 1) * k * 14; P.vel.y = Math.max(P.vel.y, k * 9); }
+    if (d < R2) { const k = 1 - d / R2; G.hurt(Math.round(k * k * 22 + k * 4), 'explosion', { x, z }); P.vel.x += px / (d || 1) * k * 14; P.vel.z += pz / (d || 1) * k * 14; P.vel.y = Math.max(P.vel.y, k * 9); }
     // les autres créatures
     for (const o of mobs.slice()) { if (o.dim !== G.dim) continue; const ox = o.x - x, oz = o.z - z, od = Math.hypot(ox, o.y - y, oz); if (od < R2) damage(o, Math.round((1 - od / R2) * 20), ox / (od || 1) * 8, oz / (od || 1) * 8); }
   }
@@ -208,14 +209,14 @@
         } else { wx = dx / (dist || 1); wz = dz / (dist || 1); }
       } else if (T.hostile && sees) {   // poursuite et coup
         wx = dx / (dist || 1); wz = dz / (dist || 1);
-        if (dist < 1.3 && Math.abs(dy) < 1.8 && m.atkCd <= 0) { m.atkCd = 1; m.swing = 1; G.hurt(T.dmg, 'mob'); P.vel.x += wx * 5; P.vel.z += wz * 5; P.vel.y = Math.max(P.vel.y, 4); }
+        if (dist < 1.3 && Math.abs(dy) < 1.8 && m.atkCd <= 0) { m.atkCd = 1; m.swing = 1; const k = G.hurt(T.dmg, 'mob', m) === false && G.blocking ? 0.4 : 1; P.vel.x += wx * 5 * k; P.vel.z += wz * 5 * k; P.vel.y = Math.max(P.vel.y, 4 * k); if (k < 1) { m.vx -= wx * 6; m.vz -= wz * 6; } }
       } else if (m.flee > 0 && T.passive) { wx = -dx / (dist || 1); wz = -dz / (dist || 1); sp *= 2; if (m.think <= 0) { m.think = 0.6; m.dir = Math.atan2(wz, wx) + (Math.random() - 0.5) * 1.5; } wx = Math.cos(m.dir); wz = Math.sin(m.dir); }
       else { if (m.think <= 0) { m.think = 2 + Math.random() * 4; m.dir = Math.random() < 0.4 ? null : Math.random() * 6.283; } if (m.dir != null) { wx = Math.cos(m.dir); wz = Math.sin(m.dir); sp *= 0.5; } }
       if (m.fuse > 0) { wx = 0; wz = 0; }
       // les paisibles évitent de tomber d'une falaise
       if (T.passive && (wx || wz) && !solid(m.x + wx * 0.8, m.y - 0.5, m.z + wz * 0.8) && !solid(m.x + wx * 0.8, m.y - 1.5, m.z + wz * 0.8) && !solid(m.x + wx * 0.8, m.y - 2.5, m.z + wz * 0.8)) { wx = -wx; wz = -wz; m.dir = m.dir != null ? m.dir + Math.PI : null; }
       m.vx += (wx * sp - m.vx) * Math.min(1, dt * 6); m.vz += (wz * sp - m.vz) * Math.min(1, dt * 6);
-      if (T.fly) { const ty = P.pos.y + 1.2 + Math.sin(m.t * 2) * 0.6; m.vy += ((sees ? ty - m.y : Math.sin(m.t) * 0.5) * 2 - m.vy) * Math.min(1, dt * 3); if (sees && dist < 1.3 && Math.abs(dy - 0.5) < 1.6 && m.atkCd <= 0) { m.atkCd = 1; G.hurt(T.dmg, 'mob'); } }
+      if (T.fly) { const ty = P.pos.y + 1.2 + Math.sin(m.t * 2) * 0.6; m.vy += ((sees ? ty - m.y : Math.sin(m.t) * 0.5) * 2 - m.vy) * Math.min(1, dt * 3); if (sees && dist < 1.3 && Math.abs(dy - 0.5) < 1.6 && m.atkCd <= 0) { m.atkCd = 1; G.hurt(T.dmg, 'mob', m); } }
       else { m.vy -= 28 * dt; if (liquid(m.x, m.y + 0.4, m.z)) m.vy = Math.min(m.vy + 40 * dt, 2); }
       // déplacement avec collisions simples (et petit saut pour franchir une marche)
       const nx = m.x + m.vx * dt, nz = m.z + m.vz * dt, r = T.w;
@@ -266,8 +267,10 @@
     if (!best) return true;
     const st = G.inv[G.sel], tl = st && VX.ITEMS[st.id] && VX.ITEMS[st.id].tool, tier = tl ? VX.TIERS[tl.tier] : null;
     const dmg = tl ? (tl.kind === 'epee' ? tier.dmg : Math.max(2, tier.dmg - 2)) : 1;
-    const crit = !G.player.onGround && G.player.vel.y < 0;   // coup en retombant : un peu plus fort
-    damage(best, dmg + (crit ? 2 : 0), dir.x * 7, dir.z * 7);
+    // coup critique : frappé en pleine chute (pas dans l'eau, ni en vol) -> ×1,5 et petites étoiles
+    const Pl = G.player, crit = !Pl.onGround && Pl.vel.y < -1 && !Pl.inWater && !Pl.fly;
+    damage(best, crit ? Math.round(dmg * 1.5 * 2) / 2 : dmg, dir.x * 7, dir.z * 7);
+    if (crit) { if (FX() && FX().stars) FX().stars(best.x, best.y + best.T.h * 0.7, best.z, 14); G.sfx('crit', { dist: dist3(best) }); }
     if (best.T.bomber && best.fuse > 0) best.fuse = Math.max(0.001, best.fuse - 0.4);
     if (tl && st.d != null && G.mode !== 'creatif') { st.d--; if (st.d <= 0) G.inv[G.sel] = null; VX.UI.hud(); }
     G.player.exh += 0.1;
@@ -275,5 +278,5 @@
   });
   H.on('dimensionChange', () => { for (const m of mobs.slice()) kill(m, false); for (const a of arrows) { a.on = false; a.g.visible = false; } });
   [I.VIANDE, I.STEAK, I.ESSENCE].forEach(id => VX.registry.creative(id));
-  VX.Mobs = { list: mobs, spawn, kill, explode, TYPES };
+  VX.Mobs = { list: mobs, spawn, kill, explode, damage, TYPES };
 })();

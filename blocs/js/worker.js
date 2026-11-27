@@ -1,6 +1,6 @@
 /* ===== worker.js : génération de terrain et maillage (lumière comprise) hors du thread principal ===== */
 self.window = self;
-importScripts('noise.js?v=6', 'registry.js?v=6', 'gen.js?v=6', 'mesher.js?v=6');
+importScripts('noise.js?v=6', 'registry.js?v=7', 'gen.js?v=7', 'mesher.js?v=6');
 const gens = {};
 let TILES = null, ORIG = null;
 const genFor = (seed, dim) => gens[seed + dim] || (gens[seed + dim] = new self.VX.Gen(seed, dim));

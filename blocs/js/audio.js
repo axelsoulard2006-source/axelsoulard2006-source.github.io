@@ -106,13 +106,34 @@
     bubble: t => { for (let i = 0; i < 3; i++) tone(t + i * 0.07, 400 + Math.random() * 300, 900, 0.06, 'sine', 0.07); },
     explode: t => { noise(t, 1.6, 0.9, 'lowpass', 2400, 70, 0.7, null, 0.003); tone(t, 75, 28, 1.1, 'sine', 0.7); noise(t + 0.05, 0.9, 0.3, 'bandpass', 600, 120, 0.5); },
     fuse: (t, o) => { tone(t, 1900, 1700, 0.03, 'square', 0.05 * (o.vol || 1)); noise(t, 0.04, 0.05 * (o.vol || 1), 'highpass', 4000, 0, 1); },
-    bow: t => { tone(t, 320, 140, 0.18, 'triangle', 0.12); noise(t, 0.1, 0.1, 'bandpass', 1800, 600, 2); },
     arrow: t => { noise(t, 0.06, 0.14, 'bandpass', 900, 500, 3); tone(t, 180, 120, 0.05, 'triangle', 0.08); },
     hit: t => { noise(t, 0.07, 0.25, 'lowpass', 1600, 400, 1); tone(t, 160, 90, 0.08, 'sine', 0.15); },
     poof: t => { noise(t, 0.35, 0.18, 'bandpass', 900, 2200, 0.8, null, 0.02); tone(t, 500, 900, 0.1, 'sine', 0.06); },
     sizzle: t => noise(t, 0.5, 0.1, 'highpass', 3000, 5000, 0.5, null, 0.05),
     portal: t => { tone(t, 120, 480, 1.2, 'sine', 0.1); tone(t, 180, 60, 1.2, 'triangle', 0.08); },
     fizz: t => noise(t, 0.4, 0.15, 'highpass', 3000, 0, 0.5),
+    // agriculture
+    till: t => { noise(t, 0.16, 0.22, 'lowpass', 1100, 380, 1.2); noise(t + 0.07, 0.12, 0.14, 'bandpass', 700, 300, 1.5); tone(t, 140, 90, 0.08, 'triangle', 0.08); },
+    plant: t => { noise(t, 0.07, 0.1, 'bandpass', 1300, 800, 1.2); tone(t + 0.02, 330, 440, 0.07, 'sine', 0.05); },
+    harvest: (t, o) => { noise(t, 0.12, 0.16, 'highpass', 2600, 0, 0.8, null, 0.01); noise(t + 0.03, 0.1, 0.12, 'bandpass', 1500, 700, 2); if (o.ripe) for (let i = 0; i < 3; i++) noise(t + 0.05 + i * 0.04, 0.05, 0.08, 'bandpass', 3000 + i * 600, 0, 3); },
+    // arc, bouclier, coups
+    bowdraw: t => { const o = tone(t, 70, 120, 0.9, 'sawtooth', 0.025, null, 0.2); noise(t, 0.9, 0.05, 'bandpass', 500, 900, 6, null, 0.3); return o; },
+    bowready: t => { tone(t, 1250, 1250, 0.05, 'square', 0.02); },
+    bow: (t, o) => { const k = o.k == null ? 1 : o.k; noise(t, 0.22, 0.12 + 0.12 * k, 'bandpass', 2600, 500, 1.2, null, 0.005); tone(t, 220, 110, 0.12, 'triangle', 0.1); },
+    arrowhit: t => { noise(t, 0.08, 0.22, 'lowpass', 900, 300, 1); tone(t, 150, 80, 0.09, 'sine', 0.14); },
+    shield: t => { tone(t, 170, 95, 0.14, 'triangle', 0.22); noise(t, 0.1, 0.22, 'bandpass', 650, 350, 3); noise(t, 0.05, 0.1, 'highpass', 3200, 0, 1); },
+    shieldup: t => { noise(t, 0.06, 0.08, 'bandpass', 1600, 900, 1.5); tone(t, 260, 300, 0.05, 'triangle', 0.04); },
+    crit: t => { noise(t, 0.08, 0.16, 'highpass', 3200, 0, 1); tone(t, 900, 1700, 0.09, 'sine', 0.07); tone(t + 0.03, 1350, 2400, 0.08, 'sine', 0.04); },
+    // expérience : petite clochette (hauteur au hasard) et arpège de niveau
+    xp: t => { const f = 1300 + Math.random() * 700; tone(t, f, f, 0.16, 'sine', 0.07); tone(t, f * 2.76, f * 2.76, 0.08, 'sine', 0.015); },
+    levelup: t => { [0, 4, 7, 12].forEach((n, i) => { const f = 523.25 * Math.pow(2, n / 12); tone(t + i * 0.09, f, f, 0.5, 'triangle', 0.09); tone(t + i * 0.09, f * 2, f * 2, 0.3, 'sine', 0.03); }); },
+    // tonnerre : claquement (si proche) puis grondement qui roule ; o.near 0..1
+    thunder: (t, o) => {
+      const n = o.near == null ? 0.5 : o.near;
+      if (n > 0.4) { noise(t, 0.35, 0.5 * n, 'highpass', 1800, 400, 0.7, null, 0.003); noise(t, 0.6, 0.45 * n, 'lowpass', 3000, 200, 0.6, null, 0.005); }
+      for (let i = 0; i < 4; i++) noise(t + 0.08 + i * (0.35 + Math.random() * 0.4), 2.2 + Math.random() * 1.6, (0.22 + 0.25 * n) * (1 - i * 0.18), 'lowpass', 420 - i * 60, 60, 0.9, null, 0.12);
+      tone(t + 0.05, 55, 32, 2.5, 'sine', 0.25 * (0.4 + n));
+    },
     // créatures (voix inventées pour Blocaria)
     mouton: t => { voice(t, 330, 300, 0.5, 1300, 0.12, 9); },
     cochon: t => { for (let i = 0; i < 2; i++) voice(t + i * 0.17, 150, 120, 0.14, 700, 0.12, 25); },
@@ -131,6 +152,25 @@
         const g = ctx.createGain(); g.gain.value = v; g.connect(sfxBus); const save = sfxBus; sfxBus = g; try { fn(ctx.currentTime + 0.005, o); } finally { sfxBus = save; }
       } else fn(ctx.currentTime + 0.005, o);
     } catch (e) {}
+  };
+
+  /* ---------- pluie : bruit continu (sifflement + crépitement), étouffé sous un toit ----------
+     A.rain(niveau 0..1, abrité) — appelé à chaque image par weather.js */
+  let rainNodes = null;
+  A.rain = function (level, indoor) {
+    if (!ctx || ctx.state !== 'running') return;
+    if (!rainNodes) {
+      if (level <= 0.001) return;
+      const mk = (type, f, q) => { const sN = ctx.createBufferSource(); sN.buffer = noiseBuf; sN.loop = true; const fl = ctx.createBiquadFilter(); fl.type = type; fl.frequency.value = f; fl.Q.value = q; sN.connect(fl); sN.start(0, Math.random()); return fl; };
+      const hiss = mk('highpass', 2400, 0.5), patter = mk('bandpass', 1100, 0.7), low = mk('lowpass', 300, 0.7);
+      const mufl = ctx.createBiquadFilter(); mufl.type = 'lowpass'; mufl.frequency.value = 12000; mufl.Q.value = 0.5;
+      const g = ctx.createGain(); g.gain.value = 0; const gh = ctx.createGain(); gh.gain.value = 0.55; const gp = ctx.createGain(); gp.gain.value = 0.5; const gl = ctx.createGain(); gl.gain.value = 0.35;
+      hiss.connect(gh); patter.connect(gp); low.connect(gl); gh.connect(mufl); gp.connect(mufl); gl.connect(mufl); mufl.connect(g); g.connect(sfxBus);
+      rainNodes = { g, mufl };
+    }
+    const tt = ctx.currentTime;
+    rainNodes.g.gain.setTargetAtTime(Math.max(0, level) * 0.22 * (indoor ? 0.55 : 1), tt, 0.4);
+    rainNodes.mufl.frequency.setTargetAtTime(indoor ? 650 : 12000, tt, 0.3);
   };
 
   /* ---------- pas, nage, éclaboussures ---------- */

@@ -14,7 +14,7 @@
   try {
     const n = Math.max(1, Math.min(2, (navigator.hardwareConcurrency || 4) - 2));
     for (let i = 0; i < n; i++) {
-      const w = new Worker('js/worker.js?v=6');
+      const w = new Worker('js/worker.js?v=7');
       w.onmessage = e => { const f = WK.cb.get(e.data.id); if (f) { WK.cb.delete(e.data.id); f(e.data); } };
       w.onerror = err => { console.warn('Worker indisponible, calcul sur le thread principal', err.message); WK.ok = false; WK.cb.clear(); if (VX.G && VX.G.world) VX.G.world.resetPending(); };
       WK.list.push(w);
