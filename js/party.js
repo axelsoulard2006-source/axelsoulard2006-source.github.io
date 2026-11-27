@@ -72,7 +72,13 @@
 #party .pt-card button{border:0;border-radius:14px;padding:12px 20px;font-weight:900;font-size:16px;cursor:pointer;background:#6a5cff;color:#fff;box-shadow:0 5px 0 #4636c9}
 #party .pt-card button.alt{background:#ff4f9e;box-shadow:0 5px 0 #c42a74}
 #party .pt-card button:active{transform:translateY(3px);box-shadow:0 2px 0 #4636c9}
-#party .pt-gain{text-align:center;font-weight:900;color:#2a9a55;margin-bottom:12px}`;
+#party .pt-gain{text-align:center;font-weight:900;color:#2a9a55;margin-bottom:12px}
+.pt-rk{--rc:#c77b3b;display:grid;grid-template-columns:1fr auto;gap:4px 10px;align-items:center;margin:8px auto 12px;max-width:420px;padding:10px 14px;border-radius:14px;background:linear-gradient(135deg,color-mix(in srgb,var(--rc) 22%,#fff),#fff);border:3px solid var(--rc);color:#2a1a4a;box-shadow:0 4px 0 color-mix(in srgb,var(--rc) 60%,#000)}
+.pt-rk b{font-size:20px;font-weight:900;color:color-mix(in srgb,var(--rc) 70%,#000)}.pt-rk span{font-weight:900;font-size:16px}
+.pt-rk em{font-style:normal;padding:1px 8px;border-radius:999px;color:#fff;margin-left:4px}.pt-rk em.up{background:#2a9a55}.pt-rk em.dn{background:#e0445a}
+.pt-rk i{grid-column:1/3;height:9px;border-radius:9px;background:rgba(0,0,0,.12);overflow:hidden}.pt-rk i u{display:block;height:100%;background:var(--rc);border-radius:9px;transition:width 1s}
+.pt-rk small{grid-column:1/3;font-size:12px;opacity:.75;font-weight:700}.pt-rk.wait{display:block;text-align:center;font-weight:900;border-color:#7a6cff;--rc:#7a6cff}
+.rk-banner{margin:0 0 10px;padding:10px 16px;border-radius:12px;background:linear-gradient(90deg,#ff4f9e,#7a6cff);color:#fff;font-weight:800;text-align:center;box-shadow:0 4px 0 #4636c9}.rk-banner small{opacity:.85;font-weight:600}`;
     document.head.appendChild(st);
     const root = document.createElement('div'); root.id = 'party';
     root.innerHTML = `<canvas></canvas><div class="pt-flash"></div><div class="pt-shout"></div><div class="pt-grab"></div><div class="pt-top"><b></b><span></span></div><div class="pt-time"></div><div class="pt-pos"></div><div class="pt-list"></div>
@@ -171,6 +177,12 @@
   /* ===================== progression : couronnes, records, titres ===================== */
   const PB = () => { const p = BR.Account.p; p.stats = p.stats || {}; p.stats.best = p.stats.best || {}; return p.stats.best; };
   const TITLES = [[0, 'Débutant'], [1, 'Bousculeur'], [3, 'Acrobate'], [8, 'Champion'], [15, 'Roi de la Bousculade'], [40, 'Légende']];
+  // rang classé : paliers et divisions (III → II → I)
+  const TIERS = [[0, 'Bronze', '#c77b3b', '🥉'], [150, 'Argent', '#a9b6c4', '🥈'], [400, 'Or', '#f2b400', '🥇'], [750, 'Platine', '#3fd0c4', '💠'], [1200, 'Diamant', '#5aa8ff', '💎'], [1800, 'Maître', '#b06cff', '🔮'], [2600, 'Champion', '#ff4f9e', '👑']];
+  P.tier = rp => { rp = rp || 0; let i = 0; while (i + 1 < TIERS.length && rp >= TIERS[i + 1][0]) i++; const [lo, name, col, ico] = TIERS[i], hi = TIERS[i + 1] ? TIERS[i + 1][0] : null;
+    const div = hi ? 3 - Math.min(2, Math.floor((rp - lo) / ((hi - lo) / 3))) : 0, f = hi ? (rp - lo) / (hi - lo) : 1;
+    return { name, col, ico, div, label: ico + ' ' + name + (div ? ' ' + ['', 'I', 'II', 'III'][div] : ''), next: hi, f, i }; };
+  P.rkHtml = (rk, d) => { const t = P.tier(rk.rp); return `<div class="pt-rk" style="--rc:${t.col}"><b>${t.label}</b><span>${rk.rp} RP${d != null ? ` <em class="${d >= 0 ? 'up' : 'dn'}">${d >= 0 ? '+' : ''}${d}</em>` : ''}</span><i><u style="width:${Math.round(t.f * 100)}%"></u></i>${t.next ? `<small>${t.next - rk.rp} RP avant le palier suivant</small>` : '<small>Rang maximal !</small>'}</div>`; };
   P.title = c => { let t = TITLES[0][1]; for (const [n, s] of TITLES) if (c >= n) t = s; return t; };
   P.progress = () => { const b = PB(); return { crowns: b.bz_c || 0, games: b.bz_g || 0, quals: b.bz_q || 0, maps: MAPS.map((m, i) => ({ name: m.name, t: b['bz' + i] ? b['bz' + i] / 10 : 0 })) }; };
   function recordMap(t) { const b = PB(), k = 'bz' + S.mapIdx, d = Math.max(1, Math.round(t * 10)); if (!b[k] || d < b[k]) { const old = b[k]; b[k] = d; return { best: true, old: old ? old / 10 : 0 }; } return { best: false, old: b[k] / 10 }; }
@@ -681,6 +693,9 @@
     { name: 'LE TEMPLE PERDU', desc: 'Spirale dans le puits, marteaux géants, ventilateurs et geysers', sky: ['#2fae7a', '#d9ffe9'], sea: '#e2fff0', build: (r, MP) => buildTemple(r, MP) },
     { name: 'LA FABRIQUE DE BONBONS', desc: 'Tapis roulants, mixeur, ascenseur et trampolines sucrés', sky: ['#ff6fbf', '#ffe6f4'], sea: '#fff0f8', build: (r, MP) => buildCandy(r, MP) },
     { name: 'LES MONTAGNES RUSSES', desc: 'Ça descend, ça tourne, ça décolle', sky: ['#5b6cff', '#e0e4ff'], sea: '#eef0ff', build: (r, MP) => buildCoaster(r, MP) },
+    { name: 'LA STATION DE SKI', desc: 'Télécabine, pistes glacées, saut à ski et glaçons', sky: ['#6fb9ff', '#f4fbff'], sea: '#ffffff', build: (r, MP) => buildSki(r, MP) },
+    { name: 'LE VOLCAN', desc: 'Pont au-dessus de la lave, marteaux et ascension du cratère', sky: ['#ff5a2a', '#ffcfa0'], sea: '#ffb08a', build: (r, MP) => buildVolcano(r, MP) },
+    { name: 'LA BASE SPATIALE', desc: 'Tapis, couloir de murs, mixeur, canons… au milieu des planètes', sky: ['#1a1550', '#6a5bc0'], sea: '#4a3f8a', build: (r, MP) => buildSpace(r, MP) },
   ];
   const pathIdx = () => MAPS.map((m, i) => m.build ? i : -1).filter(i => i >= 0);
   const mapFromSeed = s => { const pm = pathIdx(); return s % 4 !== 0 && pm.length ? pm[Math.floor(s / 4) % pm.length] : s % MAPS.length; };
@@ -716,7 +731,7 @@
     for (let i = 0; i < n; i++) {
       const hy = c.yaw + da / 2, f = fwd(hy), nx = c.x + f[0] * ch, nz = c.z + f[1] * ch, top = c.y + dy / n;
       addBox((c.x + nx) / 2, top, (c.z + nz) / 2, w, o.h || 2.4, ch + 0.6, o.alt && i % 2 ? o.alt : col, { ry: hy, noUnder: true });
-      if (o.rail) { const r = rgt(hy), k = o.rail * (w / 2 + 0.3); addBox((c.x + nx) / 2 + r[0] * k, top + 1.1, (c.z + nz) / 2 + r[1] * k, 0.5, 1.1, ch + 0.6, '#ffffff', { ry: hy, noUnder: true, col2: col }); }
+      if (o.rail) { const r = rgt(hy), rh = o.railH || 1.1; for (const sd of o.both ? [1, -1] : [1]) { const k = sd * o.rail * (w / 2 + 0.3); addBox((c.x + nx) / 2 + r[0] * k, top + rh, (c.z + nz) / 2 + r[1] * k, 0.5, rh, ch + 0.6, '#ffffff', { ry: hy, noUnder: true, col2: col }); } }
       c.x = nx; c.z = nz; c.y = top; c.yaw += da; wp(c.x, c.y, c.z);
     }
     return c;
@@ -938,9 +953,9 @@
     const [ax, az] = tp(c, 0, 1.5), [bx, bz] = tp(c, 0, L + 1.5); zipline(ax, c.y + 3.1, az, bx, c.y - drop + 3.1 + 2.6, bz);
     const [nx, nz] = tp(c, 0, L - 0.5); c.x = nx; c.z = nz; c.y -= drop;
   }
-  function pSpiral(c, turns, R, dy, w, cols, deco) {   // spirale (turns > 0 : vers la droite) autour d'une colonne décorée
+  function pSpiral(c, turns, R, dy, w, cols, deco, tall) {   // spirale (turns > 0 : vers la droite) autour d'une colonne décorée
     const sg = Math.sign(turns), [tcx, tcz] = tp(c, sg * R, 0), y0 = c.y;
-    pArc(c, turns * Math.PI * 2, R, w, cols[0], dy, { rail: -sg, alt: cols[1], seg: 1.9 });
+    pArc(c, turns * Math.PI * 2, R, w, cols[0], dy, { rail: -sg, alt: cols[1], seg: 1.9, both: !!tall, railH: tall ? 2.7 : 1.1 });
     const ylo = Math.min(y0, y0 + dy), yhi = Math.max(y0, y0 + dy);
     addPillar(tcx, tcz, ylo - 8, yhi + 3, R - w / 2 - 0.7, deco || '#e8e0f5');
     return [tcx, tcz, ylo, yhi];
@@ -972,7 +987,7 @@
     cpAt(c); pStraight(c, 12, 12, st[0]); { const [x, z] = tp(c, -3, -6); addBumper(x, z, c.y, 1.4, '#47d16c'); const [x2, z2] = tp(c, 3, -3); addBumper(x2, z2, c.y, 1.4, '#ff6fb0'); }
     pArc(c, Math.PI / 2, 15, 10, st[1], 0, { alt: st[0] });
     cpAt(c, c.y - 18);
-    { const [tx, tz, ylo, yhi] = pSpiral(c, -1, 9, -12, 4.6, [st[1], st[0]], '#c9c29a');   // descente en spirale autour de la statue
+    { const [tx, tz, ylo, yhi] = pSpiral(c, -1, 9, -12, 4.6, [st[1], st[0]], '#c9c29a', true);   // descente en spirale autour de la statue
       const head = mesh(own(new THREE.SphereGeometry(4.6, 14, 10)), mat('#d8cf9f')); head.position.set(tx, yhi + 6.5, tz); head.scale.set(1, 1.15, 1); S.scene.add(head);
       [-1, 1].forEach(sd => addDeco(BOXG, '#47d16c', tx + sd * 1.6, yhi + 7.5, tz + 3.9, 1.1, 1.1, 0.3, false)); }
     pStraight(c, 8, 10, st[2]);
@@ -1017,6 +1032,61 @@
     cpAt(c, c.y - 30); padAt(c, -3, 8, 4); pRamp(c, 36, -11, 11, rail[3], { walls: rail[2] }); pArc(c, Math.PI / 2, 14, 11, rail[1], -4, { rail: -1 }); pRamp(c, 18, -5, 11, rail[0], { walls: rail[2] }); gap(c, 9, -1.5);
     finishArena(c, '#5b6cff');
     decorAround(r, MP, (x, y, z, rr) => { if (rr() < 0.4) { const h = 14 + rr() * 20; addDeco(BOXG, '#ffffff', x, y - 20 + h / 2, z, 0.5, h, 0.5); addDeco(BOXG, '#ffffff', x + 3, y - 20 + h / 2, z, 0.5, h, 0.5); for (let k = 0; k < h; k += 3) addDeco(BOXG, rail[k % 4], x + 1.5, y - 20 + k, z, 3, 0.25, 0.25); } });
+  }
+
+  /* ---------- 5. LA STATION DE SKI ---------- */
+  function buildSki(r, MP) {
+    sky(MP.sky[0], MP.sky[1]); lights(); S.scene.fog = new THREE.Fog(new THREE.Color(MP.sky[1]).getHex(), 160, 560); S.pathMode = true; S.secAt = [];
+    const c = { x: 0, y: 0, z: -2, yaw: 0 }, sn = ['#e8f6ff', '#cfe9ff', '#7cc4ff', '#ff6f6f'];
+    startPlaza(c);
+    cpAt(c); pStraight(c, 6, 12, sn[2]); pElev(c, 10); pStraight(c, 8, 12, sn[1]);
+    cpAt(c, c.y - 24); padAt(c, -3, 8, 4); pRamp(c, 30, -8, 11, sn[0], { ice: true, walls: sn[3] }); pArc(c, Math.PI / 2, 16, 11, sn[1], -3); pRamp(c, 26, -6, 11, sn[0], { ice: true, walls: sn[3] });
+    pRamp(c, 5, 1.6, 10, sn[3]); gap(c, 12, -3); pStraight(c, 14, 14, sn[1]);   // tremplin de saut à ski
+    cpAt(c); pTramp(c, 6); pStraight(c, 20, 12, sn[0]);
+    cpAt(c, c.y - 12); pArc(c, -Math.PI / 2, 14, 9, sn[2], 0); pStraight(c, 6, 9, sn[2]); pZip(c, 40, 9); pStraight(c, 12, 12, sn[1]);
+    cpAt(c, c.y - 16); pBlink(c, 5, ['#bfe6ff', '#e8f6ff', '#9fd9ff']); pStraight(c, 8, 12, sn[0]);
+    cpAt(c, c.y - 24); pArc(c, -Math.PI / 2, 16, 11, sn[1], -4); padAt(c, -3, 8, 4); pRamp(c, 34, -10, 11, sn[0], { ice: true, walls: sn[3] }); gap(c, 9, -1.5);
+    finishArena(c, '#3a8dff');
+    decorAround(r, MP, (x, y, z, rr) => { if (rr() < 0.7) { const h = 3 + rr() * 4; for (let k = 0; k < 3; k++) { const cn = mesh(S.pine || (S.pine = own(new THREE.ConeGeometry(1, 1.4, 7))), mat(k === 2 ? '#ffffff' : '#2f8a5a'), false); cn.position.set(x, y - 12 + h * (0.4 + k * 0.32), z); cn.scale.setScalar(h * (0.9 - k * 0.22)); S.scene.add(cn); } } });
+  }
+  /* ---------- 6. LE VOLCAN ---------- */
+  function buildVolcano(r, MP) {
+    sky(MP.sky[0], MP.sky[1]); lights(); S.scene.fog = new THREE.Fog(new THREE.Color(MP.sky[1]).getHex(), 140, 520); S.pathMode = true; S.secAt = [];
+    const c = { x: 0, y: 0, z: -2, yaw: 0 }, rk = ['#6b4a3f', '#8a5a48', '#4f3630', '#ff6a2a'];
+    startPlaza(c);
+    cpAt(c); pStraight(c, 10, 12, rk[1]); pArc(c, -Math.PI / 2, 15, 10, rk[0], 0, { alt: rk[1] });
+    cpAt(c, c.y - 16); crumbleBridge(c, 16, 3.2, '#3a2622'); pStraight(c, 8, 12, rk[2]);
+    cpAt(c); pHammers(c, 40, 3, [rk[1], '#ff6a2a', '#ffb13d', '#ff3b3b']);
+    cpAt(c, c.y - 16); pFans(c, 3, 3); pStraight(c, 10, 14, rk[0]);
+    cpAt(c);
+    { const [tx, tz, ylo, yhi] = pSpiral(c, 1, 9, 12, 4.6, [rk[1], rk[0]], '#5a3a32');   // on grimpe autour du cratère
+      const cone = mesh(own(new THREE.CylinderGeometry(3.5, 6.2, 6, 14, 1, true)), mat('#4f3630')); cone.position.set(tx, yhi + 6, tz); S.scene.add(cone);
+      const lava = mesh(own(new THREE.CircleGeometry(3.4, 18)), mat('#ff6a2a', { emissive: '#ff4a10', emissiveIntensity: 1.2 }), false); lava.rotation.x = -Math.PI / 2; lava.position.set(tx, yhi + 8.6, tz); S.scene.add(lava);
+      S.anim.push(t => { if (Math.random() < 0.5) emit(tx + (Math.random() - 0.5) * 4, yhi + 9, tz + (Math.random() - 0.5) * 4, 1, { cols: ['#ff8a3d', '#ffcf2e', '#5a4a48'], spd: 1.5, up: 7, life: 2.2, grav: -1 }); }); }
+    pStraight(c, 7, 7, rk[2]);
+    cpAt(c, c.y - 12); pZip(c, 42, 9); pStraight(c, 12, 12, rk[1]);
+    cpAt(c, c.y - 16); pBlink(c, 6, ['#ff6a2a', '#6b4a3f', '#ffb13d']); pStraight(c, 10, 14, rk[0]);
+    cpAt(c, c.y - 14); padAt(c, -2.5, 8, 4); pRamp(c, 34, -10, 11, '#ff8a3d', { walls: '#ffcf2e' }); gap(c, 9, -1.5);
+    finishArena(c, '#ff4a10');
+    decorAround(r, MP, (x, y, z, rr) => { if (rr() < 0.55) { const s = 2 + rr() * 5, rock = mesh(own(new THREE.DodecahedronGeometry(s, 0)), mat(rr() < 0.5 ? '#4f3630' : '#6b4a3f'), false); rock.position.set(x, y - 10 + rr() * 20, z); rock.rotation.set(rr() * 3, rr() * 3, 0); S.scene.add(rock); } });
+  }
+  /* ---------- 7. LA BASE SPATIALE ---------- */
+  function buildSpace(r, MP) {
+    sky(MP.sky[0], MP.sky[1]); lights(); S.scene.fog = new THREE.Fog(new THREE.Color(MP.sky[1]).getHex(), 180, 620); S.pathMode = true; S.secAt = [];
+    const c = { x: 0, y: 0, z: -2, yaw: 0 }, sp = ['#7a6cff', '#3fd0ff', '#c8c4ff', '#ff6fb0'];
+    startPlaza(c);
+    cpAt(c); pBelt(c, 22, 8, 12); pArc(c, Math.PI / 2, 14, 9, sp[2], 0, { alt: sp[0] });
+    cpAt(c); pStraight(c, 6, 10, sp[1]); pWallRun(c, 16, sp[3]); pStraight(c, 10, 12, sp[0]);
+    cpAt(c, c.y - 16); pDisc(c, 13, sp[0]); pStraight(c, 6, 12, sp[2]);
+    cpAt(c); pCannons(c, 14, 4); pStraight(c, 14, 14, sp[1]);
+    cpAt(c, c.y - 16); pElev(c, 10); pStraight(c, 10, 12, sp[0]); pTramp(c, 6); pStraight(c, 20, 12, sp[3]);
+    cpAt(c, c.y - 12); pArc(c, -Math.PI / 2, 15, 9, sp[2], 0); pStraight(c, 6, 9, sp[2]); pZip(c, 42, 9); pStraight(c, 12, 12, sp[1]);
+    cpAt(c, c.y - 16); pBlink(c, 5, sp); pStraight(c, 8, 12, sp[0]);
+    cpAt(c, c.y - 24); pArc(c, Math.PI / 2, 16, 11, sp[1], -4); padAt(c, -3, 8, 4); pRamp(c, 30, -9, 11, '#3fd0ff', { walls: '#ff6fb0' }); gap(c, 9, -1.5);
+    finishArena(c, '#7a6cff');
+    decorAround(r, MP, (x, y, z, rr) => { if (rr() < 0.18) { const s = 4 + rr() * 9, pl = mesh(own(new THREE.SphereGeometry(s, 20, 14)), mat(sp[Math.floor(rr() * 4)], { roughness: 0.6 }), false); pl.position.set(x, y + 10 + rr() * 30, z); S.scene.add(pl); if (rr() < 0.6) { const ring = mesh(own(new THREE.TorusGeometry(s * 1.6, s * 0.12, 6, 40)), mat('#ffe9a8'), false); ring.position.copy(pl.position); ring.rotation.set(1.2 + rr() * 0.4, rr(), 0); S.scene.add(ring); } } });
+    const st = new THREE.BufferGeometry(), pts = []; for (let i = 0; i < 600; i++) { const a = r() * Math.PI * 2, e = r() * 1.2, d = 300; pts.push(Math.cos(a) * Math.cos(e) * d, Math.sin(e) * d, Math.sin(a) * Math.cos(e) * d); }
+    st.setAttribute('position', new THREE.Float32BufferAttribute(pts, 3)); const sm = new THREE.PointsMaterial({ size: 2.2, color: 0xffffff, fog: false, sizeAttenuation: false }); S.disp.push(st, sm); S.skyM.add(new THREE.Points(st, sm));
   }
   // distance parcourue le long du tracé (classement, bots)
   function pathProg(x, y, z) {
@@ -1307,7 +1377,7 @@
       const dx = (zz.bx - zz.ax) / zz.L, dy = (zz.by - zz.ay) / zz.L, dz = (zz.bz - zz.az) / zz.L, u = Math.min(1, m.zipU);
       m.x = zz.ax + (zz.bx - zz.ax) * u; m.y = zz.ay + (zz.by - zz.ay) * u - 1.9; m.z = zz.az + (zz.bz - zz.az) * u;
       m.vx = dx * m.zipV; m.vy = dy * m.zipV; m.vz = dz * m.zipV; m.face = Math.atan2(dx, dz);
-      if (m.jbuf > 0 || m.zipU >= 1) { m.st = 'run'; m.zipCd = 0.7; m.jbuf = 0; m.vy = Math.max(0, m.vy) + (m.zipU >= 1 ? 4 : JUMP * 0.7); m.zip = null; if (me) fx('jump', { g: 0.6 }); }
+      if (m.jbuf > 0 || m.zipU >= 1) { m.st = 'run'; m.zipCd = 0.7; m.jbuf = 0; m.vy = Math.max(0, m.vy) + (m.zipU >= 1 ? 4 : JUMP * 0.7); const hs = Math.hypot(m.vx, m.vz); if (hs > 11) { m.vx *= 11 / hs; m.vz *= 11 / hs; } m.zip = null; if (me) fx('jump', { g: 0.6 }); }
       else { m.prog = progOf(m); return; }
     }
     if (m.st === 'tumble') { m.stT -= dt; m.spin += dt * 14; if (m.stT <= 0 && m.ground) { m.st = 'run'; m.ghost = 0.5; } }
@@ -1394,8 +1464,9 @@
     for (const p of S.players.values()) {
       if (p === m || !p.av || !p.vis) continue;
       const dx = m.x - p.x, dz = m.z - p.z, d = Math.hypot(dx, dz);
-      if (d < 0.95 && d > 1e-4 && Math.abs(m.y - p.y) < 1.5) {
-        m.x += dx / d * (0.95 - d) * 0.6; m.z += dz / d * (0.95 - d) * 0.6;
+      const sepR = S.r2 === 'ile' && S.round === 2 && m.y > 1.8 && Math.hypot(m.x, m.z) < 2 ? 1.25 : 0.95;   // le poteau ne tient pas tout le monde
+      if (d < sepR && d > 1e-4 && Math.abs(m.y - p.y) < 1.5) {
+        m.x += dx / d * (sepR - d) * 0.6; m.z += dz / d * (sepR - d) * 0.6;
         const ps = Math.hypot(p.vx, p.vz);
         // un joueur distant qui me plonge dessus (s'il est simulé ici, c'est lui qui gère)
         if (!simHere(p) && p.st === ST.dive && ps > 8 && (m.bumpCd || 0) <= 0) { m.bumpCd = 0.7; knock(m, { x: p.vx * 0.8, y: 6, z: p.vz * 0.8 }); if (me) shout('BOUSCULÉ !', '#ff4f9e'); }
@@ -1501,6 +1572,11 @@
     const onTile = (x, z) => { const g = groundAt(x, z, b.y + 0.3); return isFinite(g.y) && g.y > b.y - 1.2 && !(g.obj && g.obj.state); };
     const hasGround = (x, z) => { const g = groundAt(x, z, b.y + 0.3); return isFinite(g.y) && g.y > b.y - 1.2 && !(g.obj && g.obj.state === 2); };
     const RM = S.r2 === 'ile' ? 6 : 10;
+    if (S.r2 === 'ile') { const dC = Math.hypot(b.x, b.z), el = S.rt - S.goAt;
+      if (b.y > 1.8 && dC < 1.9) { if (dC > 0.5) steer(b, inp, 0, 0, 0.25);   // roi du poteau : on pousse les autres dans le vide
+        if ((b.shoveCd = (b.shoveCd || 0) - dt) <= 0) { b.shoveCd = 1 + Math.random() * 1.4; for (const p of S.players.values()) { if (p === b || !p.vis || !p.av) continue; const dx = p.x - b.x, dz = p.z - b.z, d = Math.hypot(dx, dz) || 1; if (d < 1.7 && Math.abs(p.y - b.y) < 1 && Math.random() < 0.3 + 0.45 * b.skill) { b.face = Math.atan2(dx, dz); b.grabT = 0.45; hitPlayer(p, { x: dx / d * 8.5, y: 5, z: dz / d * 8.5 }); break; } } }
+        return; }
+      if (dC < 7 || el > 14 + 10 * (1 - b.skill)) { steer(b, inp, 0, 0, 0.7); if (dC < 2.8 && b.ground) inp.jump = true; const br = barAhead(b); if (br === 'low' && b.ground) inp.jump = true; return; } }
     if (ai.R == null) { ai.R = 3 + Math.random() * (RM - 4); ai.dir = Math.random() < 0.5 ? 1 : -1; }
     // on tourne en rond (comme un vrai joueur : ne jamais rester sur une dalle qui s'effrite)
     const ang = Math.atan2(b.z, b.x) + ai.dir * 0.75;
@@ -1683,7 +1759,7 @@
     if (S.round === 2) { S.r2 = cfg.kind; S.def = Object.assign({}, R2[S.r2], { time: S.final ? 90 : 75 }); S.usedR2.push(cfg.kind); try { BR.store.set('br_party_r2', S.r2); } catch (e) {} }
     else { S.def = RACE_DEF; S.usedMaps.push(cfg.map); }
     S.high = S.low = null; S.part = cfg.q.filter(id => S.players.has(id)); S.out = new Set(); S.outOrder = []; S.fin = []; S.decided = false; S.tiles = null; S.tramps = [];
-    S.scene = new THREE.Scene(); S.solids = []; S.haz = []; S.checks = []; S.scroll = []; S.anim = []; S.winds = []; S.pads = []; S.zips = []; S.crs = []; S.path = []; S.pathMode = false; S.finishBox = null; S.gyB = S.gyG = S.canG = S.bulb = null; S.bob = []; S.cloudTex = null; S.seaM = null; S.post = S.flag = S.fanG = null;
+    S.scene = new THREE.Scene(); S.solids = []; S.haz = []; S.checks = []; S.scroll = []; S.anim = []; S.winds = []; S.pads = []; S.zips = []; S.crs = []; S.path = []; S.pathMode = false; S.finishBox = null; S.gyB = S.gyG = S.canG = S.bulb = null; S.bob = []; S.cloudTex = null; S.seaM = null; S.post = S.flag = S.fanG = S.pine = null;
     initFx();
     if (S.round === 1) buildCourse(cfg.map); else buildSpin(S.r2);
     if (S.round === 1 && !S.pathMode) S.checks.sort((a, b) => a.z - b.z);
@@ -1851,7 +1927,8 @@
     let lv = null; try { lv = BR.Account.applyResult({ points: pts, xp, multi: !S.solo, time: S.rt }); } catch (e) {}
     snd(won ? 'cheer' : 'aww'); sfx(won ? 'buy' : 'back'); if (won) { S.excite = 1.5; emit(S.me.x, S.me.y + 1, S.me.z, 200, { cols: CONF, spd: 8, up: 10, life: 2.4, grav: 7, spread: 4 }); }
     const rows = `<table>${rank.slice(0, 8).map((id, i) => `<tr class="${id === me ? 'me' : ''}"><td>${i + 1}</td><td>${BR.esc(names(id))}</td><td>${win.includes(id) ? '👑 Vainqueur' : S.elimRn[id] ? 'Manche ' + S.elimRn[id] : 'Finaliste'}</td></tr>`).join('')}</table>`;
-    DOM.card.innerHTML = `<h2>${title}</h2><p>${BR.esc(sub)}</p>${S.mapT ? '<p style="margin-top:-8px;color:#7a6cff">Meilleur temps de course : ' + fmt(S.mapT) + (S.newBest ? ' (record !)' : '') + '</p>' : ''}${rows}${crownTxt}<div class="pt-gain">+${pts} points · +${xp} XP${lv && lv.levelUp ? ' · NIVEAU ' + lv.after.level + ' !' : ''}</div>
+    const rkBox = S.o.ranked ? '<div class="pt-rkw">' + (BR.Net.rk && BR.Net.rk.d != null && BR.Net.rk._g === S.seed ? P.rkHtml(BR.Net.rk, BR.Net.rk.d) : '<div class="pt-rk wait">🏆 Calcul du rang classé…</div>') + '</div>' : '';
+    DOM.card.innerHTML = `<h2>${S.o.ranked ? '🏆 ' : ''}${title}</h2><p>${BR.esc(sub)}</p>${rkBox}${S.mapT ? '<p style="margin-top:-8px;color:#7a6cff">Meilleur temps de course : ' + fmt(S.mapT) + (S.newBest ? ' (record !)' : '') + '</p>' : ''}${rows}${crownTxt}<div class="pt-gain">+${pts} points · +${xp} XP${lv && lv.levelUp ? ' · NIVEAU ' + lv.after.level + ' !' : ''}</div>
       <div class="pt-b">${S.solo ? '<button data-a="replay">Rejouer</button><button class="alt" data-a="menu">Menu</button>' : '<button data-a="lobby">Retour au salon</button>'}</div>`;
     DOM.panel.classList.add('on');
     DOM.card.querySelectorAll('button').forEach(b => b.addEventListener('click', () => { sfx('click'); const a = b.dataset.a, cb = S.o.onEnd; P.stop(); if (cb) cb(a); }));
@@ -1955,7 +2032,9 @@
   }
 
   /* ===================== démarrage / arrêt ===================== */
+  let rkHooked = false;
   P.start = function (o) {
+    if (!rkHooked && BR.Net && BR.Net.on) { rkHooked = true; BR.Net.on('rk', m => { if (S) m._g = S.seed; const w = DOM && DOM.card && DOM.card.querySelector('.pt-rkw'); if (w) { w.innerHTML = P.rkHtml(m, m.d); if (m.d > 0) sfx('buy'); } }); }
     if (S) P.stop();
     ensureDom(); renderer();
     S = { o, solo: o.mode !== 'multi', seed: o.seed >>> 0, selfId: o.selfId, players: new Map(), disp: [], solids: [], haz: [], checks: [], spawns: [], tramps: [],
@@ -1995,6 +2074,7 @@
     for (const k in keys) keys[k] = false;
   };
   P.session = () => S;
+  P.prep = () => ensureDom();
   P._step = dt => S && step(dt);
   P._ground = (x, z, y) => S && groundAt(x, z, y);
   P._render = () => { if (S && R) R.render(S.scene, S.cam); };

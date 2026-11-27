@@ -841,10 +841,11 @@
   screen('lb', {
     enter(n) {
       const p = Acc.p, s = p.stats, L = lvl();
+      if (partyGame()) lbTab = 'bz'; else if (lbTab === 'bz') lbTab = 'xp';
       n.innerHTML = `<div class="panel wide">
         <div class="ph"><button class="btn ghost back" data-act="back">${ICO('back', 18)}</button><h2>Classement</h2></div>
         <div class="lb">
-          <div class="col"><div class="tabs"><button data-t="xp">Expérience</button><button data-t="escapes">Évasions</button><button data-t="revives">Sauvetages</button></div><div class="lbl"><div class="empty"><div class="spin"></div>Chargement…</div></div></div>
+          <div class="col"><div class="tabs">${partyGame() ? '<button data-t="bz">🏆 Classé Bousculade</button>' : ''}<button data-t="xp">Expérience</button><button data-t="escapes">Évasions</button><button data-t="revives">Sauvetages</button></div><div class="lbl"><div class="empty"><div class="spin"></div>Chargement…</div></div></div>
           <div class="col side"><h4>Mes statistiques</h4>
             <div class="mystats">
               <div><b>${L.level}</b><span>Niveau</span></div><div><b>${BR.fmt(p.xp)}</b><span>XP totale</span></div>
@@ -860,8 +861,9 @@
       const render = () => {
         n.querySelectorAll('.tabs button').forEach(b => b.classList.toggle('on', b.dataset.t === lbTab));
         const box = n.querySelector('.lbl'); if (!data) return;
-        const list = data[lbTab] || [];
+        const list = lbTab === 'bz' ? (data.bz ? data.bz.top : []) : data[lbTab] || [];
         if (!list.length) { box.innerHTML = '<div class="empty">Personne pour l\'instant. Sois le premier !</div>'; return; }
+        if (lbTab === 'bz') { box.innerHTML = `<div class="muted tiny" style="margin-bottom:6px">Saison ${esc(data.bz.season)} · remise à zéro partielle chaque mois</div><div class="lbt">${list.map((e, i) => { const t = BR.Party.tier(e.rp); return `<div class="lbr ${e.name.toLowerCase() === Acc.p.name.toLowerCase() ? 'me' : ''} ${i < 3 ? 'top' + (i + 1) : ''}"><span class="rk">${i + 1}</span><img src="${thumb({ skin: e.skin }, 48, 60)}" alt=""><span class="nm">${esc(e.name)}<small style="color:${t.col}">${t.label} · ${e.w} victoire${e.w > 1 ? 's' : ''} / ${e.g}</small></span><span class="v">${BR.fmt(e.rp)} <small>RP</small></span></div>`; }).join('')}</div>`; return; }
         const unit = { xp: 'XP', escapes: 'évasions', revives: 'relevés' }[lbTab];
         box.innerHTML = `<div class="lbt">${list.map((e, i) => `<div class="lbr ${e.name.toLowerCase() === Acc.p.name.toLowerCase() ? 'me' : ''} ${i < 3 ? 'top' + (i + 1) : ''}"><span class="rk">${i + 1}</span><img src="${thumb({ skin: e.skin }, 48, 60)}" alt=""><span class="nm">${esc(e.name)}<small>Niv. ${BR.levelFromXp(e.xp).level}</small></span><span class="v">${BR.fmt(e[lbTab])} <small>${unit}</small></span></div>`).join('')}</div><div class="muted tiny">${data.total} survivant${data.total > 1 ? 's' : ''} inscrit${data.total > 1 ? 's' : ''}</div>`;
       };
@@ -1069,6 +1071,25 @@
     try { BR.Party.start(o); }
     catch (e) { console.error(e); try { BR.Party.stop(); } catch (_) {} UI.toast('Erreur au lancement : ' + e.message, 'error'); UI.show(o.mode === 'multi' ? (N.room ? 'lobby' : 'multi') : 'party'); }
   }
+  // file classée : il faut un compte ; le serveur nous place dans un salon classé (ou en ouvre un)
+  let rkWant = false;
+  function rankedQueue() {
+    if (!Acc.logged) { Au.ui('err'); UI.toast('Le mode classé demande un compte (gratuit) : crée-le dans Compte.', 'error'); return; }
+    Au.ui('click'); UI.toast('🏆 Recherche d’une partie classée…', 'ok'); rkWant = true;
+    const go = () => N.rquick();
+    if (N.status === 'on') go(); else N.connect().then(go).catch(() => { rkWant = false; UI.toast('Serveur injoignable, réessaie dans un instant.', 'error'); });
+  }
+  // salon classé : l'hôte lance tout seul (salon plein, ou 30 s d'attente : les bots complètent)
+  let rkT0 = 0, rkRoomState = '';
+  setInterval(() => {
+    const r = N.room; if (!r || !r.ranked) { rkRoomState = ''; return; }
+    const st = BR.Party.session() ? 'game' : r.state;
+    if (st !== rkRoomState) { rkRoomState = st; rkT0 = Date.now(); }
+    if (st !== 'lobby' || curId !== 'lobby') return;
+    const left = Math.max(0, 30 - Math.floor((Date.now() - rkT0) / 1000)), full = r.players.length >= (r.max || 8);
+    const n = SCR.lobby && SCR.lobby.node; if (n) { let b = n.querySelector('.rk-banner'); if (!b) { b = el('div', { class: 'rk-banner' }); n.prepend(b); } b.innerHTML = `🏆 <b>Partie classée</b> · ${r.players.length}/${r.max || 8} joueurs · départ ${full ? 'immédiat' : 'dans ' + left + ' s'} <small>(les places vides sont prises par des bots)</small>`; }
+    if (N.isHost() && (full || left <= 0) && !inGame() && !BR.Party.session()) { rkT0 = Date.now() + 1e9; hostStart(true); }
+  }, 1000);
   function startPartySolo(forceMap) {
     Au.ui('ok');
     const p = Acc.p;
@@ -1077,15 +1098,17 @@
   UI.startPartySolo = startPartySolo;
   screen('party', {
     enter(n) {
-      BR.curGame = 'bousculade'; Au.track('music', 'menu', 0.8);
+      BR.curGame = 'bousculade'; Au.track('music', 'menu', 0.8); try { BR.Party.prep(); } catch (e) {}
       const pg = BR.Party.progress(), fm = t => Math.floor(t / 60) + ':' + String((t % 60).toFixed(1)).padStart(4, '0');
       n.innerHTML = `<div class="main pt-main">
         <div class="main-left">
           <div class="logo"><div class="logo-t" style="color:#ff4f9e;text-shadow:0 5px 0 #7a2a8a">BOUSCULADE</div><div class="logo-s">C O U R S , &nbsp; S A U T E , &nbsp; P L O N G E , &nbsp; B O U S C U L E .</div></div>
           <nav class="menu">
+            <button class="mi d-hot pt-rkbtn" data-go="ranked"><span>🏆 Classé</span><small>${N.rk ? BR.Party.tier(N.rk.rp).label + ' · ' + N.rk.rp + ' RP' : 'Grimpe de Bronze à Champion · saison mensuelle'}</small></button>
             <button class="mi d-hot" data-go="multi"><span>Multijoueur</span><small>Jusqu'à 8 potes · le dernier debout gagne</small></button>
-            <button class="mi d-hot" data-go="tour"><span>🆕 Nouvelles cartes</span><small>Grand Tour, Toits, Temple, Bonbons, Montagnes russes</small></button>
+            <button class="mi d-hot" data-go="tour"><span>🆕 Nouvelles cartes</span><small>Ski, Volcan, Base spatiale, Temple, Montagnes russes…</small></button>
             <button class="mi" data-go="solo"><span>Entraînement solo</span><small>4 manches contre 7 bots</small></button>
+            <button class="mi" data-go="lb"><span>Classement mondial</span><small>Les meilleurs joueurs de la saison</small></button>
             <button class="mi" data-go="rules"><span>Règles</span><small>Les manches, les obstacles, le plongeon</small></button>
             <button class="mi" data-go="char"><span>Personnage</span><small>Ce que voient les autres joueurs</small></button>
             <button class="mi back" data-go="hub"><span>${ICO('back', 16)} Changer de jeu</span></button>
@@ -1098,6 +1121,7 @@
           <button class="btn primary big pt-go" style="margin-top:14px">${ICO('play', 18)} JOUER EN MULTIJOUEUR</button></div></div>`;
       n.querySelectorAll('[data-go]').forEach(bt => bt.addEventListener('click', () => {
         const go = bt.dataset.go;
+        if (go === 'ranked') { rankedQueue(); return; }
         if (go === 'solo') { startPartySolo(); return; }
         if (go === 'tour') { const pm = BR.Party.pathMaps(); startPartySolo(pm[Math.floor(Math.random() * pm.length)]); return; }
         if (go === 'rules') { Au.ui('click'); modal(box => box.insertAdjacentHTML('beforeend', `<h3>Bousculade — règles</h3>${partyRules()}`)); return; }
@@ -1290,7 +1314,7 @@
     N.on('room', () => {
       if (inGame()) return;
       if (curId === 'lobby') renderLobby();
-      else if (curId === 'multi') { Au.ui('join'); UI.show('lobby'); }
+      else if (curId === 'multi' || rkWant) { rkWant = false; Au.ui('join'); UI.show('lobby'); }
     });
     N.on('chat', m => { if (!inGame()) Au.ui('msg'); lobbyLine(`<b>${esc(m.n)}</b> : ${esc(m.m)}`); });
     N.on('sys', m => lobbyLine(`<i>${esc(m.m)}</i>`));
@@ -1303,7 +1327,7 @@
     N.on('start', m => {
       if (inGame()) return;
       const room = m.room;
-      if (isPartyMap(m.map)) { launchParty({ mode: 'multi', seed: m.seed, roster: room.players.map(p => ({ id: p.id, name: p.name, look: p.look, level: p.level })), selfId: N.id, hostId: room.host }); return; }
+      if (isPartyMap(m.map)) { launchParty({ mode: 'multi', ranked: !!room.ranked, seed: m.seed, roster: room.players.map(p => ({ id: p.id, name: p.name, look: p.look, level: p.level })), selfId: N.id, hostId: room.host }); return; }
       if (isDoorsMap(m.map)) {
         launchDoors({ mode: 'multi', diff: m.diff, seed: m.seed, imgs: m.cfg && Array.isArray(m.cfg.imgs) ? m.cfg.imgs : null, roster: room.players.map(p => ({ id: p.id, name: p.name, look: p.look, level: p.level })), selfId: N.id, hostId: room.host });
         return;

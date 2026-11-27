@@ -116,7 +116,7 @@
         if (!m || !m.t) return;
         if (m.t === 'welcome' && !done) {
           done = true; clearTimeout(to);
-          N.id = m.id; N.online = m.online || 0; N.rooms = m.rooms || [];
+          N.id = m.id; N.online = m.online || 0; N.rooms = m.rooms || []; N.rk = m.rk || null;
           retryDelay = 1000; setStatus('on');
           startPing();
           const again = everWelcomed; everWelcomed = true;
@@ -154,6 +154,7 @@
       case 'rooms': N.rooms = m.list || []; if (m.online) N.online = m.online; break;
       case 'room': N.room = m.room; break;
       case 'kicked': N.room = null; break;
+      case 'rk': N.rk = m; break;
     }
     N.ev.emit(m.t, m);
     N.ev.emit('msg', m);
@@ -228,6 +229,7 @@
   N.create = o => N.send(Object.assign({ t: 'create' }, o));
   N.join = code => N.send({ t: 'join', code });
   N.quick = () => N.send({ t: 'quick' });
+  N.rquick = () => N.send({ t: 'rquick' });
   N.leave = () => { N.room = null; N.send({ t: 'leave' }); };
   N.relay = (d, to) => N.send({ t: 'r', to: to === undefined ? '*' : to, d });
   N.chat = (m, q) => N.send({ t: 'chat', m, q: q ? 1 : 0 });
