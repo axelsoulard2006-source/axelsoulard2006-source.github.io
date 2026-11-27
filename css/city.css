@@ -124,4 +124,10 @@
 .city-hud.cy-small .cy-toast { top: 90px; } .city-hud.cy-small .cy-t { font-size: 12.5px; white-space: normal; text-align: center; max-width: 86vw; }
 
 /* petit écran : le titre de la barre du haut ne déborde plus sur la ville */
-@media (max-width: 640px) { #topbar .tb-brand { font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 42vw; } }
+@media (max-width: 640px) { #topbar .tb-brand { font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 38vw; } }
+/* petit écran : la barre du haut tient dans la largeur (le bouton Paramètres sortait de l'écran) */
+@media (max-width: 640px) {
+  #topbar { padding: 0 10px; } #topbar .tb-online { display: none; } #topbar .tb-right { gap: 6px; }
+  #topbar .tb-pts { padding: 5px 10px; font-size: 15px; } #topbar .tb-chip { padding: 3px; gap: 0; } #topbar .tb-chip .tb-who, #topbar .tb-chip .tb-lv { display: none; }
+  #topbar .tb-chip img { width: 34px; height: 40px; } #topbar .tb-ic { width: 38px; height: 38px; flex: none; }
+}

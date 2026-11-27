@@ -23,7 +23,7 @@
   const EMO = [{ e: 'Cheer', i: '🎉', n: 'Hourra' }, { e: 'Spellcast_Raise', i: '✨', n: 'Magie' }, { e: '2H_Melee_Attack_Spin', i: '🌀', n: 'Toupie' }, { e: 'Interact', i: '👋', n: 'Salut' }];
   const PAL = ['#ff4f9e', '#7a6cff', '#ffe14a', '#3fd0ff', '#5fe08c', '#ff8a3d'];
   function goGame(id) {
-    if (id === 'blocs') { Au.ui('ok'); location.href = 'blocs/index.html'; return; }
+    if (id === 'blocs') { Au.ui('ok'); try { sessionStorage.setItem('city_back', 'blocs'); } catch (e) {} location.href = 'blocs/index.html'; return; }   // (page séparée : le retour devant le Chantier passe par sessionStorage)
     Au.ui('ok'); BR.ascMode = id === 'ascension';
     BR.UI.show(id === 'ascension' ? 'asc' : id === 'portes' ? 'portes' : id === 'bousculade' ? 'party' : 'main');
   }
@@ -835,7 +835,8 @@
     // post-traitement (lueur douce) en qualité haute
     if (q === 'high' && BR.AFX && BR.AFX.post) { try { V.post = BR.AFX.post(R, scene, cam, 'high'); if (V.post) { R.outputEncoding = THREE.LinearEncoding; V.post.bloom.threshold = 0.9; V.post.bloom.strength = 0.42; V.post.bloom.radius = 0.5; V.post.grade.uVig.value = 0.3; } } catch (e) { V.post = null; R.outputEncoding = THREE.sRGBEncoding; } }
     const av = BR.Avatar.build(Acc.p.look || { skin: 'survivor' }); av.group.traverse(m => { if (m.isMesh) m.castShadow = V.shadows; }); scene.add(av.group); V.av = av;
-    const back = C._back; C._back = null; const from = back && DEST.find(d => d.id === back);
+    let back = C._back; C._back = null; try { if (!back) back = sessionStorage.getItem('city_back'); sessionStorage.removeItem('city_back'); } catch (e) {}
+    const from = back && DEST.find(d => d.id === back);
     if (from) { av.group.position.set(from.door[0] - from.dir[0] * 4.5, 0, from.door[1] - from.dir[1] * 4.5); V.face = Math.atan2(-from.dir[0], -from.dir[1]); }
     else { av.group.position.set(0, 0, 13); V.face = Math.PI; }
     V.pos = av.group.position; V.yaw = V.face + Math.PI; av.group.rotation.y = V.face;

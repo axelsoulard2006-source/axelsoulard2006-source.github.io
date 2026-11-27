@@ -265,8 +265,8 @@
     else if (a === 'mode') setMode(G.mode === 'creatif' ? 'survie' : 'creatif');
     else if (a === 'save') { G.save(); }
     else if (a === 'export') { G.save(true); const blob = new Blob([localStorage.getItem(SAVE_KEY) || JSON.stringify(state())], { type: 'application/json' }), u = URL.createObjectURL(blob), l = document.createElement('a'); l.href = u; l.download = 'blocaria-monde-' + G.seed + '.json'; l.click(); setTimeout(() => URL.revokeObjectURL(u), 2000); }
-    else if (a === 'import') { const f = document.createElement('input'); f.type = 'file'; f.accept = '.json,application/json'; f.onchange = () => { const file = f.files[0]; if (!file) return; file.text().then(t => { try { const j = JSON.parse(t); if (!j || j.v !== 1 || !j.seed) throw new Error('fichier'); localStorage.setItem(SAVE_KEY, t); location.reload(); } catch (e) { UI.toast('Fichier de monde invalide.'); } }); }; f.click(); }
-    else if (a === 'new') { const s = prompt('Graine du nouveau monde (laisse vide pour du hasard). Ton monde actuel sera remplacé — exporte-le avant si tu veux le garder.', ''); if (s === null) return; localStorage.removeItem(SAVE_KEY); localStorage.setItem('blocaria_newseed', s.trim()); location.reload(); }
+    else if (a === 'import') { const f = document.createElement('input'); f.type = 'file'; f.accept = '.json,application/json'; f.onchange = () => { const file = f.files[0]; if (!file) return; file.text().then(t => { try { const j = JSON.parse(t); if (!j || j.v !== 1 || !j.seed) throw new Error('fichier'); G._noSave = true; localStorage.setItem(SAVE_KEY, t); location.reload(); } catch (e) { UI.toast('Fichier de monde invalide.'); } }); }; f.click(); }
+    else if (a === 'new') { const s = prompt('Graine du nouveau monde (laisse vide pour du hasard). Ton monde actuel sera remplacé — exporte-le avant si tu veux le garder.', ''); if (s === null) return; G._noSave = true; localStorage.removeItem(SAVE_KEY); localStorage.setItem('blocaria_newseed', s.trim()); location.reload(); }
     else if (a === 'quit') { G.save(true); location.href = '../index.html'; }
   };
 
@@ -279,6 +279,7 @@
   }
   G.save = function (quiet) {
     if (G.guest) return;   // invité dans le monde d'un pote : on ne touche pas à sa propre sauvegarde
+    if (G._noSave) return;   // nouveau monde / import en cours : la sauvegarde de « beforeunload » écraserait le nouveau monde
     try { localStorage.setItem(SAVE_KEY, JSON.stringify(state())); if (!quiet) UI.toast('Monde sauvegardé ✔'); }
     catch (e) { UI.toast('Sauvegarde impossible (monde trop gros) : utilise « Exporter le monde ».'); }
   };

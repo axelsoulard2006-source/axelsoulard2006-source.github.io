@@ -23,7 +23,7 @@
   const PDIFF = { id: 'normal', name: 'Fiesta', color: '#ff4f9e', desc: '2 manches : la Course d’adresse (les premiers arrivés passent), puis la Toupie (le dernier debout gagne).' };
   const gameOfRoom = r => arenaRoom(r) ? (r.map === 'a_asc' ? 'asc' : 'arena') : partyRoom(r) ? 'bousculade' : doorsRoom(r) ? 'portes' : 'backrooms';
   const curKind = () => arenaGame() ? (BR.ascMode ? 'asc' : 'arena') : partyGame() ? 'bousculade' : doorsGame() ? 'portes' : 'backrooms';
-  const brandName = () => curId === 'hub' ? 'LA VILLE DES JEUX' : BR.curGame === 'arena' ? (BR.ascMode ? 'COLOSSES · L\'ASCENSION' : 'COLOSSES') : BR.curGame === 'portes' ? 'LES PORTES' : BR.curGame === 'bousculade' ? 'BOUSCULADE' : 'BACKROOMS';
+  const brandName = () => curId === 'hub' || curId === 'games' ? 'LA VILLE DES JEUX' : BR.curGame === 'arena' ? (BR.ascMode ? 'COLOSSES · L\'ASCENSION' : 'COLOSSES') : BR.curGame === 'portes' ? 'LES PORTES' : BR.curGame === 'bousculade' ? 'BOUSCULADE' : 'BACKROOMS';
   const ui = () => BR.$('#ui');
   const ICO = (n, sz, c) => BR.Icons.svg(n, sz, c), COIN = sz => BR.Icons.coin(sz);
   const ico = (n, sz) => el('span', { class: 'icw', html: ICO(n, sz) }), coinEl = sz => el('span', { class: 'icw', html: COIN(sz) });
@@ -63,9 +63,9 @@
     // (fenêtre en arrière-plan : les images d'animation arrivent toutes d'un coup ; seul l'écran encore actuel s'affiche)
     requestAnimationFrame(() => { if (curId === id && def.node === node) node.classList.add('on'); });
     BR.$('#topbar').style.display = def.noTop ? 'none' : '';
-    reportWhere(id === 'hub' || id === 'games' || id === 'boot' ? null : BR.curGame === 'arena' ? 'colosses' : BR.curGame === 'portes' ? 'portes' : 'backrooms');
+    reportWhere(id === 'hub' || id === 'games' || id === 'boot' || BR.curGame === 'bousculade' ? null : BR.curGame === 'arena' ? 'colosses' : BR.curGame === 'portes' ? 'portes' : 'backrooms');   // (la Bousculade n'a pas de compteur « en jeu » côté serveur)
     const brand = BR.$('#topbar .tb-brand'); if (brand) brand.textContent = brandName(); document.body.classList.toggle('arenamenu', BR.curGame === 'arena' && id !== 'hub');
-    document.body.classList.toggle('doorsmenu', BR.curGame === 'portes' && id !== 'hub' && id !== 'boot');
+    document.body.classList.toggle('doorsmenu', BR.curGame === 'portes' && id !== 'hub' && id !== 'boot' && id !== 'games');
     if (def.ownBg && def.ownBg()) { if (BR.ArenaUI) BR.ArenaUI.bg(false); BR.MenuBG.stop(); }   // l'écran dessine son propre décor 3D
     else if (BR.ArenaUI && !(id === 'asc' || ['asc-armory', 'asc-tree', 'asc-altar', 'asc-quests', 'asc-chal', 'asc-ach'].includes(id))) { const ar = BR.curGame === 'arena' && id !== 'hub' && id !== 'boot'; BR.ArenaUI.bg(ar); if (!ar && !BR.MenuBG.running && !inGame()) BR.MenuBG.start(); }
     document.body.dataset.screen = id;

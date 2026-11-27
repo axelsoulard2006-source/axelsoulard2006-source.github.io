@@ -64,14 +64,15 @@
 #party .pt-panel.on{display:flex}
 #party.pod .pt-panel{justify-content:flex-end;padding-right:3vw;background:linear-gradient(90deg,transparent 35%,rgba(30,20,70,.55))}
 @media (max-width:900px){#party.pod .pt-panel{justify-content:center;padding:0;align-items:flex-end}#party.pod .pt-card{max-height:55vh;overflow:auto}}
-#party .pt-card{background:linear-gradient(#fff,#f3eaff);border-radius:22px;padding:24px 28px;min-width:380px;max-width:560px;color:#2a2050;box-shadow:0 14px 0 rgba(0,0,0,.18)}
+#party .pt-card{background:linear-gradient(#fff,#f3eaff);border-radius:22px;padding:24px 28px;min-width:380px;max-width:560px;max-height:calc(100vh - 24px);overflow:auto;box-sizing:border-box;color:#2a2050;box-shadow:0 14px 0 rgba(0,0,0,.18)}
+@media (max-width:420px){#party .pt-card{min-width:0;width:calc(100vw - 16px);padding:18px 14px}}
 #party .pt-card h2{margin:0 0 6px;font-size:34px;font-weight:900;color:#ff3f9b;text-align:center}
 #party .pt-card p{margin:0 0 14px;text-align:center;font-weight:700}
 #party .pt-card table{width:100%;border-collapse:collapse;margin-bottom:14px}
 #party .pt-card td{padding:6px 8px;border-bottom:1px solid #e4d8ff;font-weight:700}
 #party .pt-card tr.me td{background:#fff4b8}
 #party .pt-card .pt-b{display:flex;gap:10px;justify-content:center;flex-wrap:wrap}
-#party .pt-card button{border:0;border-radius:14px;padding:12px 20px;font-weight:900;font-size:16px;cursor:pointer;background:#6a5cff;color:#fff;box-shadow:0 5px 0 #4636c9}
+#party .pt-card button{display:inline-block;border:0;border-radius:14px;padding:12px 20px;font-weight:900;font-size:16px;cursor:pointer;background:#6a5cff;color:#fff;box-shadow:0 5px 0 #4636c9}
 #party .pt-card button.alt{background:#ff4f9e;box-shadow:0 5px 0 #c42a74}
 #party .pt-card button:active{transform:translateY(3px);box-shadow:0 2px 0 #4636c9}
 #party .pt-set{display:grid;gap:10px;margin:6px 0 16px;font-weight:800;font-size:14px}#party .pt-set label{display:grid;grid-template-columns:1fr 1.3fr;align-items:center;gap:10px}#party .pt-set select{font:inherit;padding:4px 8px;border-radius:8px}#party .pt-set input[type=range]{-webkit-appearance:auto!important;appearance:auto!important;width:100%;accent-color:#ff4f9e;background:transparent!important;height:auto!important}
@@ -98,6 +99,8 @@
 .pt-main .menu .mi span{font-family:inherit!important;font-weight:900!important;font-size:21px!important;letter-spacing:.5px!important;color:#3a1f6a!important;text-shadow:none!important}
 .pt-main .menu .mi small{color:#7a6cff!important;font-weight:700!important;font-family:inherit!important;opacity:1!important}
 .pt-main .menu .mi.back{background:rgba(255,255,255,.22)!important;box-shadow:none!important}.pt-main .menu .mi.back span{color:#fff!important;font-size:16px!important}
+.pt-main .menu .mi.d-hot:not([data-go=multi]):not([data-go=ranked]) span::after{display:none}
+.pt-main .logo-t{font-size:clamp(48px,7vw,112px)!important}
 .pt-main .menu .mi.pt-rkbtn{background:linear-gradient(90deg,#ffe14a,#ffb13d)!important;box-shadow:0 5px 0 #c77b00!important}
 .pt-main .d-lrules{background:rgba(255,255,255,.93)!important;color:#2a1a4a!important;border-radius:20px!important;border:none!important;box-shadow:0 8px 0 rgba(60,20,110,.25)}
 .pt-main .d-lrules,.pt-main .d-lrules *{font-family:'Trebuchet MS',system-ui,sans-serif!important;letter-spacing:0!important}
@@ -252,7 +255,7 @@
   function grant(r, quiet) {
     const b = BZ();
     if (r[0] === 'pts') { BR.Account.p.points = (BR.Account.p.points || 0) + r[1]; if (!quiet) rwToast('+' + r[1] + ' points'); }
-    else if (!b.own.includes(r[1])) { b.own.push(r[1]); if (!quiet) { const d = r[0] === 'hat' ? HATS[r[1]] : TRAILS[r[1]]; rwToast('Nouveau ' + (r[0] === 'hat' ? 'chapeau' : 'traînée') + ' : ' + d.ico + ' ' + d.n + ' !'); } }
+    else if (!b.own.includes(r[1])) { b.own.push(r[1]); if (!quiet) { const d = r[0] === 'hat' ? HATS[r[1]] : TRAILS[r[1]]; rwToast((r[0] === 'hat' ? 'Nouveau chapeau' : 'Nouvelle traînée') + ' : ' + d.ico + ' ' + d.n + ' !'); } }
   }
   function rwToast(t) { if (S && DOM) { feed('🎁 ' + t); } else if (BR.UI && BR.UI.toast) BR.UI.toast('🎁 ' + t, 'ok'); S && (S.rwLog = (S.rwLog || []).concat(t)); }
   function passXp(n) {
@@ -2373,10 +2376,11 @@
     S.introT = S.round === 1 ? 5 : 3.4; S.introDone = false;
     S.rt = 0; S.goAt = S.introT + 3.2; S.ctl = false; S.endAt = null; S.cd = 0;
     const tot = S.rn - 1 + planLen(S.part.length, cfg.type), nm = S.round === 1 && S.map ? S.map.name : S.def.name;
-    DOM.title.textContent = 'MANCHE ' + S.rn + ' / ' + tot + ' · ' + nm; DOM.sub.textContent = S.def.sub;
-    DOM.iTag.textContent = (S.final ? 'FINALE' : 'MANCHE ' + S.rn + ' / ' + tot) + ' · ' + (S.round === 1 ? 'COURSE' : 'SURVIE');
+    const lone = S.o.tuto ? 'TUTORIEL' : S.o.trial ? 'DÉFI DU JOUR' : '';   // seul sur la carte : pas de « manche 1 / 0 »
+    DOM.title.textContent = S.o.tuto ? nm : (lone || 'MANCHE ' + S.rn + ' / ' + tot) + ' · ' + nm; DOM.sub.textContent = S.def.sub;
+    DOM.iTag.textContent = lone || (S.final ? 'FINALE' : 'MANCHE ' + S.rn + ' / ' + tot) + ' · ' + (S.round === 1 ? 'COURSE' : 'SURVIE');
     DOM.iName.textContent = nm; DOM.iSub.textContent = S.round === 1 && S.map ? S.map.desc + ' — ' + S.def.sub : S.def.sub;
-    const goal = S.round === 1 ? 'Les ' + S.target + ' premiers arrivés sont qualifiés (sur ' + S.part.length + ')' : S.def.score === 'eggs' ? 'Tu es chez les ' + TEAMS[S.teams[S.selfId] || 0].n + ' ' + TEAMS[S.teams[S.selfId] || 0].e + ' : ton nid est ' + ((S.teams[S.selfId] || 0) ? 'à droite' : 'à gauche') : S.def.score === 'foot' ? 'Tu es chez les ' + TEAMS[S.teams[S.selfId] || 0].n + ' ' + TEAMS[S.teams[S.selfId] || 0].e + ' : marque dans le but de l\'autre couleur !' : S.def.score === 'hill' ? (S.final ? 'Celui qui reste le plus longtemps dans la zone gagne 👑' : 'Les ' + S.target + ' meilleurs scores sont qualifiés') : S.def.score === 'crown' ? (S.final ? 'Celui qui garde la couronne le plus longtemps gagne 👑' : 'Les ' + S.target + ' qui l\'ont gardée le plus longtemps sont qualifiés') : S.def.score === 'team' ? 'Tu es chez les ' + TEAMS[S.teams[S.selfId] || 0].n + ' ' + TEAMS[S.teams[S.selfId] || 0].e + ' : peins plus que l\'autre équipe !' : S.final ? 'Le dernier debout gagne la couronne 👑' : 'Qualifiés dès qu\'il ne reste que ' + S.target + ' joueurs debout (sur ' + S.part.length + ')';
+    const goal = lone ? (S.o.trial ? 'Seul contre le chrono : fais le meilleur temps !' : 'Suis les panneaux jusqu’à l’arrivée') : S.round === 1 ? 'Les ' + S.target + ' premiers arrivés sont qualifiés (sur ' + S.part.length + ')' : S.def.score === 'eggs' ? 'Tu es chez les ' + TEAMS[S.teams[S.selfId] || 0].n + ' ' + TEAMS[S.teams[S.selfId] || 0].e + ' : ton nid est ' + ((S.teams[S.selfId] || 0) ? 'à droite' : 'à gauche') : S.def.score === 'foot' ? 'Tu es chez les ' + TEAMS[S.teams[S.selfId] || 0].n + ' ' + TEAMS[S.teams[S.selfId] || 0].e + ' : marque dans le but de l\'autre couleur !' : S.def.score === 'hill' ? (S.final ? 'Celui qui reste le plus longtemps dans la zone gagne 👑' : 'Les ' + S.target + ' meilleurs scores sont qualifiés') : S.def.score === 'crown' ? (S.final ? 'Celui qui garde la couronne le plus longtemps gagne 👑' : 'Les ' + S.target + ' qui l\'ont gardée le plus longtemps sont qualifiés') : S.def.score === 'team' ? 'Tu es chez les ' + TEAMS[S.teams[S.selfId] || 0].n + ' ' + TEAMS[S.teams[S.selfId] || 0].e + ' : peins plus que l\'autre équipe !' : S.final ? 'Le dernier debout gagne la couronne 👑' : 'Qualifiés dès qu\'il ne reste que ' + S.target + ' joueurs debout (sur ' + S.part.length + ')';
     DOM.iSkip.textContent = goal + (S.solo ? ' · Espace : passer' : '');
     DOM.intro.classList.remove('on'); void DOM.intro.offsetWidth; DOM.intro.classList.add('on'); DOM.big.classList.remove('on'); DOM.root.classList.add('intro');
     if (!m.active) setTimeout(() => S && big('SPECTATEUR', 'Clique pour changer de joueur', 1800), (S.introT + 0.6) * 1000);
@@ -2549,7 +2553,7 @@
     setTimeout(() => { try { BR.Net.api('/api/leaderboard', { retries: 1, timeout: 20000 }).then(fill).catch(() => fill(null)); } catch (e) { fill(null); } }, 1500);
   }
   function finishP(m) {
-    if (m.finished || S.round !== 1) return; m.finished = true; const t = S.rt - S.goAt;
+    if (m.finished || S.round !== 1 || S.decided) return; m.finished = true; const t = S.rt - S.goAt;   // manche déjà décidée : plus de qualifiés
     if (m === S.me) {
       snd('cheer'); S.excite = 1.2; sfx('buy'); emit(m.x, m.y + 1, m.z, 160, { cols: CONF, spd: 7, up: 9, life: 2.2, grav: 7, spread: 3 });
       try { m.av.act('Cheer', { speed: 1 }); } catch (e) {}
@@ -2581,6 +2585,7 @@
       const m = S.me;
       if (S.round === 1) {
         if (m.finished) { const k = S.fin.findIndex(f => f.id === S.selfId) + 1; t = 'Qualifié · ' + k + (k === 1 ? 'er' : 'e'); }
+        else if (S.o.tuto || S.o.trial) t = '';
         else if (m.active) { let k = 1 + S.fin.length; const mp = m.prog != null ? m.prog : m.z; for (const p of S.players.values()) if (p !== m && S.part.includes(p.id) && !p.finished && (p.prog != null ? p.prog : p.z) > mp) k++; t = k + (k === 1 ? 'er' : 'e') + ' / ' + S.part.length + ' · ' + S.fin.length + ' / ' + S.target + ' qualifiés'; }
         else t = S.fin.length + ' / ' + S.target + ' qualifiés';
       } else if (S.def.score === 'crown' || S.def.score === 'hill') { const rk = S.part.filter(id => S.players.has(id)).sort((a, b) => (S.ctime[b] || 0) - (S.ctime[a] || 0)), k = rk.indexOf(S.selfId) + 1; t = '👑 ' + (S.ctime[S.selfId] || 0).toFixed(1) + ' s · ' + (k ? k + (k === 1 ? 'er' : 'e') : '') + (S.final ? '' : ' · qualifiés : top ' + S.target); }
