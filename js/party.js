@@ -818,9 +818,11 @@
     { name: 'LE CHÂTEAU', desc: 'Pont-levis tournant, donjon en spirale, dalles fantômes', sky: ['#5a4cb0', '#e0dcff'], sea: '#d8d2ff', build: (r, MP) => buildCastle(r, MP) },
     { name: 'LA PLAGE', desc: 'Vagues qui poussent, canons à eau, toboggan aquatique', sky: ['#3fb6ff', '#fff2c8'], sea: '#7fd8ff', build: (r, MP) => buildBeach(r, MP) },
     { name: 'LA CITÉ NÉON', desc: 'Tapis, couloirs de murs, mixeur, spirale vertigineuse', sky: ['#1a0f3a', '#5a2a8a'], sea: '#3a1f6a', build: (r, MP) => buildNeon(r, MP) },
+    { name: 'LE TUTORIEL', desc: 'Apprends tous les mouvements en un parcours', sky: ['#6fb9ff', '#f4fbff'], sea: '#ffffff', tuto: true, build: (r, MP) => buildTuto(r, MP) },
   ];
-  const pathIdx = () => MAPS.map((m, i) => m.build ? i : -1).filter(i => i >= 0);
-  const mapFromSeed = s => { const pm = pathIdx(); return s % 4 !== 0 && pm.length ? pm[Math.floor(s / 4) % pm.length] : s % MAPS.length; };
+  const pathIdx = () => MAPS.map((m, i) => m.build && !m.tuto ? i : -1).filter(i => i >= 0);
+  const raceIdx = () => MAPS.map((m, i) => m.tuto ? -1 : i).filter(i => i >= 0);
+  const mapFromSeed = s => { const pm = pathIdx(), all = raceIdx(); return s % 4 !== 0 && pm.length ? pm[Math.floor(s / 4) % pm.length] : all[s % all.length]; };
   P.pathMaps = pathIdx;
   P.pickSeed = function () {
     let last = -1; try { last = BR.store.get('br_party_map', -1); } catch (e) {}
@@ -2294,6 +2296,46 @@
     paintList();
   }
 
+
+  /* ---------- TUTORIEL : un parcours avec des panneaux ---------- */
+  function sign(c, lz, text) {
+    const [x, z] = tp(c, 0, lz), cv = document.createElement('canvas'); cv.width = 1024; cv.height = 160; const g = cv.getContext('2d');
+    g.fillStyle = 'rgba(40,25,90,0.82)'; g.beginPath(); if (g.roundRect) g.roundRect(8, 16, 1008, 128, 40); else g.rect(8, 16, 1008, 128); g.fill();
+    g.font = 'bold 50px sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillStyle = '#ffe14a'; g.fillText(text, 512, 82, 980);
+    const t = new THREE.CanvasTexture(cv), m = new THREE.SpriteMaterial({ map: t, transparent: true }), sp = new THREE.Sprite(m);
+    sp.scale.set(12, 1.9, 1); sp.position.set(x, c.y + 4.4, z); S.scene.add(sp); S.disp.push(t, m);
+  }
+  function buildTuto(r, MP) {
+    sky(MP.sky[0], MP.sky[1]); lights(); S.scene.fog = new THREE.Fog(new THREE.Color(MP.sky[1]).getHex(), 160, 560); S.pathMode = true; S.secAt = [];
+    const c = { x: 0, y: 0, z: -2, yaw: 0 }, cl = ['#7a6cff', '#3fd0ff', '#ffb13d', '#47d16c'];
+    startPlaza(c);
+    sign(c, 2, '1 · ZQSD pour courir, la souris pour regarder');
+    cpAt(c); pStraight(c, 14, 10, cl[0]);
+    sign(c, -2, '2 · ESPACE : saute par-dessus le trou');
+    gap(c, 5, 0); pStraight(c, 10, 10, cl[1]);
+    sign(c, -2, '3 · Trop loin ? Saute puis MAJ (ou A) : PLONGE !');
+    cpAt(c); gap(c, 11, -2); pStraight(c, 10, 10, cl[2]);
+    sign(c, -2, '4 · Saute contre un mur en courant : tu cours dessus');
+    cpAt(c); pStraight(c, 5, 10, cl[3]); pWallRun(c, 16, '#ff4f9e'); pStraight(c, 8, 10, cl[0]);
+    sign(c, -2, '5 · Les flèches jaunes : TURBO');
+    cpAt(c); padAt(c, 2, 8, 4); pStraight(c, 18, 10, cl[1]);
+    sign(c, -2, '6 · Trampoline : rebondis vers l\'étage du dessus');
+    cpAt(c); pTramp(c, 6); pStraight(c, 12, 10, cl[2]);
+    sign(c, -2, '7 · Clic gauche : attraper · 1-4 : émotes · ARRIVÉE !');
+    pStraight(c, 8, 10, cl[3]);
+    finishArena(c, '#47d16c');
+    decorAround(r, MP, () => {});
+  }
+  function tutoEnd(t) {
+    if (S.results) return; S.results = true; S.ctl = false; unlock();
+    try { BR.store.set('bz_tuto', 1); } catch (e) {} passXp(40);
+    snd('cheer'); sfx('buy'); S.excite = 1.5;
+    DOM.card.innerHTML = `<h2>🎓 BRAVO !</h2><p>Tu sais courir, sauter, plonger, courir sur les murs et rebondir.<br>Temps : <b>${fmt(t)}</b></p><p>Maintenant, la vraie Bousculade : 4 manches, 7 adversaires, une seule couronne 👑</p>
+      <div class="pt-b"><button data-a="replay">Jouer une partie</button><button class="alt" data-a="menu">Menu</button></div>`;
+    DOM.panel.classList.add('on');
+    DOM.card.querySelectorAll('button').forEach(bt => bt.addEventListener('click', () => { sfx('click'); const a = bt.dataset.a, cb = S.o.onEnd; P.stop(); if (cb) cb(a); }));
+  }
+  P.tutoIdx = () => MAPS.findIndex(m => m.tuto);
   /* ---------- DÉFI DU JOUR : une carte imposée, seul contre le chrono, classement mondial du jour ---------- */
   const dayKey = () => new Date().toISOString().slice(0, 10);
   P.dailyMap = () => { const pm = P.pathMaps(), d = dayKey(); let h = 0; for (const c of d) h = (Math.imul(h, 31) + c.charCodeAt(0)) >>> 0; return pm[h % pm.length]; };
@@ -2323,6 +2365,7 @@
       try { m.av.act('Cheer', { speed: 1 }); } catch (e) {}
       const rec = recordMap(t); S.newBest = rec.best; S.mapT = t;
       if (S.o.trial) { trialEnd(t); return; }
+      if (S.o.tuto) { tutoEnd(t); return; }
       const k = S.fin.length + 1; if (k <= 3) bzEv('top3'); big('QUALIFIÉ !', k + (k === 1 ? 'er' : 'e') + ' · ' + fmt(t) + (S.newBest ? ' · RECORD' : ''), 2400);
       try { BR.Account.save(); } catch (e) {}
     }
@@ -2379,7 +2422,7 @@
     return null;
   }
   function decideTick() {
-    if (S.o.trial) return;
+    if (S.o.trial || S.o.tuto) return;
     if (S.decided || S.results || !S.ctl) return;
     if (!S.solo && !BR.Net.isHost()) return;
     let q = roundOver();
@@ -2390,7 +2433,7 @@
     big(S.round === 1 ? 'FIN DE LA COURSE' : 'FIN DE LA MANCHE', q.includes(S.selfId) ? 'Tu es qualifié(e) !' : '', 2200);
     setTimeout(() => { if (S) nextRound(q); }, 2600);
   }
-  function pickMap() { const used = S.usedMaps; let last = -1; try { last = BR.store.get('br_party_map', -1); } catch (e) {} const pool = MAPS.map((m, i) => i).filter(i => !used.includes(i) && i !== last); const arr = pool.length ? pool : MAPS.map((m, i) => i).filter(i => !used.includes(i)); const pa = arr.filter(i => MAPS[i].build); const fin = pa.length && Math.random() < 0.75 ? pa : arr; return fin[Math.floor(Math.random() * fin.length)] || 0; }
+  function pickMap() { const used = S.usedMaps; let last = -1; try { last = BR.store.get('br_party_map', -1); } catch (e) {} const pool = raceIdx().filter(i => !used.includes(i) && i !== last); const arr = pool.length ? pool : MAPS.map((m, i) => i).filter(i => !used.includes(i)); const pa = arr.filter(i => MAPS[i].build); const fin = pa.length && Math.random() < 0.75 ? pa : arr; return fin[Math.floor(Math.random() * fin.length)] || 0; }
   function pickR2b() { const ks = Object.keys(R2).filter(k => !S.usedR2.includes(k)); const arr = ks.length ? ks : Object.keys(R2); let last = ''; try { last = BR.store.get('br_party_r2', ''); } catch (e) {} const a2 = arr.filter(k => k !== last); const f = a2.length ? a2 : arr; return f[Math.floor(Math.random() * f.length)]; }
   function nextRound(q) {
     const n = q.length; let msg;
@@ -2617,7 +2660,7 @@
     o.roster.forEach(r => S.players.set(r.id, { id: r.id, name: r.name, look: r.look || BR.Avatar.defaultLook(), x: 0, y: 0, z: 0, tx: 0, ty: 0, tz: 0, vx: 0, vy: 0, vz: 0, face: 0, tf: 0, st: 0,
       ground: false, active: true, jbuf: 0, coyote: 0, ghost: 0, diveUsed: false, stT: 0 }));
     S.me = S.players.get(S.selfId);
-    if (!o.trial) makeBots(S.seed); S.usedMaps = []; S.usedR2 = []; S.elim = []; S.elimRn = {};
+    if (!o.trial && !o.tuto) makeBots(S.seed); S.usedMaps = []; S.usedR2 = []; S.elim = []; S.elimRn = {};
     S.cam = new THREE.PerspectiveCamera(68, window.innerWidth / window.innerHeight, 0.1, 900);
     makeAvatars();
     if (!S.solo) {

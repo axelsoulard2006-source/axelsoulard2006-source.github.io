@@ -1070,7 +1070,7 @@
   function launchParty(o) {
     BR.$$('.modal-back').forEach(m => m.remove());
     killPreview(); BR.MenuBG.stop(); if (BR.ArenaUI) BR.ArenaUI.bg(false);
-    o.onEnd = a => { BR.MenuBG.start(); if (a === 'trial') { startTrial(); return; } if (a === 'replay') startPartySolo(o.forceMap); else UI.show(o.mode === 'multi' && N.room ? 'lobby' : 'party'); };
+    o.onEnd = a => { BR.MenuBG.start(); if (a === 'trial') { startTrial(); return; } if (a === 'replay') startPartySolo(o.tuto ? undefined : o.forceMap); else UI.show(o.mode === 'multi' && N.room ? 'lobby' : 'party'); };
     try { BR.Party.start(o); }
     catch (e) { console.error(e); try { BR.Party.stop(); } catch (_) {} UI.toast('Erreur au lancement : ' + e.message, 'error'); UI.show(o.mode === 'multi' ? (N.room ? 'lobby' : 'multi') : 'party'); }
   }
@@ -1114,7 +1114,9 @@
     const n = SCR.lobby && SCR.lobby.node; if (n) { let b = n.querySelector('.rk-banner'); if (!b) { b = el('div', { class: 'rk-banner' }); n.prepend(b); } b.innerHTML = `🏆 <b>Partie classée</b> · ${r.players.length}/${r.max || 8} joueurs · départ ${full ? 'immédiat' : 'dans ' + left + ' s'} <small>(les places vides sont prises par des bots)</small>`; }
     if (N.isHost() && (full || left <= 0) && !inGame() && !BR.Party.session()) { rkT0 = Date.now() + 1e9; hostStart(true); }
   }, 1000);
+  function startTuto() { Au.ui('ok'); const p = Acc.p; launchParty({ mode: 'solo', tuto: true, forceMap: BR.Party.tutoIdx(), seed: 99, roster: [{ id: 'me', name: p.name, look: p.look, level: lvl().level }], selfId: 'me', hostId: 'me' }); }
   function startPartySolo(forceMap) {
+    if (forceMap == null && !BR.store.get('bz_tuto', 0) && BR.Party.progress().games === 0) { startTuto(); return; }   // toute première partie : le tutoriel
     Au.ui('ok');
     const p = Acc.p;
     launchParty({ mode: 'solo', forceMap: typeof forceMap === 'number' ? forceMap : undefined, seed: BR.Party.pickSeed(), roster: [{ id: 'me', name: p.name, look: p.look, level: lvl().level }], selfId: 'me', hostId: 'me' });
@@ -1134,6 +1136,7 @@
             <button class="mi d-hot" data-go="solo"><span>▶ Jouer contre des bots</span><small>4 manches · 23 cartes, 9 manches spéciales</small></button>
             <button class="mi d-hot" data-go="trial"><span>⏱ Défi du jour</span><small>${(() => { const d = BR.Party.dailyInfo(); return esc(d.name) + (d.best ? ' · ton record : ' + d.best.toFixed(1) + ' s' : ' · seul contre le chrono'); })()}</small></button>
             <button class="mi d-hot" data-go="rewards"><span>🎁 Récompenses</span><small>${(() => { const R = BR.Party.rewards(); return R.quests.filter(q => !q.c).length + ' quête(s) du jour · passe palier ' + R.lv + '/' + R.PASS.length; })()}</small></button>
+            <button class="mi" data-go="tuto"><span>🎓 Tutoriel</span><small>Apprends les mouvements en 1 minute</small></button>
             <button class="mi" data-go="lb"><span>Classement mondial</span><small>Les meilleurs joueurs de la saison</small></button>
             <button class="mi" data-go="char"><span>Personnage</span><small>Ce que voient les autres joueurs</small></button>
             <button class="mi back" data-go="hub"><span>${ICO('back', 16)} Changer de jeu</span></button>
@@ -1149,6 +1152,7 @@
         if (go === 'ranked') { rankedQueue(); return; }
         if (go === 'rewards') { partyRewards(); return; }
         if (go === 'trial') { startTrial(); return; }
+        if (go === 'tuto') { startTuto(); return; }
         if (go === 'solo') { startPartySolo(); return; }
         if (go === 'tour') { const pm = BR.Party.pathMaps(); startPartySolo(pm[Math.floor(Math.random() * pm.length)]); return; }
         if (go === 'rules') { Au.ui('click'); modal(box => box.insertAdjacentHTML('beforeend', `<h3>Bousculade — règles</h3>${partyRules()}`)); return; }
