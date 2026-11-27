@@ -53,6 +53,7 @@
       const cx = Math.floor(x / CS), cz = Math.floor(z / CS), c = this.ensure(cx, cz), lx = x - cx * CS, lz = z - cz * CS, i = idx(lx, y, lz), old = c.data[i];
       if (old === id) return false;
       c.data[i] = id; const k = key(cx, cz); (this.mods[k] = this.mods[k] || {})[i] = id;
+      VX.hooks.emit('worldSet', { dim: this.dim, x, y, z, id, old });
       this.markDirty(cx, cz);
       if (LIGHT_IDS.has(id) || LIGHT_IDS.has(old) || lx < 8 || lx > 7) {   // lumière et ombres débordent jusqu'à 8 blocs
         const nx = lx < 8 ? -1 : 1, nz = lz < 8 ? -1 : 1, far = LIGHT_IDS.has(id) || LIGHT_IDS.has(old);

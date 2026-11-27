@@ -1,7 +1,8 @@
 /* ===== hooks.js : évènements du jeu pour greffer des fonctionnalités sans toucher au moteur
    VX.hooks.on('blockBreak', ({ x, y, z, id, dim, player }) => …)
    évènements : blockBreak, blockPlace, playerTick ({ dt, player }), renderFrame ({ dt, time, scene, camera }),
-                dimensionChange ({ from, to }), itemPickup ({ id, n }), craft ({ id, n })
+                dimensionChange ({ from, to }), itemPickup ({ id, n }), craft ({ id, n }),
+                worldSet ({ dim, x, y, z, id, old }) : tout changement de bloc (joueur, portail, réseau…)
    Un écouteur qui renvoie false sur blockBreak / blockPlace annule l'action. ===== */
 (function () {
   const VX = window.VX, L = {};

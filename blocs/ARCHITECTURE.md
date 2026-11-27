@@ -63,7 +63,12 @@ VX.hooks.on('renderFrame', ({ scene, camera }) => { /* ex. particules */ });
 // renvoyer false dans blockBreak / blockPlace annule l'action
 ```
 
-Les évènements disponibles : `blockBreak`, `blockPlace`, `playerTick`, `renderFrame`, `dimensionChange`, `itemPickup`, `craft`.
+Les évènements disponibles : `blockBreak`, `blockPlace`, `playerTick`, `renderFrame`, `dimensionChange`, `itemPickup`, `craft`, `worldSet` (tout changement de bloc).
+
+Modules branchés par les hooks :
+
+- `mobs.js` : les créatures.
+- `mp.js` : le multijoueur. Il passe par le serveur du site : salon privé, monde de l'hôte partagé, blocs et positions relayés, et l'invité ne sauvegarde jamais.
 
 ## Shaders personnalisés
 

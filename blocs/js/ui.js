@@ -162,6 +162,7 @@
       m.innerHTML = kind === 'aide'
         ? `<h2>BLOCARIA</h2><p class="sub">Bac à sable de blocs · Surface et Braises</p>${help}<p>Fabrique un établi (4 planches), des outils, un four… Trouve de l'obsidienne, construis un cadre (4 de large, 5 de haut) et allume-le avec l'<b>allumeur</b> pour passer dans <b>les Braises</b>, où se cache l'astrium.</p><button data-a="play">Jouer</button>`
         : `<h2>Pause</h2>${help}<div class="row"><button data-a="play">Reprendre</button><button data-a="mode">Mode : ${G.mode === 'creatif' ? 'Créatif' : 'Survie'}</button><button data-a="gfx">Rendu : ${VX.fastMesh ? 'Rapide' : 'Beau'}</button></div>
+          <div class="row">${VX.MP && VX.MP.on ? `<span class="mp">🌐 Salon <b>${VX.MP.room.code}</b> · ${VX.MP.room.players.length} joueur(s)${VX.MP.host ? ' · donne ce code à tes potes' : ''}</span><button data-a="mpleave">Quitter le salon</button>` : '<button data-a="mphost">🌐 Ouvrir mon monde aux potes</button><button data-a="mpjoin">🌐 Rejoindre un pote</button>'}</div>
           <div class="row"><button data-a="save">Sauvegarder</button><button data-a="export">Exporter le monde</button><button data-a="import">Importer</button></div>
           <div class="row"><label class="dist">Distance de vue <input type="range" min="2" max="7" step="1" value="${G.R}"></label></div>
           <div class="row"><button data-a="new" class="warn">Nouveau monde</button><button data-a="quit">Retour au site</button></div><p class="small">Graine : ${G.seed} · ${G.dimName()}</p>`;

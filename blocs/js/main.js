@@ -179,6 +179,9 @@
   G.menuAction = function (a) {
     if (a === 'play') { UI.menu(null); canvas.requestPointerLock(); }
     else if (a === 'respawn') { const P = G.player; P.hp = 20; P.food = 20; P.sat = 5; if (G.dim !== 'surface') useWorld('surface'); P.pos.set(G.spawn.x, G.spawn.y + 0.2, G.spawn.z); P.vel.set(0, 0, 0); P.fallTop = null; preload(); UI.menu(null); UI.hud(); canvas.requestPointerLock(); }
+    else if (a === 'mphost') VX.MP.host_();
+    else if (a === 'mpjoin') VX.MP.join();
+    else if (a === 'mpleave') { VX.MP.leave(); UI.menu('pause'); }
     else if (a === 'gfx') { VX.fastMesh = !VX.fastMesh; G.saveSettings(); G.world.remeshAll(); UI.menu('pause'); }
     else if (a === 'mode') setMode(G.mode === 'creatif' ? 'survie' : 'creatif');
     else if (a === 'save') { G.save(); }
@@ -194,6 +197,7 @@
     return { v: 1, seed: G.seed, dim: G.dim, mode: G.mode, time: r(G.time), spawn: G.spawn, player: { x: r(P.pos.x), y: r(P.pos.y), z: r(P.pos.z), yaw: r(P.yaw), pitch: r(P.pitch), hp: P.hp, food: P.food, sat: r(P.sat), fly: P.fly }, inv: G.inv, sel: G.sel, mods: G.mods, furnaces: G.furnaces, links: G.links };
   }
   G.save = function (quiet) {
+    if (G.guest) return;   // invité dans le monde d'un pote : on ne touche pas à sa propre sauvegarde
     try { localStorage.setItem(SAVE_KEY, JSON.stringify(state())); if (!quiet) UI.toast('Monde sauvegardé ✔'); }
     catch (e) { UI.toast('Sauvegarde impossible (monde trop gros) : utilise « Exporter le monde ».'); }
   };
@@ -264,7 +268,7 @@
     camera.position.set(P.pos.x, P.eye, P.pos.z); camera.rotation.set(P.pitch, P.yaw, 0, 'YXZ');
     camera.fov += ((P.sprint ? 84 : 75) - camera.fov) * Math.min(1, dt * 8); camera.updateProjectionMatrix();
     UI.fx(under, P.hurtT > 0 ? P.hurtT * 1.5 : 0, Math.min(1, (G.portalT || 0) / 2.2));
-    if ((G.infoT = (G.infoT || 0) - dt) <= 0) { G.infoT = 0.25; UI.info(`${G.dimName()} · X ${Math.floor(P.pos.x)}  Y ${Math.floor(P.pos.y)}  Z ${Math.floor(P.pos.z)} · ${G.mode === 'creatif' ? 'Créatif' + (P.fly ? ' (vol)' : '') : 'Survie'}`); }
+    if ((G.infoT = (G.infoT || 0) - dt) <= 0) { G.infoT = 0.25; UI.info(`${VX.MP && VX.MP.on ? '🌐 Salon ' + VX.MP.room.code + ' (' + VX.MP.room.players.length + ') · ' : ''}${G.dimName()} · X ${Math.floor(P.pos.x)}  Y ${Math.floor(P.pos.y)}  Z ${Math.floor(P.pos.z)} · ${G.mode === 'creatif' ? 'Créatif' + (P.fly ? ' (vol)' : '') : 'Survie'}`); }
     H.emit('renderFrame', { dt, time: G.time, scene, camera });
     R.render();
   }
