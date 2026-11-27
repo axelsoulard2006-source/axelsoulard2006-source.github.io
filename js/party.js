@@ -346,6 +346,7 @@
     etages: { name: 'LES TROIS ÉTAGES', sub: 'Les dalles tombent sous tes pieds… et il reste deux étages en dessous. Le dernier en vie gagne !', time: 150 },
     ile: { name: 'L\'ÎLE QUI RÉTRÉCIT', sub: 'Le bord s\'effondre petit à petit. Pousse les autres dans le vide (plongeon, clic gauche) !', time: 110 },
     couronne: { name: 'LA COURONNE', sub: 'Attrape la couronne et garde-la ! Plonge sur celui qui l\'a (ou attrape-le) pour la lui voler.', time: 60, score: 'crown' },
+    oeufs: { name: 'LA CHASSE AUX ŒUFS', sub: 'Ramasse les œufs et rapporte-les dans le nid de ton équipe (œuf d\'or = 3). Vole ceux d\'en face, plonge sur les porteurs !', time: 60, score: 'eggs' },
     foot: { name: 'LE FOOT FOU', sub: 'Deux équipes, un ballon géant : pousse-le dans le but adverse (plonge dedans pour une grosse frappe) !', time: 60, score: 'foot' },
     colline: { name: 'LE ROI DE LA COLLINE', sub: 'Reste dans la zone lumineuse pour marquer des points. Elle se déplace toutes les 12 s : pousse les autres dehors !', time: 60, score: 'hill' },
     bombe: { name: 'LA BOMBE', sub: 'Des bombes passent de joueur en joueur au toucher. Quand le compteur tombe à zéro : BOUM, éliminé ! Refile-la vite !', time: 120, bomb: true },
@@ -1369,6 +1370,7 @@
     if (kind === 'bombe') return buildBomb();
     if (kind === 'colline') return buildHill();
     if (kind === 'foot') return buildFoot();
+    if (kind === 'oeufs') return buildEggs();
     const r = rng(S.seed + 23);
     const sk = { toupie: ['#ff7fc0', '#ffe1a8', '#ffe3f0'], etages: ['#5a6cff', '#d6dcff', '#e8ebff'], ile: ['#ff9a3d', '#ffe6b0', '#fff0dc'] }[kind] || ['#ff7fc0', '#ffe1a8', '#ffe3f0'];
     sky(sk[0], sk[1]); sea(kind === 'etages' ? -40 : -26, sk[2]); clouds(r, 22, -10, 24, z => z); lights();
@@ -1534,6 +1536,83 @@
     if (behind || dB < 2) { steer(b, inp, bx, bz, 1); if (dB < 3.2 && behind && b.ground && Math.random() < dt * (1 + 2 * b.skill) && Math.abs(bx) > FL - 10) { inp.dive = true; inp.wx = (bx - b.x) / dB; inp.wz = (bz - b.z) / dB; } }
     else { const side = Math.sign((b.z - bz) || 1); steer(b, inp, px + (Math.abs(b.z - pz) < 1.5 ? 0 : 0), pz + side * (dB < 4 ? 2.5 : 0), 1); }
   }
+
+  /* ---------- LA CHASSE AUX ŒUFS (équipes ; l'hôte décide de tout) ---------- */
+  const NEST_X = 14;
+  function buildEggs() {
+    const r = rng(S.seed + 23);
+    sky('#ffb6e0', '#fff4fa'); sea(-26, '#fff0f8'); clouds(r, 22, -10, 24, z => z); lights();
+    S.scene.fog = new THREE.Fog(0xfff4fa, 90, 340);
+    S.teams = teamSplit(); S.eggScore = [0, 0];
+    const T = 2.5, cols = ['#ffe1f0', '#e8f6ff', '#fff6d8'];
+    for (let ix = -7; ix <= 7; ix++) for (let iz = -5; iz <= 5; iz++) addBox(ix * T, 0, iz * T, T - 0.06, 0.7, T - 0.06, cols[(ix + iz + 21) % 3], { noUnder: true });
+    for (const sd of [-1, 1]) { addBox(0, 1.1, sd * 14.4, 38, 1.8, 0.8, '#ffffff', { noUnder: true }); addBox(sd * 19.2, 1.1, 0, 0.8, 1.8, 29.6, '#ffffff', { noUnder: true }); }
+    S.low = addSweep(0, 0, 0.15, 0.7, 7.5, 0.4, 0.7, '#ff3b3b', 0, 0.005); S.low.kb = 0.5;
+    for (const [x, z] of [[-6, 7], [6, -7], [-6, -7], [6, 7]]) addBox(x, 1.4, z, 2, 2, 2, '#ffffff', { noUnder: true });
+    // les nids
+    S.nests = [];
+    for (const tm of [0, 1]) {
+      const x = (tm ? 1 : -1) * NEST_X, g = new THREE.Group(); g.position.set(x, 0, 0);
+      const ring = mesh(own(new THREE.TorusGeometry(2.6, 0.45, 8, 28)), mat('#b07a40'), true); ring.rotation.x = Math.PI / 2; ring.position.y = 0.35; g.add(ring);
+      const disc = mesh(own(new THREE.CircleGeometry(2.5, 24)), mat(TEAMS[tm].c), false); disc.rotation.x = -Math.PI / 2; disc.position.y = 0.05; g.add(disc);
+      S.scene.add(g); S.nests.push({ x, z: 0, g });
+    }
+    // les œufs
+    S.eggs = []; const eg = own(new THREE.SphereGeometry(0.42, 14, 10)), rr = rng(S.seed + 9);
+    for (let i = 0; i < 14; i++) {
+      const gold = i < 2, m = mesh(eg, mat(gold ? '#ffd23a' : ['#ff8ac4', '#7fd8ff', '#9cf07a', '#c8a8ff'][i % 4], gold ? { emissive: '#ffb000', emissiveIntensity: 0.5, metalness: 0.4, roughness: 0.3 } : {}), true);
+      m.scale.set(1, 1.3, 1); S.scene.add(m);
+      const e = { i, gold, v: gold ? 3 : 1, st: 'free', by: null, tm: -1, x: (rr() - 0.5) * 12, z: (rr() - 0.5) * 18, m, cd: 0 }; S.eggs.push(e);
+    }
+    const k = [0, 0]; S.spawnFor = id => { const tm = S.teams[id] || 0, i = k[tm]++; return { x: (tm ? 1 : -1) * 11, y: 0, z: -6 + (i % 4) * 4 }; };
+    S.spawns = [{ x: 0, y: 0, z: 0 }]; S.fallY = -9;
+  }
+  const eggOf = id => S.eggs && S.eggs.find(e => e.st === 'carried' && e.by === id);
+  function eggCount() { const c = [0, 0]; for (const e of S.eggs) if (e.st === 'nest') c[e.tm] += e.v; return c; }
+  function eggSync() { if (!S.solo) BR.Net.relay({ k: 'eg', e: S.eggs.map(e => [e.st === 'free' ? 0 : e.st === 'carried' ? 1 : 2, e.by || '', e.tm, Math.round(e.x * 10) / 10, Math.round(e.z * 10) / 10]) }); }
+  function eggTick(dt, host) {
+    for (const e of S.eggs) {
+      let x = e.x, y = 0.75, z = e.z;
+      if (e.st === 'carried') { const p = S.players.get(e.by); if (p) { x = p.x; z = p.z; y = p.y + 2.5; e.x = x; e.z = z; } }
+      else if (e.st === 'nest') { const n = S.nests[e.tm], a = e.i * 2.4; x = n.x + Math.cos(a) * (0.6 + (e.i % 3) * 0.5); z = n.z + Math.sin(a) * (0.6 + (e.i % 3) * 0.5); y = 0.6; }
+      else y = 0.75 + Math.sin(S.rt * 3 + e.i) * 0.12;
+      e.m.position.set(x, y, z); e.m.rotation.y += dt * 1.5; e.cd -= dt;
+    }
+    if (!host || !S.ctl || S.decided) return;
+    let changed = false;
+    for (const p of S.players.values()) {
+      if (!p.active || !inRound(p)) continue; const tm = S.teams[p.id] || 0, mine = eggOf(p.id), nest = S.nests[tm], foe = S.nests[1 - tm];
+      if (mine) {
+        if (Math.hypot(p.x - nest.x, p.z - nest.z) < 2.8) { mine.st = 'nest'; mine.tm = tm; mine.by = null; changed = true; if (p === S.me) { shout(mine.gold ? 'ŒUF D\'OR : +3 !' : 'ŒUF DÉPOSÉ !', '#47d16c'); sfx('buy'); bzEv('egg'); } snd('pop'); }
+        continue;
+      }
+      for (const e of S.eggs) {
+        if (e.cd > 0) continue;
+        const near = Math.hypot(p.x - e.x, p.z - e.z) < 1.5 && p.y < 2.5;
+        if (e.st === 'free' && near) { e.st = 'carried'; e.by = p.id; changed = true; break; }
+        if (e.st === 'nest' && e.tm !== tm && Math.hypot(p.x - foe.x, p.z - foe.z) < 2.6) { e.st = 'carried'; e.by = p.id; e.tm = -1; changed = true; if (p === S.me) shout('VOLÉ !', '#ff4f9e'); break; }
+      }
+    }
+    // un plongeon ou une prise sur un porteur : il lâche son œuf
+    for (const e of S.eggs) {
+      if (e.st !== 'carried') continue; const c = S.players.get(e.by);
+      if (!c || !c.active || c.y < -3) { e.st = 'free'; e.by = null; e.x = 0; e.z = (Math.random() - 0.5) * 10; e.cd = 0.8; changed = true; continue; }
+      for (const p of S.players.values()) { if (p === c || !p.active || (S.teams[p.id] || 0) === (S.teams[c.id] || 0)) continue; if (Math.hypot(p.x - c.x, p.z - c.z) < 1.4 && (isDive(p) || isGrab(p))) { e.st = 'free'; e.by = null; e.x = c.x + (Math.random() - 0.5) * 3; e.z = c.z + (Math.random() - 0.5) * 3; e.cd = 0.9; changed = true; if (c === S.me) shout('TU AS LÂCHÉ L\'ŒUF !', '#ff4f9e'); break; } }
+    }
+    if (changed) { eggSync(); paintList(); }
+    if ((S.egT = (S.egT || 0) - dt) <= 0) { S.egT = 1; eggSync(); }
+  }
+  function eggAI(b, inp, dt) {
+    const tm = S.teams[b.id] || 0, mine = eggOf(b.id), nest = S.nests[tm], foe = S.nests[1 - tm];
+    if (barAhead(b) === 'low' && b.ground) inp.jump = true;
+    if (mine) { steer(b, inp, nest.x, nest.z, 0.9); return; }
+    // un adversaire porte un œuf près de moi : je plonge dessus
+    for (const e of S.eggs) { if (e.st !== 'carried') continue; const c = S.players.get(e.by); if (!c || (S.teams[c.id] || 0) === tm) continue; const d = Math.hypot(c.x - b.x, c.z - b.z); if (d < 7) { steer(b, inp, c.x + c.vx * 0.3, c.z + c.vz * 0.3, 1); if (d < 3 && b.ground && Math.random() < dt * 3) { inp.dive = true; inp.wx = (c.x - b.x) / d; inp.wz = (c.z - b.z) / d; } return; } }
+    let best = null, bd = 1e9; for (const e of S.eggs) if (e.st === 'free') { const d = Math.hypot(e.x - b.x, e.z - b.z) - (e.gold ? 4 : 0); if (d < bd) { bd = d; best = e; } }
+    if (best) { steer(b, inp, best.x, best.z, 0.9 + 0.1 * b.skill); return; }
+    if (S.eggs.some(e => e.st === 'nest' && e.tm === 1 - tm)) { steer(b, inp, foe.x, foe.z, 1); return; }
+    steer(b, inp, (nest.x + foe.x) / 2, 0, 0.5);
+  }
   function buildHill() {
     buildCrown(['#47d16c', '#e8ffd8', '#f0fff0'], true);
     const g = new THREE.Group();
@@ -1629,6 +1708,7 @@
     const host = S.solo || BR.Net.isHost();
     if ((S.plT = (S.plT || 0) - dt) <= 0) { S.plT = 1; paintList(); }
     if (S.ball) ballTick(dt, host);
+    if (S.eggs) eggTick(dt, host);
     if (S.hill) {
       const H = S.hill, el = S.rt - S.goAt, k = Math.max(0, Math.floor(el / 12));
       if (k !== H.k) { H.k = k; const spots = [[0, 0], [9, 0], [-9, 0], [0, 9], [0, -9], [6.5, 6.5], [-6.5, -6.5], [6.5, -6.5], [-6.5, 6.5]], rr = rng(S.seed + k * 7 + 1); let sp = k ? spots[1 + Math.floor(rr() * (spots.length - 1))] : spots[0]; if (k && sp[0] === H.x && sp[1] === H.z) sp = spots[0]; H.tx = sp[0]; H.tz = sp[1]; if (H.k > 0) { feed('⚠️ La zone se déplace !'); snd('pop'); } }
@@ -1662,7 +1742,8 @@
       const q = rk.slice(0, S.final ? 1 : Math.max(1, S.target)); S.outOrder = rk.filter(id => !q.includes(id)).reverse(); return q;
     }
     if (S.ball && S.goals[0] === S.goals[1] && S.rt - S.goAt < S.def.time + 25) return null;   // égalité : but en or (25 s max)
-    const c = S.ball ? S.goals : paintCount(); let win = c[0] > c[1] ? 0 : c[1] > c[0] ? 1 : (S.seed & 1);
+    if (S.eggs) { const c0 = eggCount(); if (c0[0] === c0[1] && S.rt - S.goAt < S.def.time + 20) return null; }
+    const c = S.ball ? S.goals : S.eggs ? eggCount() : paintCount(); let win = c[0] > c[1] ? 0 : c[1] > c[0] ? 1 : (S.seed & 1);
     if (!part.some(id => S.teams[id] === win)) win = 1 - win;
     const q = part.filter(id => S.teams[id] === win); S.outOrder = part.filter(id => !q.includes(id)); return q;
   }
@@ -1671,6 +1752,7 @@
     const R = S.crown ? 15 : 13, dC = Math.hypot(b.x, b.z);
     if (barAhead(b) === 'low' && b.ground) inp.jump = true;
     if (S.ball) return footAI(b, inp, dt);
+    if (S.eggs) return eggAI(b, inp, dt);
     if (S.hill) {
       const H = S.hill, tx = H.tx != null ? H.tx : H.x, tz = H.tz != null ? H.tz : H.z, d = Math.hypot(tx - b.x, tz - b.z);
       ai.off = ai.off || [(Math.random() - 0.5) * 3, (Math.random() - 0.5) * 3];
@@ -1901,7 +1983,7 @@
         const a0 = Math.atan2(m.vx, m.vz), a1 = il > 0.1 ? a0 + BR.angDiff(a0, Math.atan2(wx, wz)) * Math.min(1, dt * (m.ground ? 5 : 2.8)) : a0;
         m.vx = Math.sin(a1) * ns; m.vz = Math.cos(a1) * ns;
       } else {
-        const RB = S.bomb && S.bomb.h.includes(m.id) ? RUN * 1.14 : RUN, ac = m.ground ? (m.gObj && m.gObj.ice ? 9 : ACC_G) : ACC_A, tx = wx * RB, tz = wz * RB;
+        const RB = S.bomb && S.bomb.h.includes(m.id) ? RUN * 1.14 : S.eggs && eggOf(m.id) ? RUN * 0.86 : RUN, ac = m.ground ? (m.gObj && m.gObj.ice ? 9 : ACC_G) : ACC_A, tx = wx * RB, tz = wz * RB;
         const ddx = tx - m.vx, ddz = tz - m.vz, dd = Math.hypot(ddx, ddz), mx = ac * dt;
         if (dd > mx) { m.vx += ddx / dd * mx; m.vz += ddz / dd * mx; } else { m.vx = tx; m.vz = tz; }
       }
@@ -2269,7 +2351,7 @@
     if (S.round === 2) { S.r2 = cfg.kind; S.def = Object.assign({}, R2[S.r2], { time: R2[S.r2].score ? R2[S.r2].time + (S.final ? 15 : 0) : S.final ? 90 : 75 }); S.usedR2.push(cfg.kind); try { BR.store.set('br_party_r2', S.r2); } catch (e) {} }
     else { S.def = RACE_DEF; S.usedMaps.push(cfg.map); }
     S.high = S.low = null; S.part = cfg.q.filter(id => S.players.has(id)); S.out = new Set(); S.outOrder = []; S.fin = []; S.decided = false; S.tiles = null; S.tramps = [];
-    S.scene = new THREE.Scene(); S.solids = []; S.haz = []; S.checks = []; S.scroll = []; S.anim = []; S.winds = []; S.pads = []; S.zips = []; S.crs = []; S.path = []; S.pathMode = false; S.finishBox = null; S.gyB = S.gyG = S.canG = S.bulb = null; S.bob = []; S.cloudTex = null; S.seaM = null; S.post = S.flag = S.fanG = S.pine = S.trunk = S.leaf = S.tower = S.troof = S.pole = S.umb = null; S.crown = S.paint = S.teams = S.spawnFor = S.bomb = S.hill = S.ball = null; S.ctime = {}; S.csT = 0; S.goals = [0, 0]; S.ggT = 0;
+    S.scene = new THREE.Scene(); S.solids = []; S.haz = []; S.checks = []; S.scroll = []; S.anim = []; S.winds = []; S.pads = []; S.zips = []; S.crs = []; S.path = []; S.pathMode = false; S.finishBox = null; S.gyB = S.gyG = S.canG = S.bulb = null; S.bob = []; S.cloudTex = null; S.seaM = null; S.post = S.flag = S.fanG = S.pine = S.trunk = S.leaf = S.tower = S.troof = S.pole = S.umb = null; S.crown = S.paint = S.teams = S.spawnFor = S.bomb = S.hill = S.ball = S.eggs = S.nests = null; S.ctime = {}; S.csT = 0; S.goals = [0, 0]; S.ggT = 0;
     initFx();
     if (S.round === 1) buildCourse(cfg.map); else buildSpin(S.r2);
     if (S.round === 1 && !S.pathMode) S.checks.sort((a, b) => a.z - b.z);
@@ -2287,7 +2369,7 @@
     DOM.title.textContent = 'MANCHE ' + S.rn + ' / ' + tot + ' · ' + nm; DOM.sub.textContent = S.def.sub;
     DOM.iTag.textContent = (S.final ? 'FINALE' : 'MANCHE ' + S.rn + ' / ' + tot) + ' · ' + (S.round === 1 ? 'COURSE' : 'SURVIE');
     DOM.iName.textContent = nm; DOM.iSub.textContent = S.round === 1 && S.map ? S.map.desc + ' — ' + S.def.sub : S.def.sub;
-    const goal = S.round === 1 ? 'Les ' + S.target + ' premiers arrivés sont qualifiés (sur ' + S.part.length + ')' : S.def.score === 'foot' ? 'Tu es chez les ' + TEAMS[S.teams[S.selfId] || 0].n + ' ' + TEAMS[S.teams[S.selfId] || 0].e + ' : marque dans le but de l\'autre couleur !' : S.def.score === 'hill' ? (S.final ? 'Celui qui reste le plus longtemps dans la zone gagne 👑' : 'Les ' + S.target + ' meilleurs scores sont qualifiés') : S.def.score === 'crown' ? (S.final ? 'Celui qui garde la couronne le plus longtemps gagne 👑' : 'Les ' + S.target + ' qui l\'ont gardée le plus longtemps sont qualifiés') : S.def.score === 'team' ? 'Tu es chez les ' + TEAMS[S.teams[S.selfId] || 0].n + ' ' + TEAMS[S.teams[S.selfId] || 0].e + ' : peins plus que l\'autre équipe !' : S.final ? 'Le dernier debout gagne la couronne 👑' : 'Qualifiés dès qu\'il ne reste que ' + S.target + ' joueurs debout (sur ' + S.part.length + ')';
+    const goal = S.round === 1 ? 'Les ' + S.target + ' premiers arrivés sont qualifiés (sur ' + S.part.length + ')' : S.def.score === 'eggs' ? 'Tu es chez les ' + TEAMS[S.teams[S.selfId] || 0].n + ' ' + TEAMS[S.teams[S.selfId] || 0].e + ' : ton nid est ' + ((S.teams[S.selfId] || 0) ? 'à droite' : 'à gauche') : S.def.score === 'foot' ? 'Tu es chez les ' + TEAMS[S.teams[S.selfId] || 0].n + ' ' + TEAMS[S.teams[S.selfId] || 0].e + ' : marque dans le but de l\'autre couleur !' : S.def.score === 'hill' ? (S.final ? 'Celui qui reste le plus longtemps dans la zone gagne 👑' : 'Les ' + S.target + ' meilleurs scores sont qualifiés') : S.def.score === 'crown' ? (S.final ? 'Celui qui garde la couronne le plus longtemps gagne 👑' : 'Les ' + S.target + ' qui l\'ont gardée le plus longtemps sont qualifiés') : S.def.score === 'team' ? 'Tu es chez les ' + TEAMS[S.teams[S.selfId] || 0].n + ' ' + TEAMS[S.teams[S.selfId] || 0].e + ' : peins plus que l\'autre équipe !' : S.final ? 'Le dernier debout gagne la couronne 👑' : 'Qualifiés dès qu\'il ne reste que ' + S.target + ' joueurs debout (sur ' + S.part.length + ')';
     DOM.iSkip.textContent = goal + (S.solo ? ' · Espace : passer' : '');
     DOM.intro.classList.remove('on'); void DOM.intro.offsetWidth; DOM.intro.classList.add('on'); DOM.big.classList.remove('on'); DOM.root.classList.add('intro');
     if (!m.active) setTimeout(() => S && big('SPECTATEUR', 'Clique pour changer de joueur', 1800), (S.introT + 0.6) * 1000);
@@ -2394,6 +2476,7 @@
         else if (m.active) { let k = 1 + S.fin.length; const mp = m.prog != null ? m.prog : m.z; for (const p of S.players.values()) if (p !== m && S.part.includes(p.id) && !p.finished && (p.prog != null ? p.prog : p.z) > mp) k++; t = k + (k === 1 ? 'er' : 'e') + ' / ' + S.part.length + ' · ' + S.fin.length + ' / ' + S.target + ' qualifiés'; }
         else t = S.fin.length + ' / ' + S.target + ' qualifiés';
       } else if (S.def.score === 'crown' || S.def.score === 'hill') { const rk = S.part.filter(id => S.players.has(id)).sort((a, b) => (S.ctime[b] || 0) - (S.ctime[a] || 0)), k = rk.indexOf(S.selfId) + 1; t = '👑 ' + (S.ctime[S.selfId] || 0).toFixed(1) + ' s · ' + (k ? k + (k === 1 ? 'er' : 'e') : '') + (S.final ? '' : ' · qualifiés : top ' + S.target); }
+      else if (S.def.score === 'eggs') { const c = eggCount(), mt = S.teams[S.selfId] || 0; t = TEAMS[0].e + ' ' + c[0] + ' 🥚 ' + c[1] + ' ' + TEAMS[1].e + ' · ' + TEAMS[mt].n + (eggOf(S.selfId) ? ' · RAMÈNE-LE !' : ''); }
       else if (S.def.score === 'foot') { const mt = S.teams[S.selfId] || 0; t = TEAMS[0].e + ' ' + S.goals[0] + '  —  ' + S.goals[1] + ' ' + TEAMS[1].e + ' · ' + TEAMS[mt].n + (mt === 0 ? ' →' : ' ←'); }
       else if (S.def.score === 'team') { const c = paintCount(), tot = (S.paint.length || 1), mt = S.teams[S.selfId] || 0; t = TEAMS[0].e + ' ' + Math.round(c[0] / tot * 100) + ' %  —  ' + Math.round(c[1] / tot * 100) + ' % ' + TEAMS[1].e + ' · tu es ' + TEAMS[mt].n; }
       else { const a = S.part.filter(id => S.players.has(id) && !S.out.has(id)).length; t = (S.bomb && S.bomb.h.length ? '💣 ' + Math.max(0, S.bomb.t).toFixed(1) + ' s' + (S.bomb.h.includes(S.selfId) ? ' · TU L\'AS !' : '') + ' · ' : '') + 'Debout : ' + a + (S.final ? '' : ' · qualifiés à ' + S.target); }
@@ -2408,7 +2491,7 @@
   function paintList() {
     DOM.list.innerHTML = [...S.players.values()].filter(p => S.part.includes(p.id) || p === S.me).map(p => {
       const inR = S.part.includes(p.id), q = S.round === 1 && p.finished, x = !inR || S.out.has(p.id);
-      const extra = S.round === 2 && S.bomb && S.bomb.h.includes(p.id) ? '💣' : S.round === 2 && S.def && (S.def.score === 'crown' || S.def.score === 'hill') ? (S.crown && S.crown.h === p.id ? '👑 ' : '') + (S.ctime[p.id] || 0).toFixed(0) + ' s' : S.round === 2 && S.teams && S.teams[p.id] != null ? TEAMS[S.teams[p.id]].e : '';
+      const extra = S.round === 2 && S.eggs && eggOf(p.id) ? '🥚' + (S.teams[p.id] != null ? TEAMS[S.teams[p.id]].e : '') : S.round === 2 && S.bomb && S.bomb.h.includes(p.id) ? '💣' : S.round === 2 && S.def && (S.def.score === 'crown' || S.def.score === 'hill') ? (S.crown && S.crown.h === p.id ? '👑 ' : '') + (S.ctime[p.id] || 0).toFixed(0) + ' s' : S.round === 2 && S.teams && S.teams[p.id] != null ? TEAMS[S.teams[p.id]].e : '';
       return `<div class="${q ? 'q' : x ? 'x' : ''} ${p === S.me ? 'me' : ''}"><span>${p.bot ? '🤖 ' : ''}${BR.esc(p.name)}</span><span>${extra || (q ? '✔' : x ? '✖' : '')}</span></div>`;
     }).join('');
   }
@@ -2471,6 +2554,7 @@
       case 'ck': if (d.r == null || true) onCrown(d.h, d.t); break;
       case 'cs': if ((S.crown || S.hill) && !BR.Net.isHost()) { Object.assign(S.ctime, d.t || {}); if (S.crown && (d.h || null) !== S.crown.h) onCrown(d.h); } break;
       case 'em': emote(d.i | 0, from, true); break;
+      case 'eg': if (S.eggs && !BR.Net.isHost() && Array.isArray(d.e)) { d.e.forEach((a, i) => { const e = S.eggs[i]; if (!e) return; e.st = a[0] === 0 ? 'free' : a[0] === 1 ? 'carried' : 'nest'; e.by = a[1] || null; e.tm = a[2]; if (e.st === 'free') { e.x = a[3]; e.z = a[4]; } }); paintList(); } break;
       case 'bl': if (S.ball && !BR.Net.isHost() && Array.isArray(d.b)) { const B = S.ball; [B.x, B.y, B.z, B.vx, B.vy, B.vz] = d.b; B.last = d.l; } break;
       case 'gl': if (S.ball && !BR.Net.isHost()) { S.ball.dead = 2.2; onGoal(d.tm, d.sc, d.by); } break;
       case 'bm': if (S.bomb && !BR.Net.isHost()) onBomb(d.h, d.t); break;
