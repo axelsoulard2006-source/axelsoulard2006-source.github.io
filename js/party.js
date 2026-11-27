@@ -62,6 +62,8 @@
 #party .pt-click.on{display:block}
 #party .pt-panel{position:absolute;inset:0;display:none;align-items:center;justify-content:center;background:rgba(30,20,70,.55)}
 #party .pt-panel.on{display:flex}
+#party.pod .pt-panel{justify-content:flex-end;padding-right:3vw;background:linear-gradient(90deg,transparent 35%,rgba(30,20,70,.55))}
+@media (max-width:900px){#party.pod .pt-panel{justify-content:center;padding:0;align-items:flex-end}#party.pod .pt-card{max-height:55vh;overflow:auto}}
 #party .pt-card{background:linear-gradient(#fff,#f3eaff);border-radius:22px;padding:24px 28px;min-width:380px;max-width:560px;color:#2a2050;box-shadow:0 14px 0 rgba(0,0,0,.18)}
 #party .pt-card h2{margin:0 0 6px;font-size:34px;font-weight:900;color:#ff3f9b;text-align:center}
 #party .pt-card p{margin:0 0 14px;text-align:center;font-weight:700}
@@ -86,13 +88,27 @@
 .rw-bar{height:10px;border-radius:10px;background:rgba(0,0,0,.15);overflow:hidden;margin:4px 0 8px}.rw-bar u{display:block;height:100%;background:linear-gradient(90deg,#ff4f9e,#7a6cff)}
 .rw-cos{display:grid;grid-template-columns:repeat(auto-fill,minmax(92px,1fr));gap:6px}.rw-cos button{border:2px solid transparent;border-radius:12px;padding:6px 4px;background:rgba(0,0,0,.08);font:inherit;font-size:12px;font-weight:800;cursor:pointer;color:inherit}
 .rw-cos button b{display:block;font-size:24px}.rw-cos button.on{border-color:#ff4f9e;background:rgba(255,79,158,.15)}.rw-cos button:disabled{opacity:.4;cursor:default}
+.pt-main{font-family:'Trebuchet MS','Arial Rounded MT Bold',system-ui,sans-serif!important}
+.pt-main::before{content:'';position:fixed;inset:0;z-index:0;pointer-events:none;background:radial-gradient(circle at 15% 15%,rgba(255,170,215,.9) 0,transparent 38%),radial-gradient(circle at 85% 80%,rgba(127,216,255,.85) 0,transparent 42%),linear-gradient(160deg,#6f5cff,#ff4f9e)}
+.pt-main>*{position:relative;z-index:1}
+.pt-main .menu .mi{background:#fff!important;border:none!important;border-radius:18px!important;box-shadow:0 5px 0 #b8246c!important;color:#3a1f6a!important;margin-bottom:10px;padding:10px 18px!important;transition:transform .12s}
+.pt-main .menu .mi:hover{transform:translateY(-2px) scale(1.02)}.pt-main .menu .mi:active{transform:translateY(3px);box-shadow:0 2px 0 #b8246c!important}
+.pt-main .menu .mi span{font-family:inherit!important;font-weight:900!important;font-size:21px!important;letter-spacing:.5px!important;color:#3a1f6a!important;text-shadow:none!important}
+.pt-main .menu .mi small{color:#7a6cff!important;font-weight:700!important;font-family:inherit!important;opacity:1!important}
+.pt-main .menu .mi.back{background:rgba(255,255,255,.22)!important;box-shadow:none!important}.pt-main .menu .mi.back span{color:#fff!important;font-size:16px!important}
+.pt-main .menu .mi.pt-rkbtn{background:linear-gradient(90deg,#ffe14a,#ffb13d)!important;box-shadow:0 5px 0 #c77b00!important}
+.pt-main .d-lrules{background:rgba(255,255,255,.93)!important;color:#2a1a4a!important;border-radius:20px!important;border:none!important;box-shadow:0 8px 0 rgba(60,20,110,.25)}
+.pt-main .d-lrules,.pt-main .d-lrules *{font-family:'Trebuchet MS',system-ui,sans-serif!important;letter-spacing:0!important}
+.pt-main .d-lrules h4,.pt-main .d-lrules b{color:#ff4f9e!important}.pt-main .d-lrules .muted{color:#5a4a7a!important}
+.pt-main .logo-s{color:#fff!important;text-shadow:0 2px 0 rgba(0,0,0,.25)}.pt-main .logo-t{font-family:inherit!important;font-weight:900!important;color:#fff!important;text-shadow:0 6px 0 #b8246c,0 0 30px rgba(255,255,255,.5)!important;letter-spacing:4px}
+.pt-main .pt-go{background:#ffe14a!important;color:#3a1f6a!important;border:none!important;box-shadow:0 6px 0 #c77b00!important;border-radius:18px!important;font-weight:900!important}
 .rk-banner{margin:0 0 10px;padding:10px 16px;border-radius:12px;background:linear-gradient(90deg,#ff4f9e,#7a6cff);color:#fff;font-weight:800;text-align:center;box-shadow:0 4px 0 #4636c9}.rk-banner small{opacity:.85;font-weight:600}`;
     document.head.appendChild(st);
     const root = document.createElement('div'); root.id = 'party';
     root.innerHTML = `<canvas></canvas><div class="pt-flash"></div><div class="pt-shout"></div><div class="pt-grab"></div><div class="pt-top"><b></b><span></span></div><div class="pt-time"></div><div class="pt-pos"></div><div class="pt-list"></div>
       <div class="pt-intro"><i></i><b></b><span></span><em></em></div>
       <div class="pt-big"></div><div class="pt-click">Clique pour contrôler la caméra</div>
-      <div class="pt-help"><kbd>ZQSD</kbd>courir · <kbd>Espace</kbd>sauter · <kbd>Maj</kbd>/<kbd>A</kbd>plongeon · <kbd>Clic gauche</kbd>attraper · <kbd>Souris</kbd>caméra · <kbd>Échap</kbd>menu</div>
+      <div class="pt-help"><kbd>ZQSD</kbd>courir · <kbd>Espace</kbd>sauter · <kbd>Maj</kbd>/<kbd>A</kbd>plongeon · <kbd>Clic gauche</kbd>attraper · <kbd>Souris</kbd>caméra · <kbd>1</kbd>-<kbd>4</kbd>émotes · <kbd>Échap</kbd>menu</div>
       <div class="pt-panel"><div class="pt-card"></div></div>`;
     document.body.appendChild(root);
     const q = s => root.querySelector(s);
@@ -1500,6 +1516,15 @@
     let fx = (b.x - tg.x) / td, fz = (b.z - tg.z) / td; const tx = -b.z / (dC || 1), tz = b.x / (dC || 1); fx += tx * b.ai.dir * 0.7; fz += tz * b.ai.dir * 0.7; if (dC > 8) { fx -= b.x / dC * 3; fz -= b.z / dC * 3; }
     steer(b, inp, b.x + fx * 5, b.z + fz * 5, 0.8 + 0.2 * b.skill); if (td < 2.2 && b.ground && Math.random() < 0.3) inp.jump = true;
   }
+  // émotes (touches 1 à 4) : animation + bulle, visibles par tout le monde
+  const EMOTES = [['Cheer', '🎉', 'BRAVO !'], ['Spellcast_Raise', '👋', 'SALUT !'], ['2H_Melee_Attack_Spin', '🌀', 'TOUPIE !'], ['Interact', '😜', 'NANANÈRE !']];
+  function emote(i, p, remote) {
+    const E = EMOTES[i]; if (!E || !p || !p.av || !p.vis) return; if (!remote && ((p.emCd || 0) > S.rt)) return; p.emCd = S.rt + 1.6;
+    try { p.av.act(E[0], { speed: 1 }); } catch (e) {}
+    emit(p.x, p.y + 2.3, p.z, 10, { cols: ['#ffe14a', '#ff4f9e', '#3fd0ff', '#ffffff'], spd: 2.5, up: 3, life: 0.8 });
+    if (p === S.me) { shout(E[1] + ' ' + E[2], '#ffffff'); if (!S.solo) BR.Net.relay({ k: 'em', i }); }
+    else if (Math.hypot(p.x - S.me.x, p.z - S.me.z) < 30) feed(E[1] + ' ' + p.name);
+  }
   function respawnArena(m) {
     const a = Math.random() * Math.PI * 2, sp = S.spawnFor ? S.spawnFor(m.id) : { x: Math.cos(a) * 12, y: 0, z: Math.sin(a) * 12 };
     m.x = sp.x; m.z = sp.z; m.y = 3; m.vx = m.vy = m.vz = 0; m.st = 'run'; m.ghost = 1.5; m.ground = false; m.grabbed = m.holding = null;
@@ -2271,6 +2296,7 @@
       case 'tl': crumble(d.i); break;
       case 'ck': if (d.r == null || true) onCrown(d.h, d.t); break;
       case 'cs': if (S.crown && !BR.Net.isHost()) { Object.assign(S.ctime, d.t || {}); if ((d.h || null) !== S.crown.h) onCrown(d.h); } break;
+      case 'em': emote(d.i | 0, from, true); break;
       case 'bm': if (S.bomb && !BR.Net.isHost()) onBomb(d.h, d.t); break;
       case 'pt': if (S.paint && Array.isArray(d.a)) for (let i = 0; i + 1 < d.a.length; i += 2) paintTile(d.a[i], d.a[i + 1], false); break;
       case 'pf': if (S.paint && typeof d.s === 'string' && !BR.Net.isHost()) for (let i = 0; i < d.s.length && i < S.paint.length; i++) paintTile(i, (+d.s[i]) - 1, false); break;
@@ -2300,6 +2326,27 @@
     }
   }
 
+  /* ---------- podium de fin de partie ---------- */
+  function podium(ids) {
+    const Y = 260, H = [2.4, 1.6, 1.0], X = [0, -2.7, 2.7], C = ['#ffd23a', '#c9d3de', '#d99a5b'];
+    const fl = mesh(own(new THREE.CylinderGeometry(9, 9.5, 0.6, 40)), mat('#ffffff')); fl.position.set(0, Y - 0.3, 0); S.scene.add(fl);
+    const ring = mesh(own(new THREE.TorusGeometry(9.1, 0.25, 8, 48)), mat('#ff4f9e'), false); ring.rotation.x = Math.PI / 2; ring.position.set(0, Y, 0); S.scene.add(ring);
+    ids.slice(0, 3).forEach((id, k) => { addBox(X[k], Y + H[k], 0, 2.5, H[k], 2.5, C[k], { noUnder: true });
+      const n = nameTag(['1er', '2e', '3e'][k], false); n.sprite.position.set(X[k], Y + H[k] / 2, 1.4); S.scene.add(n.sprite); });
+    S.podium = { ids: ids.slice(0, 3), Y, H, X, t: 0 }; DOM.root.classList.add('pod');
+  }
+  function podiumTick(dt) {
+    const P0 = S.podium; P0.t -= dt;
+    for (const p of S.players.values()) {
+      const k = P0.ids.indexOf(p.id);
+      if (k < 0) { p.vis = false; if (p.av) p.av.group.visible = false; if (p.tag) p.tag.sprite.visible = false; continue; }
+      p.x = p.tx = P0.X[k]; p.z = p.tz = 0; p.y = p.ty = P0.Y + P0.H[k]; p.vx = p.vy = p.vz = 0; p.face = p.tf = 0; p.vis = true; if (p.av) p.av.group.visible = true;
+      if (P0.t <= 0 && p.av) try { p.av.act(k === 0 ? 'Cheer' : Math.random() < 0.5 ? 'Cheer' : 'Spellcast_Raise'); } catch (e) {}
+    }
+    if (P0.t <= 0) { P0.t = 2.6; emit(0, P0.Y + 5, 0, 60, { cols: CONF, spd: 6, up: 6, life: 2.2, grav: 6, spread: 4 }); }
+    const off = window.innerWidth > 900 ? 4.6 : 0; S.cam.position.set(off, P0.Y + 3.6, 10.5); S.cam.lookAt(off, P0.Y + (window.innerWidth > 900 ? 2.2 : 0.6), 0);
+  }
+
   /* ===================== résultats ===================== */
   function showResults(rank, win) {
     if (S.results) return; S.results = true; S.ctl = false; unlock();
@@ -2319,6 +2366,7 @@
     DOM.card.innerHTML = `<h2>${S.o.ranked ? '🏆 ' : ''}${title}</h2><p>${BR.esc(sub)}</p>${rkBox}${S.mapT ? '<p style="margin-top:-8px;color:#7a6cff">Meilleur temps de course : ' + fmt(S.mapT) + (S.newBest ? ' (record !)' : '') + '</p>' : ''}${rows}${crownTxt}${S.rwLog && S.rwLog.length ? '<div class="pt-gain" style="color:#7a6cff">🎁 ' + S.rwLog.map(BR.esc).join('<br>') + '</div>' : ''}<div class="pt-gain">+${pts} points · +${xp} XP${lv && lv.levelUp ? ' · NIVEAU ' + lv.after.level + ' !' : ''}</div>
       <div class="pt-b">${S.solo ? '<button data-a="replay">Rejouer</button><button class="alt" data-a="menu">Menu</button>' : '<button data-a="lobby">Retour au salon</button>'}</div>`;
     DOM.panel.classList.add('on');
+    try { podium(rank); } catch (e) { console.warn('podium', e); }
     DOM.card.querySelectorAll('button').forEach(b => b.addEventListener('click', () => { sfx('click'); const a = b.dataset.a, cb = S.o.onEnd; P.stop(); if (cb) cb(a); }));
     if (!S.solo && BR.Net.isHost()) BR.Net.send({ t: 'end', res: { rank, win } });
   }
@@ -2378,6 +2426,7 @@
     const el = S.rt - S.goAt, lim = S.def.time;
     DOM.time.textContent = S.ctl ? (S.round === 1 ? fmt(Math.max(0, el)) : fmt(Math.max(0, lim - el))) : '';
     DOM.click.classList.toggle('on', !S.locked && !S.results && !S.paused);
+    if (S.podium) podiumTick(dt);
   }
 
   /* ===================== entrées ===================== */
@@ -2406,6 +2455,7 @@
     if (e.target && /input|textarea/i.test(e.target.tagName)) return;
     if (e.code === 'Escape') { if (!S.results) pauseMenu(); return; }
     if (e.code === 'KeyF') { S.grabReq = true; return; }
+    if (/^Digit[1-4]$/.test(e.code) && !e.repeat) { emote(+e.code.slice(5) - 1, S.me); return; }
     keys[e.code] = true;
     if (e.code === 'Space') { S.me.jbuf = 0.13; e.preventDefault(); if (S.solo && S.rt < S.introT - 0.3) { S.introT = S.rt; S.goAt = S.rt + 3.2; } }
     if ((e.code === 'ShiftLeft' || e.code === 'ShiftRight' || (e.key && e.key.toLowerCase() === 'a' && e.code !== 'KeyA')) && !e.repeat) S.diveReq = true;
@@ -2457,7 +2507,7 @@
     S.unsub.forEach(f => f());
     for (const p of S.players.values()) { if (p.av) p.av.dispose(); if (p.tag) { p.tag.tex.dispose(); p.tag.sprite.material.dispose(); } }
     clearWorld();
-    DOM.root.classList.remove('on', 'intro'); DOM.panel.classList.remove('on'); DOM.intro.classList.remove('on');
+    DOM.root.classList.remove('on', 'intro', 'pod'); DOM.panel.classList.remove('on'); DOM.intro.classList.remove('on');
     if (R) { R.clear(); R.renderLists.dispose(); }
     musicStop(); try { Au.track('music', 'menu', 0.8); } catch (e) {}
     S = null; P.active = false;

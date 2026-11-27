@@ -1125,23 +1125,21 @@
       const pg = BR.Party.progress(), fm = t => Math.floor(t / 60) + ':' + String((t % 60).toFixed(1)).padStart(4, '0');
       n.innerHTML = `<div class="main pt-main">
         <div class="main-left">
-          <div class="logo"><div class="logo-t" style="color:#ff4f9e;text-shadow:0 5px 0 #7a2a8a">BOUSCULADE</div><div class="logo-s">C O U R S , &nbsp; S A U T E , &nbsp; P L O N G E , &nbsp; B O U S C U L E .</div></div>
+          <div class="logo"><div class="logo-t">BOUSCULADE</div><div class="logo-s">C O U R S , &nbsp; S A U T E , &nbsp; P L O N G E , &nbsp; B O U S C U L E .</div></div>
           <nav class="menu">
             <button class="mi d-hot pt-rkbtn" data-go="ranked"><span>🏆 Classé</span><small>${N.rk ? BR.Party.tier(N.rk.rp).label + ' · ' + N.rk.rp + ' RP' : 'Grimpe de Bronze à Champion · saison mensuelle'}</small></button>
             <button class="mi d-hot" data-go="multi"><span>Multijoueur</span><small>Jusqu'à 8 potes · le dernier debout gagne</small></button>
-            <button class="mi d-hot" data-go="tour"><span>🆕 Nouvelles cartes</span><small>Ski, Volcan, Base spatiale, Temple, Montagnes russes…</small></button>
-            <button class="mi" data-go="solo"><span>Entraînement solo</span><small>4 manches contre 7 bots</small></button>
+            <button class="mi d-hot" data-go="solo"><span>▶ Jouer contre des bots</span><small>4 manches · 23 cartes, 7 manches spéciales</small></button>
             <button class="mi d-hot" data-go="rewards"><span>🎁 Récompenses</span><small>${(() => { const R = BR.Party.rewards(); return R.quests.filter(q => !q.c).length + ' quête(s) du jour · passe palier ' + R.lv + '/' + R.PASS.length; })()}</small></button>
             <button class="mi" data-go="lb"><span>Classement mondial</span><small>Les meilleurs joueurs de la saison</small></button>
-            <button class="mi" data-go="rules"><span>Règles</span><small>Les manches, les obstacles, le plongeon</small></button>
             <button class="mi" data-go="char"><span>Personnage</span><small>Ce que voient les autres joueurs</small></button>
             <button class="mi back" data-go="hub"><span>${ICO('back', 16)} Changer de jeu</span></button>
           </nav>
         </div>
         <div class="main-right"><div class="d-lrules" style="max-width:520px"><h4>Comment ça marche</h4>${partyRules()}
           <p style="margin-top:10px;font-weight:800">👑 <b>${pg.crowns}</b> couronne${pg.crowns > 1 ? 's' : ''} · titre : <b style="color:#ff4f9e">${BR.Party.title(pg.crowns)}</b> · ${pg.games} partie${pg.games > 1 ? 's' : ''} · ${pg.quals} finale${pg.quals > 1 ? 's' : ''}</p>
-          <div class="muted" style="display:grid;grid-template-columns:1fr auto;gap:2px 14px;font-size:13px;margin:6px 0 8px">${pg.maps.map(m => `<span>${esc(m.name)}</span><b>${m.t ? fm(m.t) : '—'}</b>`).join('')}</div>
-          <p class="muted"><b>ZQSD</b> courir · <b>Espace</b> sauter · <b>Maj / A</b> plonger · <b>Clic gauche</b> attraper · <b>Souris</b> caméra</p></div>
+          <div class="muted" style="display:grid;grid-template-columns:1fr auto;gap:2px 14px;font-size:13px;margin:6px 0 8px;max-height:150px;overflow:auto;padding-right:6px">${pg.maps.map(m => `<span>${esc(m.name)}</span><b>${m.t ? fm(m.t) : '—'}</b>`).join('')}</div>
+          <p class="muted"><b>ZQSD</b> courir · <b>Espace</b> sauter · <b>Maj / A</b> plonger · <b>Clic gauche</b> attraper · <b>1-4</b> émotes · <b>Souris</b> caméra</p></div>
           <button class="btn primary big pt-go" style="margin-top:14px">${ICO('play', 18)} JOUER EN MULTIJOUEUR</button></div></div>`;
       n.querySelectorAll('[data-go]').forEach(bt => bt.addEventListener('click', () => {
         const go = bt.dataset.go;
