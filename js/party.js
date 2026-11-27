@@ -328,6 +328,7 @@
     etages: { name: 'LES TROIS ÉTAGES', sub: 'Les dalles tombent sous tes pieds… et il reste deux étages en dessous. Le dernier en vie gagne !', time: 150 },
     ile: { name: 'L\'ÎLE QUI RÉTRÉCIT', sub: 'Le bord s\'effondre petit à petit. Pousse les autres dans le vide (plongeon, clic gauche) !', time: 110 },
     couronne: { name: 'LA COURONNE', sub: 'Attrape la couronne et garde-la ! Plonge sur celui qui l\'a (ou attrape-le) pour la lui voler.', time: 60, score: 'crown' },
+    bombe: { name: 'LA BOMBE', sub: 'Des bombes passent de joueur en joueur au toucher. Quand le compteur tombe à zéro : BOUM, éliminé ! Refile-la vite !', time: 120, bomb: true },
     peinture: { name: 'LA GUERRE DES COULEURS', sub: 'Deux équipes : cours partout pour peindre le sol à ta couleur. L\'équipe qui a le moins de sol est éliminée !', time: 50, score: 'team' },
   };
   P.pickR2 = () => { const ks = Object.keys(R2); let last = ''; try { last = BR.store.get('br_party_r2', ''); } catch (e) {} let k; do { k = ks[Math.floor(Math.random() * ks.length)]; } while (k === last && ks.length > 1); return k; };
@@ -1265,6 +1266,7 @@
   function buildSpin(kind) {
     if (kind === 'couronne') return buildCrown();
     if (kind === 'peinture') return buildPaint();
+    if (kind === 'bombe') return buildBomb();
     const r = rng(S.seed + 23);
     const sk = { toupie: ['#ff7fc0', '#ffe1a8', '#ffe3f0'], etages: ['#5a6cff', '#d6dcff', '#e8ebff'], ile: ['#ff9a3d', '#ffe6b0', '#fff0dc'] }[kind] || ['#ff7fc0', '#ffe1a8', '#ffe3f0'];
     sky(sk[0], sk[1]); sea(kind === 'etages' ? -40 : -26, sk[2]); clouds(r, 22, -10, 24, z => z); lights();
@@ -1311,15 +1313,15 @@
   const isGrab = p => p.grabT > 0 || !!p.holding || !!p.grabVis;
   const inRound = p => p && S.part.includes(p.id) && S.players.has(p.id);
   function packTimes() { const o = {}; for (const id in S.ctime) o[id] = Math.round(S.ctime[id] * 10) / 10; return o; }
-  function buildCrown() {
-    const r = rng(S.seed + 23);
-    sky('#ffb13d', '#fff4d0'); sea(-26, '#fff6e0'); clouds(r, 22, -10, 24, z => z); lights();
+  function buildCrown(sk, noCrown) {
+    const r = rng(S.seed + 23); sk = sk || ['#ffb13d', '#fff4d0', '#fff6e0'];
+    sky(sk[0], sk[1]); sea(-26, sk[2]); clouds(r, 22, -10, 24, z => z); lights();
     S.scene.fog = new THREE.Fog(0xfff0c8, 80, 330);
     const T = 2.5, R = 17, cols = ['#ffb13d', '#ffe14a', '#ff8a3d'];
     for (let ix = -7; ix <= 7; ix++) for (let iz = -7; iz <= 7; iz++) { const x = ix * T, z = iz * T; if (Math.hypot(x, z) > R) continue; addBox(x, 0, z, T - 0.06, 0.7, T - 0.06, cols[(ix + iz + 21) % 3], { noUnder: true }); }
     addPillar(0, 0, -6, 1.1, 2.1, '#ffffff');   // le trône : la couronne y apparaît
     S.low = addSweep(0, 0, 0.15, 0.7, 16.5, 0.4, 0.55, '#ff3b3b', 0, 0.008); S.low.kb = 0.55;
-    for (const [x, z] of [[10, 0], [-10, 0], [0, 10], [0, -10]]) addBox(x, 0.4, z, 2.6, 0.8, 2.6, '#ff4f9e', { tramp: true, noUnder: true });
+    if (!noCrown) for (const [x, z] of [[10, 0], [-10, 0], [0, 10], [0, -10]]) addBox(x, 0.4, z, 2.6, 0.8, 2.6, '#ff4f9e', { tramp: true, noUnder: true });   // pas de trampolines pour la bombe (on s'envolerait hors de l'arène)
     for (const [x, z] of [[7, 7], [-7, 7], [7, -7], [-7, -7]]) addBox(x, 2.2, z, 2.2, 2.9, 2.2, '#ffffff', { noUnder: true });   // blocs pour se cacher / sauter
     const ring = mesh(own(new THREE.TorusGeometry(R + 1.6, 0.5, 8, 64)), mat('#ffffff'), false); ring.rotation.x = Math.PI / 2; ring.position.y = -2.2; S.scene.add(ring);
     // la couronne
@@ -1327,7 +1329,7 @@
     const band = mesh(own(new THREE.CylinderGeometry(0.55, 0.48, 0.42, 16, 1, true)), gold); g.add(band);
     for (let i = 0; i < 6; i++) { const a = i / 6 * Math.PI * 2, sp = mesh(own(new THREE.ConeGeometry(0.13, 0.42, 6)), gold); sp.position.set(Math.cos(a) * 0.5, 0.36, Math.sin(a) * 0.5); g.add(sp); const gem = mesh(own(new THREE.SphereGeometry(0.08, 8, 6)), mat(['#ff3b6b', '#3fd0ff', '#47d16c'][i % 3]), false); gem.position.set(Math.cos(a) * 0.53, 0, Math.sin(a) * 0.53); g.add(gem); }
     const glow = mesh(own(new THREE.TorusGeometry(1.1, 0.06, 6, 30)), mat('#fff3a0', { emissive: '#ffe14a', emissiveIntensity: 1 }), false); glow.rotation.x = Math.PI / 2; glow.position.y = -0.6; g.add(glow);
-    S.scene.add(g); S.crownY = 1.1; S.crown = { h: null, x: 0, y: S.crownY, z: 0, cd: 0, g, glow };
+    S.scene.add(g); S.crownY = 1.1; S.crown = { h: null, x: 0, y: S.crownY, z: 0, cd: 0, g, glow }; if (noCrown) { S.scene.remove(g); S.crown = null; }
     S.spawns = []; for (let i = 0; i < 12; i++) { const a = i / 12 * Math.PI * 2 + 0.26; S.spawns.push({ x: Math.cos(a) * 12.5, y: 0, z: Math.sin(a) * 12.5 }); }
     S.fallY = -9;
   }
@@ -1358,6 +1360,68 @@
     return true;
   }
   function paintCount() { const c = [0, 0]; if (S.paint) for (const s of S.paint) if (s.pt >= 0) c[s.pt]++; return c; }
+
+  function buildBomb() {
+    buildCrown(['#ff5a5a', '#ffd9c0', '#ffe8de'], true);
+    S.bomb = { h: [], t: 0, wait: 3.5, cd: {}, ms: {}, wave: 0 };
+  }
+  function bombMesh() {
+    const g = new THREE.Group();
+    const b = new THREE.Mesh(HG.bomb || (HG.bomb = new THREE.SphereGeometry(0.42, 16, 12)), mat('#1c1c28', { roughness: 0.3 })); g.add(b);
+    const f = new THREE.Mesh(HG.fuse || (HG.fuse = new THREE.CylinderGeometry(0.05, 0.05, 0.3, 6)), mat('#c9a36b')); f.position.y = 0.5; f.rotation.z = 0.3; g.add(f);
+    const sp = new THREE.Mesh(HG.spark || (HG.spark = new THREE.SphereGeometry(0.1, 8, 6)), mat('#ffb13d', { emissive: '#ff6a00', emissiveIntensity: 1.5 }), false); sp.position.set(0.08, 0.66, 0); g.add(sp); g.userData.sp = sp;
+    S.scene.add(g); return g;
+  }
+  function onBomb(h, t) {
+    const B = S.bomb; if (!B) return; const was = B.h.includes(S.selfId);
+    B.h = (h || []).filter(id => S.players.has(id)); if (t != null) B.t = t;
+    for (const id in B.ms) if (!B.h.includes(id)) { S.scene.remove(B.ms[id]); delete B.ms[id]; }
+    for (const id of B.h) if (!B.ms[id]) B.ms[id] = bombMesh();
+    const has = B.h.includes(S.selfId);
+    if (has && !was) { shout('TU AS LA BOMBE ! REFILE-LA !', '#ff3b3b'); snd('boom'); S.shake = Math.max(S.shake, 0.25); }
+    else if (!has && was && S.me.active) { shout('OUF, REFILÉE !', '#47d16c'); snd('pop'); }
+    paintList();
+  }
+  function bombTick(dt, host) {
+    const B = S.bomb; if (!B) return;
+    if (B.h.length) B.t -= dt;
+    for (const id in B.ms) { const p = S.players.get(id), g = B.ms[id]; if (!p) continue; g.position.set(p.x, p.y + 2.6 + Math.sin(S.rt * 8) * 0.08, p.z); const k = 1 + (B.t < 4 ? Math.abs(Math.sin(S.rt * (B.t < 2 ? 18 : 9))) * 0.25 : 0); g.scale.setScalar(k); g.userData.sp.visible = Math.sin(S.rt * 30) > 0; }
+    if (B.h.includes(S.selfId) && B.t > 0 && B.t < 5 && Math.ceil(B.t) !== B.last) { B.last = Math.ceil(B.t); big(String(B.last), 'Refile la bombe !', 600); snd('pop'); }
+    if (!host || !S.ctl || S.decided) return;
+    const alive = S.part.filter(id => S.players.has(id) && !S.out.has(id));
+    for (const id in B.cd) B.cd[id] -= dt;
+    if (!B.h.length) {
+      if ((B.wait -= dt) > 0 || alive.length <= S.target) return;
+      const k = Math.max(1, Math.min(alive.length - S.target, Math.floor(alive.length / 3))), pool = alive.slice(), h = [];
+      while (h.length < k && pool.length) h.push(pool.splice(Math.floor(Math.random() * pool.length), 1)[0]);
+      B.wave++; const t = Math.max(9, 16 - B.wave * 1.5); onBomb(h, t); if (!S.solo) BR.Net.relay({ k: 'bm', h, t }); feed('💣 ' + h.length + ' bombe' + (h.length > 1 ? 's' : '') + ' en jeu !'); return;
+    }
+    if (B.t <= 0) {   // BOUM
+      const gone = B.h.slice(); onBomb([], 0); if (!S.solo) BR.Net.relay({ k: 'bm', h: [], t: 0 }); B.wait = 3;
+      for (const id of gone) { const p = S.players.get(id); if (!p) continue; emit(p.x, p.y + 1, p.z, 60, { cols: ['#ff5a00', '#ffb13d', '#1c1c28', '#ffffff'], spd: 9, up: 8, life: 1, grav: 9, spread: 1 }); snd('boom'); if (p.active) eliminateP(p); }
+      return;
+    }
+    // passe au toucher
+    let changed = false; const h = B.h.slice();
+    for (let i = 0; i < h.length; i++) {
+      const a = S.players.get(h[i]); if (!a || !a.active || (B.cd[h[i]] || 0) > 0) continue;
+      for (const id of alive) { if (h.includes(id) || (B.cd[id] || 0) > 0) continue; const p = S.players.get(id); if (!p || !p.active) continue; if (Math.hypot(p.x - a.x, p.z - a.z) < 1.6 && Math.abs(p.y - a.y) < 1.8) { h[i] = id; B.cd[id] = 0.9; changed = true; break; } }
+      if (!a.active && !changed) { const c = alive.filter(id => !h.includes(id)); if (c.length) { h[i] = c[Math.floor(Math.random() * c.length)]; changed = true; } }
+    }
+    if (changed) { onBomb(h, B.t); if (!S.solo) BR.Net.relay({ k: 'bm', h, t: Math.round(B.t * 10) / 10 }); }
+  }
+  function bombAI(b, inp) {
+    const B = S.bomb, mine = B.h.includes(b.id), dC = Math.hypot(b.x, b.z);
+    if (barAhead(b) === 'low' && b.ground) inp.jump = true;
+    let tg = null, td = 1e9;
+    for (const p of S.players.values()) { if (p === b || !p.active || !inRound(p) || S.out.has(p.id)) continue; const other = B.h.includes(p.id); if (mine ? other : !other) continue; const d = Math.hypot(p.x - b.x, p.z - b.z); if (d < td) { td = d; tg = p; } }
+    if (!tg) { steer(b, inp, 0, 0, 0.4); return; }
+    if (mine) { steer(b, inp, tg.x + tg.vx * 0.3, tg.z + tg.vz * 0.3, 0.85 + 0.15 * b.skill); return; }
+    if (td > 9) { steer(b, inp, 0, 0, 0.35); return; }
+    b.ai.dir = b.ai.dir || (Math.random() < 0.5 ? 1 : -1);
+    let fx = (b.x - tg.x) / td, fz = (b.z - tg.z) / td; const tx = -b.z / (dC || 1), tz = b.x / (dC || 1); fx += tx * b.ai.dir * 0.7; fz += tz * b.ai.dir * 0.7; if (dC > 8) { fx -= b.x / dC * 3; fz -= b.z / dC * 3; }
+    steer(b, inp, b.x + fx * 5, b.z + fz * 5, 0.8 + 0.2 * b.skill); if (td < 2.2 && b.ground && Math.random() < 0.3) inp.jump = true;
+  }
   function respawnArena(m) {
     const a = Math.random() * Math.PI * 2, sp = S.spawnFor ? S.spawnFor(m.id) : { x: Math.cos(a) * 12, y: 0, z: Math.sin(a) * 12 };
     m.x = sp.x; m.z = sp.z; m.y = 3; m.vx = m.vy = m.vz = 0; m.st = 'run'; m.ghost = 1.5; m.ground = false; m.grabbed = m.holding = null;
@@ -1630,7 +1694,7 @@
         const a0 = Math.atan2(m.vx, m.vz), a1 = il > 0.1 ? a0 + BR.angDiff(a0, Math.atan2(wx, wz)) * Math.min(1, dt * (m.ground ? 5 : 2.8)) : a0;
         m.vx = Math.sin(a1) * ns; m.vz = Math.cos(a1) * ns;
       } else {
-        const ac = m.ground ? (m.gObj && m.gObj.ice ? 9 : ACC_G) : ACC_A, tx = wx * RUN, tz = wz * RUN;
+        const RB = S.bomb && S.bomb.h.includes(m.id) ? RUN * 1.14 : RUN, ac = m.ground ? (m.gObj && m.gObj.ice ? 9 : ACC_G) : ACC_A, tx = wx * RB, tz = wz * RB;
         const ddx = tx - m.vx, ddz = tz - m.vz, dd = Math.hypot(ddx, ddz), mx = ac * dt;
         if (dd > mx) { m.vx += ddx / dd * mx; m.vz += ddz / dd * mx; } else { m.vx = tx; m.vz = tz; }
       }
@@ -1737,9 +1801,9 @@
     if (!S.ctl || !b.active || (S.round === 1 && b.finished)) return inp;
     const ai = b.ai = b.ai || { t: 0, react: 0 };
     if (b.st === 'tumble') return inp;
-    if (S.round === 1) raceAI(b, inp, dt); else if (S.def.score) modeAI(b, inp, dt); else survAI(b, inp, dt);
+    if (S.round === 1) raceAI(b, inp, dt); else if (S.def.score) modeAI(b, inp, dt); else if (S.bomb) bombAI(b, inp); else survAI(b, inp, dt);
     // de temps en temps : bousculer ou attraper un joueur proche
-    if (Math.random() < dt * 0.6 * b.skill) for (const p of S.players.values()) {
+    if (!S.bomb && Math.random() < dt * 0.6 * b.skill) for (const p of S.players.values()) {
       if (p === b || !p.vis || (p.bot && Math.random() < 0.85)) continue; const dx = p.x - b.x, dz = p.z - b.z, d = Math.hypot(dx, dz);
       if (d < 2.4 && Math.abs(p.y - b.y) < 1.2) { const safe = S.round !== 2 || !ai.safe || ai.safe(b.x + dx / d * 4, b.z + dz / d * 4); if (Math.random() < 0.55 && safe) { inp.dive = true; inp.wx = dx / d; inp.wz = dz / d; } else { b.face = Math.atan2(dx, dz); inp.grab = true; } break; }
     }
@@ -1995,7 +2059,7 @@
     if (S.round === 2) { S.r2 = cfg.kind; S.def = Object.assign({}, R2[S.r2], { time: R2[S.r2].score ? R2[S.r2].time + (S.final ? 15 : 0) : S.final ? 90 : 75 }); S.usedR2.push(cfg.kind); try { BR.store.set('br_party_r2', S.r2); } catch (e) {} }
     else { S.def = RACE_DEF; S.usedMaps.push(cfg.map); }
     S.high = S.low = null; S.part = cfg.q.filter(id => S.players.has(id)); S.out = new Set(); S.outOrder = []; S.fin = []; S.decided = false; S.tiles = null; S.tramps = [];
-    S.scene = new THREE.Scene(); S.solids = []; S.haz = []; S.checks = []; S.scroll = []; S.anim = []; S.winds = []; S.pads = []; S.zips = []; S.crs = []; S.path = []; S.pathMode = false; S.finishBox = null; S.gyB = S.gyG = S.canG = S.bulb = null; S.bob = []; S.cloudTex = null; S.seaM = null; S.post = S.flag = S.fanG = S.pine = null; S.crown = S.paint = S.teams = S.spawnFor = null; S.ctime = {}; S.csT = 0;
+    S.scene = new THREE.Scene(); S.solids = []; S.haz = []; S.checks = []; S.scroll = []; S.anim = []; S.winds = []; S.pads = []; S.zips = []; S.crs = []; S.path = []; S.pathMode = false; S.finishBox = null; S.gyB = S.gyG = S.canG = S.bulb = null; S.bob = []; S.cloudTex = null; S.seaM = null; S.post = S.flag = S.fanG = S.pine = null; S.crown = S.paint = S.teams = S.spawnFor = S.bomb = null; S.ctime = {}; S.csT = 0;
     initFx();
     if (S.round === 1) buildCourse(cfg.map); else buildSpin(S.r2);
     if (S.round === 1 && !S.pathMode) S.checks.sort((a, b) => a.z - b.z);
@@ -2056,7 +2120,7 @@
         else t = S.fin.length + ' / ' + S.target + ' qualifiés';
       } else if (S.def.score === 'crown') { const rk = S.part.filter(id => S.players.has(id)).sort((a, b) => (S.ctime[b] || 0) - (S.ctime[a] || 0)), k = rk.indexOf(S.selfId) + 1; t = '👑 ' + (S.ctime[S.selfId] || 0).toFixed(1) + ' s · ' + (k ? k + (k === 1 ? 'er' : 'e') : '') + (S.final ? '' : ' · qualifiés : top ' + S.target); }
       else if (S.def.score === 'team') { const c = paintCount(), tot = (S.paint.length || 1), mt = S.teams[S.selfId] || 0; t = TEAMS[0].e + ' ' + Math.round(c[0] / tot * 100) + ' %  —  ' + Math.round(c[1] / tot * 100) + ' % ' + TEAMS[1].e + ' · tu es ' + TEAMS[mt].n; }
-      else { const a = S.part.filter(id => S.players.has(id) && !S.out.has(id)).length; t = 'Debout : ' + a + (S.final ? '' : ' · qualifiés à ' + S.target); }
+      else { const a = S.part.filter(id => S.players.has(id) && !S.out.has(id)).length; t = (S.bomb && S.bomb.h.length ? '💣 ' + Math.max(0, S.bomb.t).toFixed(1) + ' s' + (S.bomb.h.includes(S.selfId) ? ' · TU L\'AS !' : '') + ' · ' : '') + 'Debout : ' + a + (S.final ? '' : ' · qualifiés à ' + S.target); }
     }
     if (t !== S.posTxt) { S.posTxt = t; DOM.pos.textContent = t; }
     const gc = S.me.grabCd || 0, gt = !S.ctl || !S.me.active ? '' : gc > 0 ? '✋ ' + gc.toFixed(1) + ' s' : '✋ Attraper : clic gauche';
@@ -2068,7 +2132,7 @@
   function paintList() {
     DOM.list.innerHTML = [...S.players.values()].filter(p => S.part.includes(p.id) || p === S.me).map(p => {
       const inR = S.part.includes(p.id), q = S.round === 1 && p.finished, x = !inR || S.out.has(p.id);
-      const extra = S.round === 2 && S.def && S.def.score === 'crown' ? (S.crown && S.crown.h === p.id ? '👑 ' : '') + (S.ctime[p.id] || 0).toFixed(0) + ' s' : S.round === 2 && S.teams && S.teams[p.id] != null ? TEAMS[S.teams[p.id]].e : '';
+      const extra = S.round === 2 && S.bomb && S.bomb.h.includes(p.id) ? '💣' : S.round === 2 && S.def && S.def.score === 'crown' ? (S.crown && S.crown.h === p.id ? '👑 ' : '') + (S.ctime[p.id] || 0).toFixed(0) + ' s' : S.round === 2 && S.teams && S.teams[p.id] != null ? TEAMS[S.teams[p.id]].e : '';
       return `<div class="${q ? 'q' : x ? 'x' : ''} ${p === S.me ? 'me' : ''}"><span>${p.bot ? '🤖 ' : ''}${BR.esc(p.name)}</span><span>${extra || (q ? '✔' : x ? '✖' : '')}</span></div>`;
     }).join('');
   }
@@ -2129,6 +2193,7 @@
       case 'tl': crumble(d.i); break;
       case 'ck': if (d.r == null || true) onCrown(d.h, d.t); break;
       case 'cs': if (S.crown && !BR.Net.isHost()) { Object.assign(S.ctime, d.t || {}); if ((d.h || null) !== S.crown.h) onCrown(d.h); } break;
+      case 'bm': if (S.bomb && !BR.Net.isHost()) onBomb(d.h, d.t); break;
       case 'pt': if (S.paint && Array.isArray(d.a)) for (let i = 0; i + 1 < d.a.length; i += 2) paintTile(d.a[i], d.a[i + 1], false); break;
       case 'pf': if (S.paint && typeof d.s === 'string' && !BR.Net.isHost()) for (let i = 0; i < d.s.length && i < S.paint.length; i++) paintTile(i, (+d.s[i]) - 1, false); break;
       case 'cr': crumbleCr(d.i); break;
@@ -2229,6 +2294,7 @@
     paintPos();
     sendState(dt);
     if (S.round === 2 && S.def.score) modeTick(dt);
+    if (S.round === 2 && S.bomb) bombTick(dt, S.solo || BR.Net.isHost());
     decideTick();
     // chrono
     const el = S.rt - S.goAt, lim = S.def.time;

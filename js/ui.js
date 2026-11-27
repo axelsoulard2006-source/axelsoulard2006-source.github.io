@@ -1059,8 +1059,10 @@
   /* ================= jeu 4 : BOUSCULADE ================= */
   function partyRules() {
     return `<ul class="d-rules"><li><b>Une partie = 4 manches</b> à 8 joueurs (les places libres sont prises par des bots) : <b>course</b> → <b>survie</b> → <b>course</b> → <b>finale</b>. À chaque manche, une partie des joueurs est éliminée.</li>
-      <li><b>Courses</b> : une des 11 cartes (Toboggans géants, Fête foraine, Tempête, Banquise, Usine folle, Parc à ressorts, Vagues, Défi des murs, Grand huit, Château gonflable, Grand mix), jamais deux fois la même. Les premiers arrivés passent.</li>
-      <li><b>Survies</b> : <b>La Toupie</b> (barre rouge à sauter, jaune à NE PAS sauter), <b>Les Trois Étages</b> (les dalles tombent, deux étages dessous) ou <b>L'Île qui rétrécit</b>. La manche s'arrête dès qu'il ne reste que la moitié des joueurs (ex. 6 → 3). En finale, le dernier debout gagne la couronne 👑.</li>
+      <li><b>Courses</b> : 19 cartes (dont 8 grands tracés : Grand Tour, Cité des toits, Temple perdu, Fabrique de bonbons, Montagnes russes, Station de ski, Volcan, Base spatiale), jamais deux fois la même. Les premiers arrivés passent.</li>
+      <li><b>Manches de survie</b> : <b>La Toupie</b>, <b>Les Trois Étages</b>, <b>L'Île qui rétrécit</b> (le poteau du milieu ne tombe jamais… si tu arrives à y rester), <b>La Bombe</b> (refile-la au toucher avant le BOUM). Elles s'arrêtent dès qu'il ne reste que la moitié des joueurs.</li>
+      <li><b>Manches à score</b> : <b>La Couronne</b> (garde-la le plus longtemps : plonge ou attrape celui qui l'a pour la voler) et <b>La Guerre des couleurs</b> (2 équipes peignent le sol ; l'équipe qui en a le moins est éliminée). En finale, le dernier qualifié gagne la couronne 👑.</li>
+      <li><b>Classé</b> (avec un compte) : gagne des points de rang selon ta place, de Bronze à Champion. Saison mensuelle, classement mondial.</li>
       <li><b>Cours sur les murs</b> : saute contre un mur en allant vite, tu cours dessus 0,8 s puis tu glisses ; ressaute pour rebondir. <b>Plonge</b> (Maj ou A) pour aller plus loin ou faire tomber les autres. <b>Attrape</b> (clic gauche, toutes les 3,5 s) pour ralentir et tirer quelqu'un. Tomber pendant la course = retour au dernier point de passage.</li></ul>`;
   }
   function partyRulesBox() { return el('div', { class: 'd-lrules', html: `<h4>Règles de la Bousculade</h4>${partyRules()}` }); }
