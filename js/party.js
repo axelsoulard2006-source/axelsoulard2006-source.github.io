@@ -344,6 +344,7 @@
     etages: { name: 'LES TROIS ÉTAGES', sub: 'Les dalles tombent sous tes pieds… et il reste deux étages en dessous. Le dernier en vie gagne !', time: 150 },
     ile: { name: 'L\'ÎLE QUI RÉTRÉCIT', sub: 'Le bord s\'effondre petit à petit. Pousse les autres dans le vide (plongeon, clic gauche) !', time: 110 },
     couronne: { name: 'LA COURONNE', sub: 'Attrape la couronne et garde-la ! Plonge sur celui qui l\'a (ou attrape-le) pour la lui voler.', time: 60, score: 'crown' },
+    colline: { name: 'LE ROI DE LA COLLINE', sub: 'Reste dans la zone lumineuse pour marquer des points. Elle se déplace toutes les 12 s : pousse les autres dehors !', time: 60, score: 'hill' },
     bombe: { name: 'LA BOMBE', sub: 'Des bombes passent de joueur en joueur au toucher. Quand le compteur tombe à zéro : BOUM, éliminé ! Refile-la vite !', time: 120, bomb: true },
     peinture: { name: 'LA GUERRE DES COULEURS', sub: 'Deux équipes : cours partout pour peindre le sol à ta couleur. L\'équipe qui a le moins de sol est éliminée !', time: 50, score: 'team' },
   };
@@ -1361,6 +1362,7 @@
     if (kind === 'couronne') return buildCrown();
     if (kind === 'peinture') return buildPaint();
     if (kind === 'bombe') return buildBomb();
+    if (kind === 'colline') return buildHill();
     const r = rng(S.seed + 23);
     const sk = { toupie: ['#ff7fc0', '#ffe1a8', '#ffe3f0'], etages: ['#5a6cff', '#d6dcff', '#e8ebff'], ile: ['#ff9a3d', '#ffe6b0', '#fff0dc'] }[kind] || ['#ff7fc0', '#ffe1a8', '#ffe3f0'];
     sky(sk[0], sk[1]); sea(kind === 'etages' ? -40 : -26, sk[2]); clouds(r, 22, -10, 24, z => z); lights();
@@ -1455,6 +1457,13 @@
   }
   function paintCount() { const c = [0, 0]; if (S.paint) for (const s of S.paint) if (s.pt >= 0) c[s.pt]++; return c; }
 
+  function buildHill() {
+    buildCrown(['#47d16c', '#e8ffd8', '#f0fff0'], true);
+    const g = new THREE.Group();
+    const col = mesh(own(new THREE.CylinderGeometry(3.3, 3.3, 3.2, 32, 1, true)), new THREE.MeshBasicMaterial({ color: 0xffe14a, transparent: true, opacity: 0.22, side: THREE.DoubleSide, depthWrite: false }), false); col.position.y = 1.6; g.add(col);
+    const ring = mesh(own(new THREE.TorusGeometry(3.3, 0.16, 8, 40)), mat('#ffe14a', { emissive: '#ffb000', emissiveIntensity: 1 }), false); ring.rotation.x = Math.PI / 2; ring.position.y = 0.08; g.add(ring);
+    S.disp.push(col.material); S.scene.add(g); S.hill = { g, x: 0, z: 0, k: -1, r: 3.3, ring };
+  }
   function buildBomb() {
     buildCrown(['#ff5a5a', '#ffd9c0', '#ffe8de'], true);
     S.bomb = { h: [], t: 0, wait: 3.5, cd: {}, ms: {}, wave: 0 };
@@ -1542,6 +1551,13 @@
   function modeTick(dt) {
     const host = S.solo || BR.Net.isHost();
     if ((S.plT = (S.plT || 0) - dt) <= 0) { S.plT = 1; paintList(); }
+    if (S.hill) {
+      const H = S.hill, el = S.rt - S.goAt, k = Math.max(0, Math.floor(el / 12));
+      if (k !== H.k) { H.k = k; const spots = [[0, 0], [9, 0], [-9, 0], [0, 9], [0, -9], [6.5, 6.5], [-6.5, -6.5], [6.5, -6.5], [-6.5, 6.5]], rr = rng(S.seed + k * 7 + 1); let sp = k ? spots[1 + Math.floor(rr() * (spots.length - 1))] : spots[0]; if (k && sp[0] === H.x && sp[1] === H.z) sp = spots[0]; H.tx = sp[0]; H.tz = sp[1]; if (H.k > 0) { feed('⚠️ La zone se déplace !'); snd('pop'); } }
+      H.x += ((H.tx || 0) - H.x) * Math.min(1, dt * 3); H.z += ((H.tz || 0) - H.z) * Math.min(1, dt * 3); H.g.position.set(H.x, 0, H.z); H.ring.scale.setScalar(1 + Math.sin(S.rt * 4) * 0.04);
+      if (S.ctl && !S.decided) for (const p of S.players.values()) { if (!p.active || !inRound(p)) continue; if (Math.hypot(p.x - H.x, p.z - H.z) < H.r && p.y > -1 && p.y < 3.5) { S.ctime[p.id] = (S.ctime[p.id] || 0) + dt; if (p === S.me && (S.myC = (S.myC || 0) + dt) >= 1) { S.myC -= 1; bzEv('crown'); } } }
+      if (host && !S.solo && S.ctl && (S.csT = (S.csT || 0) - dt) <= 0) { S.csT = 1; BR.Net.relay({ k: 'cs', t: packTimes() }); }
+    }
     if (S.crown) {
       const C = S.crown, hp = C.h && S.players.get(C.h);
       if (S.ctl && !S.decided && hp) { S.ctime[C.h] = (S.ctime[C.h] || 0) + dt; if (hp === S.me && (S.myC = (S.myC || 0) + dt) >= 1) { S.myC -= 1; bzEv('crown'); } }
@@ -1563,7 +1579,7 @@
   // fin d'une manche à score : liste des qualifiés (et ordre des éliminés, du pire au meilleur)
   function scoreQualified() {
     const part = S.part.filter(id => S.players.has(id));
-    if (S.crown) {
+    if (S.crown || S.hill) {
       const rk = part.slice().sort((a, b) => (S.ctime[b] || 0) - (S.ctime[a] || 0));
       const q = rk.slice(0, S.final ? 1 : Math.max(1, S.target)); S.outOrder = rk.filter(id => !q.includes(id)).reverse(); return q;
     }
@@ -1575,6 +1591,14 @@
     const ai = b.ai; ai.t = (ai.t || 0) - dt;
     const R = S.crown ? 15 : 13, dC = Math.hypot(b.x, b.z);
     if (barAhead(b) === 'low' && b.ground) inp.jump = true;
+    if (S.hill) {
+      const H = S.hill, tx = H.tx != null ? H.tx : H.x, tz = H.tz != null ? H.tz : H.z, d = Math.hypot(tx - b.x, tz - b.z);
+      ai.off = ai.off || [(Math.random() - 0.5) * 3, (Math.random() - 0.5) * 3];
+      steer(b, inp, tx + (d < 4 ? ai.off[0] : 0), tz + (d < 4 ? ai.off[1] : 0), d < 2 ? 0.3 : 0.85 + 0.15 * b.skill);
+      if (d < 2.5 && Math.hypot(b.x, b.z) < 1.5 && b.ground && Math.random() < dt * 2) inp.jump = true;   // le trône au centre
+      if (d < 4 && b.ground && Math.random() < dt * (0.8 + 1.5 * b.skill)) for (const p of S.players.values()) { if (p === b || !p.active) continue; const dx = p.x - b.x, dz = p.z - b.z, dd = Math.hypot(dx, dz); if (dd < 2.6 && dd > 0.3 && Math.abs(p.y - b.y) < 1.2) { if (Math.random() < 0.5) { inp.dive = true; inp.wx = dx / dd; inp.wz = dz / dd; } else { b.face = Math.atan2(dx, dz); inp.grab = true; } break; } }
+      return;
+    }
     if (S.crown) {
       const C = S.crown;
       if (C.h === b.id) {   // je l'ai : je fuis le plus proche, en tournant
@@ -2162,7 +2186,7 @@
     if (S.round === 2) { S.r2 = cfg.kind; S.def = Object.assign({}, R2[S.r2], { time: R2[S.r2].score ? R2[S.r2].time + (S.final ? 15 : 0) : S.final ? 90 : 75 }); S.usedR2.push(cfg.kind); try { BR.store.set('br_party_r2', S.r2); } catch (e) {} }
     else { S.def = RACE_DEF; S.usedMaps.push(cfg.map); }
     S.high = S.low = null; S.part = cfg.q.filter(id => S.players.has(id)); S.out = new Set(); S.outOrder = []; S.fin = []; S.decided = false; S.tiles = null; S.tramps = [];
-    S.scene = new THREE.Scene(); S.solids = []; S.haz = []; S.checks = []; S.scroll = []; S.anim = []; S.winds = []; S.pads = []; S.zips = []; S.crs = []; S.path = []; S.pathMode = false; S.finishBox = null; S.gyB = S.gyG = S.canG = S.bulb = null; S.bob = []; S.cloudTex = null; S.seaM = null; S.post = S.flag = S.fanG = S.pine = S.trunk = S.leaf = S.tower = S.troof = S.pole = S.umb = null; S.crown = S.paint = S.teams = S.spawnFor = S.bomb = null; S.ctime = {}; S.csT = 0;
+    S.scene = new THREE.Scene(); S.solids = []; S.haz = []; S.checks = []; S.scroll = []; S.anim = []; S.winds = []; S.pads = []; S.zips = []; S.crs = []; S.path = []; S.pathMode = false; S.finishBox = null; S.gyB = S.gyG = S.canG = S.bulb = null; S.bob = []; S.cloudTex = null; S.seaM = null; S.post = S.flag = S.fanG = S.pine = S.trunk = S.leaf = S.tower = S.troof = S.pole = S.umb = null; S.crown = S.paint = S.teams = S.spawnFor = S.bomb = S.hill = null; S.ctime = {}; S.csT = 0;
     initFx();
     if (S.round === 1) buildCourse(cfg.map); else buildSpin(S.r2);
     if (S.round === 1 && !S.pathMode) S.checks.sort((a, b) => a.z - b.z);
@@ -2180,7 +2204,7 @@
     DOM.title.textContent = 'MANCHE ' + S.rn + ' / ' + tot + ' · ' + nm; DOM.sub.textContent = S.def.sub;
     DOM.iTag.textContent = (S.final ? 'FINALE' : 'MANCHE ' + S.rn + ' / ' + tot) + ' · ' + (S.round === 1 ? 'COURSE' : 'SURVIE');
     DOM.iName.textContent = nm; DOM.iSub.textContent = S.round === 1 && S.map ? S.map.desc + ' — ' + S.def.sub : S.def.sub;
-    const goal = S.round === 1 ? 'Les ' + S.target + ' premiers arrivés sont qualifiés (sur ' + S.part.length + ')' : S.def.score === 'crown' ? (S.final ? 'Celui qui garde la couronne le plus longtemps gagne 👑' : 'Les ' + S.target + ' qui l\'ont gardée le plus longtemps sont qualifiés') : S.def.score === 'team' ? 'Tu es chez les ' + TEAMS[S.teams[S.selfId] || 0].n + ' ' + TEAMS[S.teams[S.selfId] || 0].e + ' : peins plus que l\'autre équipe !' : S.final ? 'Le dernier debout gagne la couronne 👑' : 'Qualifiés dès qu\'il ne reste que ' + S.target + ' joueurs debout (sur ' + S.part.length + ')';
+    const goal = S.round === 1 ? 'Les ' + S.target + ' premiers arrivés sont qualifiés (sur ' + S.part.length + ')' : S.def.score === 'hill' ? (S.final ? 'Celui qui reste le plus longtemps dans la zone gagne 👑' : 'Les ' + S.target + ' meilleurs scores sont qualifiés') : S.def.score === 'crown' ? (S.final ? 'Celui qui garde la couronne le plus longtemps gagne 👑' : 'Les ' + S.target + ' qui l\'ont gardée le plus longtemps sont qualifiés') : S.def.score === 'team' ? 'Tu es chez les ' + TEAMS[S.teams[S.selfId] || 0].n + ' ' + TEAMS[S.teams[S.selfId] || 0].e + ' : peins plus que l\'autre équipe !' : S.final ? 'Le dernier debout gagne la couronne 👑' : 'Qualifiés dès qu\'il ne reste que ' + S.target + ' joueurs debout (sur ' + S.part.length + ')';
     DOM.iSkip.textContent = goal + (S.solo ? ' · Espace : passer' : '');
     DOM.intro.classList.remove('on'); void DOM.intro.offsetWidth; DOM.intro.classList.add('on'); DOM.big.classList.remove('on'); DOM.root.classList.add('intro');
     if (!m.active) setTimeout(() => S && big('SPECTATEUR', 'Clique pour changer de joueur', 1800), (S.introT + 0.6) * 1000);
@@ -2221,7 +2245,7 @@
         if (m.finished) { const k = S.fin.findIndex(f => f.id === S.selfId) + 1; t = 'Qualifié · ' + k + (k === 1 ? 'er' : 'e'); }
         else if (m.active) { let k = 1 + S.fin.length; const mp = m.prog != null ? m.prog : m.z; for (const p of S.players.values()) if (p !== m && S.part.includes(p.id) && !p.finished && (p.prog != null ? p.prog : p.z) > mp) k++; t = k + (k === 1 ? 'er' : 'e') + ' / ' + S.part.length + ' · ' + S.fin.length + ' / ' + S.target + ' qualifiés'; }
         else t = S.fin.length + ' / ' + S.target + ' qualifiés';
-      } else if (S.def.score === 'crown') { const rk = S.part.filter(id => S.players.has(id)).sort((a, b) => (S.ctime[b] || 0) - (S.ctime[a] || 0)), k = rk.indexOf(S.selfId) + 1; t = '👑 ' + (S.ctime[S.selfId] || 0).toFixed(1) + ' s · ' + (k ? k + (k === 1 ? 'er' : 'e') : '') + (S.final ? '' : ' · qualifiés : top ' + S.target); }
+      } else if (S.def.score === 'crown' || S.def.score === 'hill') { const rk = S.part.filter(id => S.players.has(id)).sort((a, b) => (S.ctime[b] || 0) - (S.ctime[a] || 0)), k = rk.indexOf(S.selfId) + 1; t = '👑 ' + (S.ctime[S.selfId] || 0).toFixed(1) + ' s · ' + (k ? k + (k === 1 ? 'er' : 'e') : '') + (S.final ? '' : ' · qualifiés : top ' + S.target); }
       else if (S.def.score === 'team') { const c = paintCount(), tot = (S.paint.length || 1), mt = S.teams[S.selfId] || 0; t = TEAMS[0].e + ' ' + Math.round(c[0] / tot * 100) + ' %  —  ' + Math.round(c[1] / tot * 100) + ' % ' + TEAMS[1].e + ' · tu es ' + TEAMS[mt].n; }
       else { const a = S.part.filter(id => S.players.has(id) && !S.out.has(id)).length; t = (S.bomb && S.bomb.h.length ? '💣 ' + Math.max(0, S.bomb.t).toFixed(1) + ' s' + (S.bomb.h.includes(S.selfId) ? ' · TU L\'AS !' : '') + ' · ' : '') + 'Debout : ' + a + (S.final ? '' : ' · qualifiés à ' + S.target); }
     }
@@ -2235,7 +2259,7 @@
   function paintList() {
     DOM.list.innerHTML = [...S.players.values()].filter(p => S.part.includes(p.id) || p === S.me).map(p => {
       const inR = S.part.includes(p.id), q = S.round === 1 && p.finished, x = !inR || S.out.has(p.id);
-      const extra = S.round === 2 && S.bomb && S.bomb.h.includes(p.id) ? '💣' : S.round === 2 && S.def && S.def.score === 'crown' ? (S.crown && S.crown.h === p.id ? '👑 ' : '') + (S.ctime[p.id] || 0).toFixed(0) + ' s' : S.round === 2 && S.teams && S.teams[p.id] != null ? TEAMS[S.teams[p.id]].e : '';
+      const extra = S.round === 2 && S.bomb && S.bomb.h.includes(p.id) ? '💣' : S.round === 2 && S.def && (S.def.score === 'crown' || S.def.score === 'hill') ? (S.crown && S.crown.h === p.id ? '👑 ' : '') + (S.ctime[p.id] || 0).toFixed(0) + ' s' : S.round === 2 && S.teams && S.teams[p.id] != null ? TEAMS[S.teams[p.id]].e : '';
       return `<div class="${q ? 'q' : x ? 'x' : ''} ${p === S.me ? 'me' : ''}"><span>${p.bot ? '🤖 ' : ''}${BR.esc(p.name)}</span><span>${extra || (q ? '✔' : x ? '✖' : '')}</span></div>`;
     }).join('');
   }
@@ -2295,7 +2319,7 @@
       case 'out': onOut(pid); break;
       case 'tl': crumble(d.i); break;
       case 'ck': if (d.r == null || true) onCrown(d.h, d.t); break;
-      case 'cs': if (S.crown && !BR.Net.isHost()) { Object.assign(S.ctime, d.t || {}); if ((d.h || null) !== S.crown.h) onCrown(d.h); } break;
+      case 'cs': if ((S.crown || S.hill) && !BR.Net.isHost()) { Object.assign(S.ctime, d.t || {}); if (S.crown && (d.h || null) !== S.crown.h) onCrown(d.h); } break;
       case 'em': emote(d.i | 0, from, true); break;
       case 'bm': if (S.bomb && !BR.Net.isHost()) onBomb(d.h, d.t); break;
       case 'pt': if (S.paint && Array.isArray(d.a)) for (let i = 0; i + 1 < d.a.length; i += 2) paintTile(d.a[i], d.a[i + 1], false); break;
@@ -2515,6 +2539,7 @@
   };
   P.session = () => S;
   P.prep = () => ensureDom();
+  P._next = kind => { if (!S) return; const q = S.part.filter(id => S.players.has(id)); const msg = { k: 'rd', rn: S.rn + 1, type: kind ? 'surv' : 'race', q, final: false, seed: 4242 + S.rn, kind, map: kind ? undefined : pickMap(), target: Math.max(1, Math.ceil(q.length / 2)) }; if (!S.solo) BR.Net.relay(msg); onRelay({ f: S.selfId, d: msg }); };   // test
   P._step = dt => S && step(dt);
   P._ground = (x, z, y) => S && groundAt(x, z, y);
   P._render = () => { if (S && R) R.render(S.scene, S.cam); };
