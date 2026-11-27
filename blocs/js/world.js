@@ -14,7 +14,7 @@
   try {
     const n = Math.max(1, Math.min(2, (navigator.hardwareConcurrency || 4) - 2));
     for (let i = 0; i < n; i++) {
-      const w = new Worker('js/worker.js?v=7');
+      const w = new Worker('js/worker.js?v=9' + (VX.Mods && VX.Mods.workerQuery ? VX.Mods.workerQuery() : ''));   // les mods actifs sont aussi chargés par le Worker
       w.onmessage = e => { const f = WK.cb.get(e.data.id); if (f) { WK.cb.delete(e.data.id); f(e.data); } };
       w.onerror = err => { console.warn('Worker indisponible, calcul sur le thread principal', err.message); WK.ok = false; WK.cb.clear(); if (VX.G && VX.G.world) VX.G.world.resetPending(); };
       WK.list.push(w);
@@ -22,6 +22,8 @@
     WK.ok = WK.list.length > 0;
   } catch (e) { WK.ok = false; }
   WK.init = () => { if (WK.inited || !WK.ok) return; WK.inited = true; const t = VX.TEX.workerTiles(); for (const w of WK.list) w.postMessage({ type: 'init', tiles: t.tiles, origins: t.origins }); };
+  // tuile ajoutée après coup (mod) : on renvoie la table des tuiles aux Workers et on remaille tout
+  if (VX.hooks) VX.hooks.on('tilesChanged', () => { if (WK.ok && WK.inited) { const t = VX.TEX.workerTiles(); for (const w of WK.list) w.postMessage({ type: 'init', tiles: t.tiles, origins: t.origins }); } if (VX.G && VX.G.world) VX.G.world.remeshAll(); });
   WK.send = (msg, transfer, cb) => { const id = ++WK.seq; msg.id = id; WK.cb.set(id, cb); WK.list[WK.rr++ % WK.list.length].postMessage(msg, transfer || []); };
 
   class World {

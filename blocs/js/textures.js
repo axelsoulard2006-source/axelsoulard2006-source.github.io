@@ -127,12 +127,14 @@
   // effets animés d'aspect (liquide de feu, voile du portail) : dessinés en ondes régulières
   tile('lava', P => { for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) { const v = Math.sin((x + y * 0.5) * 0.8) * 0.5 + Math.sin((y - x * 0.3) * 0.9) * 0.5; P(x, y, v > 0.55 ? '#ffd23a' : v > -0.2 ? '#ff7a1a' : '#d0420e'); } });
   tile('portal', P => { for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) { const v = Math.sin(x * 0.9 + Math.cos(y * 0.7) * 2) * 0.5 + 0.5; P(x, y, `rgba(${170 + v * 60 | 0},${70 + v * 60 | 0},255,0.72)`); } });
+  // tuiles des mods déclarées avant la création de l'atlas (VX.Mods.pendingTiles, cf. mods.js / api.addTile)
+  if (VX.Mods && VX.Mods.pendingTiles) for (const t of VX.Mods.pendingTiles.splice(0)) { if (names.length >= COLS * COLS) { console.warn('[Mods] atlas plein : tuile ignorée', t.name); continue; } if (idx[t.name] != null) console.warn('[Mods] tuile « ' + t.name + ' » redéfinie'); G(t.name, t.pal, t.rows); }
 
   /* ---------- version 64×64 lissée : chaque tuile 16×16 est agrandie ×4 (Scale2x deux fois : diagonales adoucies),
      puis légèrement fondue et grainée (raccord gardé sur les bords : voisins pris en boucle dans la tuile) ---------- */
   const SC = 4, HN = N * SC, hi = document.createElement('canvas'); hi.width = hi.height = HN * COLS;
   (function buildHi() {
-    const src = ctx.getImageData(0, 0, N * COLS, N * COLS).data, W0 = N * COLS, hctx = hi.getContext('2d'), out = hctx.createImageData(hi.width, hi.height), o = out.data, gr = VX.rng(4242);
+    const src = ctx.getImageData(0, 0, N * COLS, N * COLS).data.slice(), W0 = N * COLS, hctx = hi.getContext('2d'), out = hctx.createImageData(hi.width, hi.height), o = out.data, gr = VX.rng(4242);
     const scale2x = (p, n) => {
       const m = n * 2, q = new Uint32Array(m * m), at = (x, y) => p[((y + n) % n) * n + ((x + n) % n)];
       for (let y = 0; y < n; y++) for (let x = 0; x < n; x++) {
@@ -144,7 +146,11 @@
       }
       return q;
     };
-    for (let i = 0; i < names.length; i++) {
+    for (let i = 0; i < names.length; i++) hiTile(i);
+    hctx.putImageData(out, 0, 0);
+    // une tuile seule (ajoutée après coup par un mod) : même agrandissement, recopié dans le canevas haute définition
+    VX._hiTile = i => { const d = ctx.getImageData(0, 0, N * COLS, N * COLS).data; for (let k = 0; k < d.length; k++) src[k] = d[k]; hiTile(i); hctx.putImageData(out, 0, 0, (i % COLS) * HN, Math.floor(i / COLS) * HN, HN, HN); };
+    function hiTile(i) {
       const ox = (i % COLS) * N, oy = Math.floor(i / COLS) * N; let t = new Uint32Array(N * N);
       for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) { const k = ((oy + y) * W0 + ox + x) * 4; t[y * N + x] = src[k] | (src[k + 1] << 8) | (src[k + 2] << 16) | (src[k + 3] << 24); }
       t = scale2x(scale2x(t, N), N * 2);
@@ -159,7 +165,6 @@
         o[k + 3] = a;
       }
     }
-    hctx.putImageData(out, 0, 0);
   })();
   const tex = new THREE.CanvasTexture(hi);
   tex.magFilter = THREE.NearestFilter; tex.minFilter = THREE.NearestFilter; tex.generateMipmaps = false;
@@ -171,6 +176,15 @@
     // pour le Worker : nom -> index de tuile, et coin bas-gauche (u, v) de chaque tuile dans l'atlas
     workerTiles() { if (this._wt) return this._wt; const origins = names.map((n, i) => [(i % COLS) / COLS, 1 - (Math.floor(i / COLS) + 1) / COLS]); return (this._wt = { tiles: Object.assign({}, idx), origins }); },
     src(name) { const i = idx[name] || 0; return [(i % COLS) * N, Math.floor(i / COLS) * N]; },
+    // tuile ajoutée (ou redessinée) après la création de l'atlas, par un mod : atlas + version lissée + Workers + icônes
+    addTile(name, pal, rows) {
+      let i = idx[name];
+      if (i == null) { if (names.length >= COLS * COLS) { console.warn('[Mods] atlas plein : tuile ignorée', name); return; } tile(name, (P, C) => drawPixelGrid(P, C, pal, rows)); i = idx[name]; }
+      else { const ox = (i % COLS) * N, oy = Math.floor(i / COLS) * N; ctx.clearRect(ox, oy, N, N); drawPixelGrid((x, y, c) => { ctx.fillStyle = c; ctx.fillRect(ox + x, oy + y, 1, 1); }, (x, y) => ctx.clearRect(ox + x, oy + y, 1, 1), pal, rows); }
+      VX._hiTile(i); tex.needsUpdate = true; this._wt = null;
+      for (const k in ICON) if (VX.isBlock(+k)) delete ICON[k];
+      if (VX.hooks) VX.hooks.emit('tilesChanged', { name, index: i });
+    },
   };
 
   /* ---------- icônes ---------- */
@@ -228,6 +242,8 @@
     ICON[id] = { canvas: c, url: c.toDataURL() };
     return ICON[id];
   };
+  // icône à redessiner (icône d'objet ajoutée par un mod après coup)
+  VX.iconReset = id => { if (id == null) { for (const k in ICON) delete ICON[k]; for (const k in STEX) delete STEX[k]; } else { delete ICON[id]; delete STEX[id]; } };
   // texture (sprite) pour les objets posés par terre
   const STEX = {};
   VX.iconTex = id => { if (STEX[id]) return STEX[id]; const t = new THREE.CanvasTexture(VX.icon(id).canvas); t.magFilter = THREE.NearestFilter; t.minFilter = THREE.NearestFilter; t.generateMipmaps = false; return (STEX[id] = t); };

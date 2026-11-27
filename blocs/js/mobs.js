@@ -1,8 +1,11 @@
 /* ===== mobs.js : créatures — module branché uniquement par les hooks (aucune modification du moteur)
    Le jour : moutons, cochons, vaches (paisibles). La nuit et dans les grottes sombres : zombis (corps à corps, brûlent au soleil),
    archers squelettes (tirent des flèches) et le Braiseron, petit golem de braise à mèche qui explose.
-   Les Braises : feux follets. Les créatures restent locales à chaque joueur ; les blocs détruits par une explosion
-   passent par world.set et sont donc relayés en multijoueur. Géométries et matériaux partagés (aucun objet lourd par image). ===== */
+   Les Braises : feux follets. Géométries et matériaux partagés (aucun objet lourd par image).
+   MULTIJOUEUR (mp.js) : l'hôte simule les créatures autour de TOUS les joueurs de sa dimension (chaque créature vise le
+   joueur le plus proche ; les coups portés aux invités leur sont envoyés), et diffuse leurs positions 10 fois par seconde.
+   Un invité dans la même dimension que l'hôte n'en fait apparaître aucune : il affiche des « copies » interpolées,
+   et ses coups (épée, flèches) sont envoyés à l'hôte. Dans une autre dimension que l'hôte, l'invité simule les siennes. ===== */
 (function () {
   const VX = window.VX, B = VX.B, I = VX.I, D = VX.BLOCKS, G = VX.G, H = VX.hooks;
   // objets de survie : déclarés par survie.js (chargé après ce fichier), donc résolus au moment du butin
@@ -71,6 +74,22 @@
 
   /* ---------- monde ---------- */
   const mobs = [];
+  const byNid = new Map();   // copies des créatures de l'hôte (invité) : identifiant réseau -> créature
+  let nextNid = 1, wasRemote = false;
+  const hostMode = () => !!(VX.MP && VX.MP.on && VX.MP.host);
+  const remoteMode = () => !!(VX.MP && VX.MP.remoteMobs && VX.MP.remoteMobs());
+  // joueurs visés : le joueur local, plus (chez l'hôte) les joueurs distants de la même dimension
+  function targets() {
+    const P = G.player, L = [{ id: null, local: true, pos: P.pos, eye: P.eye, alive: P.hp > 0 && G.mode !== 'creatif' }];
+    if (hostMode()) for (const t of VX.MP.targets()) L.push(t);
+    return L;
+  }
+  // blesse une cible ; kb = recul [x, y, z] (appliqué par le joueur distant lui-même)
+  function hurtTarget(tg, n, kind, src, kb) {
+    if (tg.local) return G.hurt(n, kind, src);
+    VX.MP.sendTo(tg.id, { k: 'hurt', n, kind, sx: src ? src.x : null, sz: src ? src.z : null, kb: kb || null }); return true;
+  }
+  const fx = d => { if (hostMode()) VX.MP.relay(Object.assign({ k: 'mfx' }, d)); };
   const bAt = (x, y, z) => D[G.world.get(Math.floor(x), Math.floor(y), Math.floor(z))];
   const solid = (x, y, z) => { const b = bAt(x, y, z); return !!(b && b.solid); };
   const liquid = (x, y, z) => { const b = bAt(x, y, z); return !!(b && b.liquid); };
@@ -81,49 +100,85 @@
 
   function spawn(type, x, y, z) {
     const T = TYPES[type], rig = build(T.spec); rig.g.position.set(x, y, z); G.scene.add(rig.g);
-    const m = { type, T, rig, x, y, z, vx: 0, vy: 0, vz: 0, yaw: Math.random() * 6.28, hp: T.hp, dim: G.dim, t: Math.random() * 10, phase: 0, dir: Math.random() * 6.28, think: 0, hitT: 0, atkCd: 1, flee: 0, ground: false, fire: 0, sunT: 0, fuse: 0, cryT: 4 + Math.random() * 12, flash: false, swing: 0 };
+    const m = { nid: nextNid++, type, T, rig, x, y, z, vx: 0, vy: 0, vz: 0, yaw: Math.random() * 6.28, hp: T.hp, dim: G.dim, t: Math.random() * 10, phase: 0, dir: Math.random() * 6.28, think: 0, hitT: 0, atkCd: 1, flee: 0, ground: false, fire: 0, sunT: 0, fuse: 0, cryT: 4 + Math.random() * 12, flash: false, swing: 0 };
     mobs.push(m); return m;
   }
   function setMat(m, mt) { m.rig.g.traverse(o => { if (o.isMesh) o.material = mt || o.userData.mat; }); }
-  function kill(m, drop) {
+  function poof(m) {
+    if (FX()) FX().burst(m.x, m.y + m.T.h * 0.5, m.z, 18, [0.85, 0.85, 0.85], { smoke: true, speed: 1.6, life: 0.7, grav: -0.5, spread: m.T.w * 2 });
+    G.sfx('poof', { dist: dist3(m) });
+  }
+  // butin d'une créature (orbes d'expérience + objets), pour le joueur local
+  function dropLoot(T, x, y, z) {
+    if (G.mode === 'creatif') return;
+    if (VX.XP) VX.XP.drop(x, y + 0.5, z, T.hostile ? 5 + Math.floor(Math.random() * 3) : 1 + Math.floor(Math.random() * 3));
+    for (const [key, a, b] of T.drops) { const id = idOf(key); if (id == null) continue; const n = a + Math.floor(Math.random() * (b - a + 1)); if (n > 0) G.dropItem(id, n, new THREE.Vector3(x, y + 0.5, z)); }
+  }
+  // by : id du joueur distant qui a porté le coup fatal (son butin lui est envoyé)
+  function kill(m, drop, by) {
     G.scene.remove(m.rig.g); const i = mobs.indexOf(m); if (i >= 0) mobs.splice(i, 1);   // géométries et matériaux partagés : rien à libérer
+    if (m.remote) byNid.delete(m.nid);
     if (drop) {
-      if (FX()) FX().burst(m.x, m.y + m.T.h * 0.5, m.z, 18, [0.85, 0.85, 0.85], { smoke: true, speed: 1.6, life: 0.7, grav: -0.5, spread: m.T.w * 2 });
-      G.sfx('poof', { dist: dist3(m) });
-      if (G.mode !== 'creatif' && VX.XP) VX.XP.drop(m.x, m.y + 0.5, m.z, m.T.hostile ? 5 + Math.floor(Math.random() * 3) : 1 + Math.floor(Math.random() * 3));   // orbes d'expérience
-      if (G.mode !== 'creatif') for (const [key, a, b] of m.T.drops) { const id = idOf(key); if (id == null) continue; const n = a + Math.floor(Math.random() * (b - a + 1)); if (n > 0) G.dropItem(id, n, new THREE.Vector3(m.x, m.y + 0.5, m.z)); }
+      poof(m); fx({ e: 'die', id: m.nid });
+      if (by && hostMode()) VX.MP.sendTo(by, { k: 'mdrop', t: m.type, x: m.x, y: m.y, z: m.z });
+      else dropLoot(m.T, m.x, m.y, m.z);
     }
   }
   const dist3 = m => { const P = G.player.pos; return Math.hypot(P.x - m.x, P.y - m.y, P.z - m.z); };
-  function damage(m, n, kx, kz) {
+  function damage(m, n, kx, kz, by) {
+    if (m.remote) {   // copie d'une créature de l'hôte : le coup est envoyé, l'hôte décide (retour visuel immédiat)
+      if (VX.MP && VX.MP.on) VX.MP.sendTo(VX.MP.hostId, { k: 'hit', id: m.nid, n, kx, kz });
+      m.hitT = 0.3; if (FX()) FX().burst(m.x, m.y + m.T.h * 0.6, m.z, 6, [0.75, 0.1, 0.1], { speed: 2, life: 0.4 }); G.sfx('hit', { dist: dist3(m) });
+      return;
+    }
     m.hp -= n; m.hitT = 0.3; m.flee = 4; m.vx += kx; m.vz += kz; m.vy = Math.max(m.vy, 5);
     if (FX()) FX().burst(m.x, m.y + m.T.h * 0.6, m.z, 6, m.type === 'squelette' ? [0.9, 0.88, 0.8] : m.T.bomber ? [1, 0.5, 0.1] : [0.75, 0.1, 0.1], { speed: 2, life: 0.4 });
     G.sfx('hit', { dist: dist3(m) });
-    if (m.hp <= 0) kill(m, true);
+    if (m.hp <= 0) kill(m, true, by);
+  }
+  // hôte : coup d'un invité sur une de nos créatures
+  function remoteHit(from, d) {
+    const m = mobs.find(x => x.nid === d.id); if (!m || m.remote) return;
+    const cl = (v, a) => Math.max(-a, Math.min(a, +v || 0));
+    damage(m, Math.max(0, Math.min(30, +d.n || 0)), cl(d.kx, 12), cl(d.kz, 12), from);
+    if (m.T.bomber && m.fuse > 0) m.fuse = Math.max(0.001, m.fuse - 0.4);
   }
 
   /* ---------- flèches (réserve de maillages réutilisés) ---------- */
   const arrows = [], ARROW_MAX = 24;
   const arrowProto = (() => { const g = new THREE.Group(); addBoxes(g, [[0.04, 0.04, 0.6, '#8a5f33', 0, 0, 0], [0.07, 0.07, 0.1, '#c8c8d0', 0, 0, 0.33], [0.12, 0.02, 0.12, '#e8e0d0', 0, 0, -0.26], [0.02, 0.12, 0.12, '#e8e0d0', 0, 0, -0.26]]); return g; })();
-  function shoot(m, P) {
+  function shoot(m, P) {   // P : cible (joueur local ou distant : { pos, eye })
     let a = arrows.find(x => !x.on);
     if (!a) { if (arrows.length >= ARROW_MAX) a = arrows.reduce((p, c) => (c.age > p.age ? c : p)); else { a = { g: arrowProto.clone(), on: false }; arrows.push(a); G.scene.add(a.g); } }
     const sx = m.x, sy = m.y + 1.45, sz = m.z, tx = P.pos.x - sx, ty = P.eye - 0.25 - sy, tz = P.pos.z - sz, d = Math.hypot(tx, tz), sp = 18;
     const tt = d / sp;   // visée : on compense la chute pendant le vol
     a.p = new THREE.Vector3(sx + tx / (d || 1) * 0.5, sy, sz + tz / (d || 1) * 0.5); a.v = new THREE.Vector3(tx / (d || 1) * sp + (Math.random() - 0.5) * 0.8, ty / Math.max(tt, 0.05) + 0.5 * 14 * tt + (Math.random() - 0.5) * 0.6, tz / (d || 1) * sp + (Math.random() - 0.5) * 0.8);
-    a.on = true; a.stuck = false; a.age = 0; a.dim = G.dim; a.g.visible = true; G.sfx('bow', { dist: dist3(m) });
+    a.on = true; a.stuck = false; a.vis = false; a.age = 0; a.dim = G.dim; a.g.visible = true; G.sfx('bow', { dist: dist3(m) });
+    fx({ e: 'arrow', p: [a.p.x, a.p.y, a.p.z].map(v => Math.round(v * 100) / 100), v: [a.v.x, a.v.y, a.v.z].map(v => Math.round(v * 100) / 100) });
   }
-  function arrowsTick(dt, P) {
+  // invité : flèche purement visuelle (les dégâts viennent de l'hôte)
+  function visArrow(p, v) {
+    let a = arrows.find(x => !x.on);
+    if (!a) { if (arrows.length >= ARROW_MAX) a = arrows.reduce((q, c) => (c.age > q.age ? c : q)); else { a = { g: arrowProto.clone(), on: false }; arrows.push(a); G.scene.add(a.g); } }
+    a.p = new THREE.Vector3(p[0], p[1], p[2]); a.v = new THREE.Vector3(v[0], v[1], v[2]);
+    a.on = true; a.stuck = false; a.vis = true; a.age = 0; a.dim = G.dim; a.g.visible = true; G.sfx('bow', { dist: Math.hypot(G.player.pos.x - p[0], G.player.pos.z - p[2]) });
+  }
+  function arrowsTick(dt, tgs) {
     for (const a of arrows) {
       if (!a.on) continue; a.age += dt;
       if (a.dim !== G.dim || a.age > (a.stuck ? 6 : 8)) { a.on = false; a.g.visible = false; continue; }
       if (a.stuck) continue;
       a.v.y -= 14 * dt; const nx = a.p.x + a.v.x * dt, ny = a.p.y + a.v.y * dt, nz = a.p.z + a.v.z * dt;
-      // le joueur (boîte AABB)
-      if (nx > P.pos.x - 0.4 && nx < P.pos.x + 0.4 && nz > P.pos.z - 0.4 && nz < P.pos.z + 0.4 && ny > P.pos.y && ny < P.pos.y + 1.85) {
-        const hit = G.hurt(3, 'fleche', { x: P.pos.x - a.v.x, z: P.pos.z - a.v.z }); if (hit !== false) { P.vel.x += a.v.x * 0.15; P.vel.z += a.v.z * 0.15; } G.sfx('arrow'); a.on = false; a.g.visible = false; continue;
+      // les joueurs (boîtes AABB) ; flèche visuelle (invité) : jamais de dégâts
+      let touched = false;
+      if (!a.vis) for (const t of tgs) {
+        const q = t.pos; if (!(nx > q.x - 0.4 && nx < q.x + 0.4 && nz > q.z - 0.4 && nz < q.z + 0.4 && ny > q.y && ny < q.y + 1.85)) continue;
+        if (t.local) { const P = G.player, hit = G.hurt(3, 'fleche', { x: P.pos.x - a.v.x, z: P.pos.z - a.v.z }); if (hit !== false) { P.vel.x += a.v.x * 0.15; P.vel.z += a.v.z * 0.15; } G.sfx('arrow'); }
+        else hurtTarget(t, 3, 'fleche', { x: q.x - a.v.x, z: q.z - a.v.z }, [a.v.x * 0.15, 0, a.v.z * 0.15]);
+        touched = true; break;
       }
-      if (solid(nx, ny, nz)) { a.stuck = true; G.sfx('arrow', { dist: Math.hypot(P.pos.x - nx, P.pos.z - nz) }); continue; }
+      if (touched) { a.on = false; a.g.visible = false; continue; }
+      if (solid(nx, ny, nz)) { a.stuck = true; G.sfx('arrow', { dist: Math.hypot(G.player.pos.x - nx, G.player.pos.z - nz) }); continue; }
       a.p.set(nx, ny, nz); a.g.position.copy(a.p); a.g.lookAt(nx + a.v.x, ny + a.v.y, nz + a.v.z);
     }
   }
@@ -131,7 +186,7 @@
   /* ---------- explosion : détruit les blocs autour (sauf socle, obsidienne et blocs indestructibles), dégâts selon la distance ---------- */
   function explode(x, y, z, r) {
     const w = G.world, cx = Math.floor(x), cy = Math.floor(y), cz = Math.floor(z);
-    G.sfx('explode'); if (FX()) FX().explosion(x, y, z, r);
+    G.sfx('explode'); if (FX()) FX().explosion(x, y, z, r); fx({ e: 'boom', x, y, z, r });
     {
       for (let dy = -r; dy <= r; dy++) for (let dz = -r; dz <= r; dz++) for (let dx = -r; dx <= r; dx++) {
         const d2 = dx * dx + dy * dy + dz * dz; if (d2 > r * r * (0.55 + Math.random() * 0.45)) continue;
@@ -144,6 +199,8 @@
     // le joueur
     const P = G.player, px = P.pos.x - x, py = P.pos.y + 0.9 - y, pz = P.pos.z - z, d = Math.hypot(px, py, pz), R2 = r * 2.2;
     if (d < R2) { const k = 1 - d / R2; G.hurt(Math.round(k * k * 22 + k * 4), 'explosion', { x, z }); P.vel.x += px / (d || 1) * k * 14; P.vel.z += pz / (d || 1) * k * 14; P.vel.y = Math.max(P.vel.y, k * 9); }
+    // les joueurs distants (hôte) : dégâts et recul envoyés
+    if (hostMode()) for (const t of VX.MP.targets()) { const qx = t.pos.x - x, qy = t.pos.y + 0.9 - y, qz = t.pos.z - z, qd = Math.hypot(qx, qy, qz); if (qd < R2) { const k = 1 - qd / R2; hurtTarget(t, Math.round(k * k * 22 + k * 4), 'explosion', { x, z }, [qx / (qd || 1) * k * 14, k * 9, qz / (qd || 1) * k * 14]); } }
     // les autres créatures
     for (const o of mobs.slice()) { if (o.dim !== G.dim) continue; const ox = o.x - x, oz = o.z - z, od = Math.hypot(ox, o.y - y, oz); if (od < R2) damage(o, Math.round((1 - od / R2) * 20), ox / (od || 1) * 8, oz / (od || 1) * 8); }
   }
@@ -152,7 +209,10 @@
   let spawnT = 0;
   const glowNear = (x, y, z) => { for (let dy = -2; dy <= 2; dy++) for (let dz = -4; dz <= 4; dz += 2) for (let dx = -4; dx <= 4; dx += 2) { const b = D[G.world.get(x + dx, y + dy, z + dz)]; if (b && b.glow) return true; } return false; };
   function trySpawn() {
-    const P = G.player, dk = day(), here = mobs.filter(m => m.dim === G.dim);
+    // autour d'un joueur au hasard (en multijoueur, l'hôte fait aussi apparaître les créatures près des invités)
+    const tgs = targets(), anchor = tgs[Math.floor(Math.random() * tgs.length)], P = { pos: anchor.pos };
+    if (mobs.length > 16 * Math.min(3, tgs.length)) return;
+    const dk = day(), here = mobs.filter(m => m.dim === G.dim && Math.hypot(m.x - P.pos.x, m.z - P.pos.z) < 64);
     const a = Math.random() * 6.283, d = 16 + Math.random() * 20, x = Math.floor(P.pos.x + Math.cos(a) * d), z = Math.floor(P.pos.z + Math.sin(a) * d);
     if (!G.world.chunk(Math.floor(x / 16), Math.floor(z / 16))) return;
     const hostiles = here.filter(m => m.T.hostile).length, pick = () => { const r = Math.random(); return r < 0.45 ? 'zombi' : r < 0.75 ? 'squelette' : 'braiseron'; };
@@ -172,15 +232,24 @@
   }
 
   /* ---------- intelligence, physique, animation ---------- */
-  H.on('playerTick', ({ dt, player: P }) => {
+  H.on('playerTick', ({ dt }) => {
+    // invité dans la dimension de l'hôte : copies seulement (changement de mode -> on repart de zéro)
+    const rm = remoteMode();
+    if (rm !== wasRemote) { wasRemote = rm; for (const m of mobs.slice()) kill(m, false); }
+    if (rm) { arrowsTick(dt, []); remoteTick(dt); tint(); return; }
     if ((spawnT -= dt) <= 0) { spawnT = 1.1; trySpawn(); }
-    arrowsTick(dt, P);
-    const dk = day(), alive = P.hp > 0 && G.mode !== 'creatif';
+    const tgs = targets();
+    arrowsTick(dt, tgs);
+    const dk = day();
     for (const m of mobs.slice()) {
       if (mobs.indexOf(m) < 0) continue;   // déjà tuée pendant cette image (explosion…)
       if (m.dim !== G.dim) { kill(m, false); continue; }
-      const T = m.T, dx = P.pos.x - m.x, dz = P.pos.z - m.z, dist = Math.hypot(dx, dz), dy = P.pos.y - m.y;
+      // cible : le joueur (local ou distant) le plus proche
+      let P = tgs[0], dist = Infinity;
+      for (const t of tgs) { const d = Math.hypot(t.pos.x - m.x, t.pos.z - m.z); if (d < dist) { dist = d; P = t; } }
+      const T = m.T, dx = P.pos.x - m.x, dz = P.pos.z - m.z, dy = P.pos.y - m.y, alive = P.alive;
       if (dist > (T.hostile ? 56 : 80)) { kill(m, false); continue; }
+      if (!G.world.chunk(Math.floor(m.x / 16), Math.floor(m.z / 16))) continue;   // terrain pas chargé chez l'hôte : créature figée
       m.t += dt; m.think -= dt; m.atkCd -= dt; m.flee -= dt; m.hitT -= dt; m.swing = Math.max(0, m.swing - dt * 3);
       // au soleil : zombis et squelettes prennent feu
       if (T.burns && G.dim === 'surface' && dk > 0.6 && (m.sunT -= dt) <= 0) { m.sunT = 0.5; if (skyOpen(m.x, m.y + T.h, m.z) && !liquid(m.x, m.y + 0.5, m.z)) m.fire = Math.max(m.fire, 1.2); }
@@ -209,14 +278,18 @@
         } else { wx = dx / (dist || 1); wz = dz / (dist || 1); }
       } else if (T.hostile && sees) {   // poursuite et coup
         wx = dx / (dist || 1); wz = dz / (dist || 1);
-        if (dist < 1.3 && Math.abs(dy) < 1.8 && m.atkCd <= 0) { m.atkCd = 1; m.swing = 1; const k = G.hurt(T.dmg, 'mob', m) === false && G.blocking ? 0.4 : 1; P.vel.x += wx * 5 * k; P.vel.z += wz * 5 * k; P.vel.y = Math.max(P.vel.y, 4 * k); if (k < 1) { m.vx -= wx * 6; m.vz -= wz * 6; } }
+        if (dist < 1.3 && Math.abs(dy) < 1.8 && m.atkCd <= 0) {
+          m.atkCd = 1; m.swing = 1;
+          if (P.local) { const L = G.player, k = G.hurt(T.dmg, 'mob', m) === false && G.blocking ? 0.4 : 1; L.vel.x += wx * 5 * k; L.vel.z += wz * 5 * k; L.vel.y = Math.max(L.vel.y, 4 * k); if (k < 1) { m.vx -= wx * 6; m.vz -= wz * 6; } }
+          else hurtTarget(P, T.dmg, 'mob', { x: m.x, z: m.z }, [wx * 5, 4, wz * 5]);
+        }
       } else if (m.flee > 0 && T.passive) { wx = -dx / (dist || 1); wz = -dz / (dist || 1); sp *= 2; if (m.think <= 0) { m.think = 0.6; m.dir = Math.atan2(wz, wx) + (Math.random() - 0.5) * 1.5; } wx = Math.cos(m.dir); wz = Math.sin(m.dir); }
       else { if (m.think <= 0) { m.think = 2 + Math.random() * 4; m.dir = Math.random() < 0.4 ? null : Math.random() * 6.283; } if (m.dir != null) { wx = Math.cos(m.dir); wz = Math.sin(m.dir); sp *= 0.5; } }
       if (m.fuse > 0) { wx = 0; wz = 0; }
       // les paisibles évitent de tomber d'une falaise
       if (T.passive && (wx || wz) && !solid(m.x + wx * 0.8, m.y - 0.5, m.z + wz * 0.8) && !solid(m.x + wx * 0.8, m.y - 1.5, m.z + wz * 0.8) && !solid(m.x + wx * 0.8, m.y - 2.5, m.z + wz * 0.8)) { wx = -wx; wz = -wz; m.dir = m.dir != null ? m.dir + Math.PI : null; }
       m.vx += (wx * sp - m.vx) * Math.min(1, dt * 6); m.vz += (wz * sp - m.vz) * Math.min(1, dt * 6);
-      if (T.fly) { const ty = P.pos.y + 1.2 + Math.sin(m.t * 2) * 0.6; m.vy += ((sees ? ty - m.y : Math.sin(m.t) * 0.5) * 2 - m.vy) * Math.min(1, dt * 3); if (sees && dist < 1.3 && Math.abs(dy - 0.5) < 1.6 && m.atkCd <= 0) { m.atkCd = 1; G.hurt(T.dmg, 'mob', m); } }
+      if (T.fly) { const ty = P.pos.y + 1.2 + Math.sin(m.t * 2) * 0.6; m.vy += ((sees ? ty - m.y : Math.sin(m.t) * 0.5) * 2 - m.vy) * Math.min(1, dt * 3); if (sees && dist < 1.3 && Math.abs(dy - 0.5) < 1.6 && m.atkCd <= 0) { m.atkCd = 1; hurtTarget(P, T.dmg, 'mob', { x: m.x, z: m.z }); } }
       else { m.vy -= 28 * dt; if (liquid(m.x, m.y + 0.4, m.z)) m.vy = Math.min(m.vy + 40 * dt, 2); }
       // déplacement avec collisions simples (et petit saut pour franchir une marche)
       const nx = m.x + m.vx * dt, nz = m.z + m.vz * dt, r = T.w;
@@ -250,10 +323,63 @@
       const wantFlash = m.hitT > 0 ? RED : m.fuse > 0 && Math.floor(m.fuse * (m.fuse > 1 ? 14 : 7)) % 2 === 0 ? WHITE : null;
       if (wantFlash !== m.flash) { m.flash = wantFlash; setMat(m, wantFlash); }
     }
-    // couleur selon le jour (tous les matériaux partagés à la fois)
-    const tint = Math.max(0.3, G.dim === 'surface' ? dk : 0.9);
-    for (const mt of MATS) if (!mt.userData.glow) mt.color.copy(mt.userData.base).multiplyScalar(tint);
+    tint();
   });
+  // couleur selon le jour (tous les matériaux partagés à la fois)
+  function tint() {
+    const k = Math.max(0.3, G.dim === 'surface' ? day() : 0.9);
+    for (const mt of MATS) if (!mt.userData.glow) mt.color.copy(mt.userData.base).multiplyScalar(k);
+  }
+
+  /* ---------- invité : copies des créatures de l'hôte (positions reçues 10 fois par seconde, interpolées) ---------- */
+  function applySnapshot(d) {
+    if (!remoteMode() || d.dim !== G.dim || !Array.isArray(d.l)) return;
+    const seen = new Set();
+    for (const e of d.l) {
+      const [nid, type, x, y, z, yaw, hy, fl, fuse] = e, T = TYPES[type]; if (!T) continue; seen.add(nid);
+      let m = byNid.get(nid);
+      if (!m) { m = spawn(type, x, y, z); m.remote = true; m.nid = nid; m.yaw = yaw; m.rig.g.rotation.y = yaw; byNid.set(nid, m); }
+      m.tx = x; m.ty = y; m.tz = z; m.tyaw = yaw; m.hy = hy || 0; m.fuse = fuse || 0; m.fire = fl & 2 ? 1 : 0;
+      if (fl & 1) m.hitT = Math.max(m.hitT, 0.12); if (fl & 8) m.swing = 1;
+    }
+    for (const m of mobs.slice()) if (m.remote && !seen.has(m.nid)) kill(m, false);
+  }
+  function remoteTick(dt) {
+    const k = Math.min(1, dt * 10);
+    for (const m of mobs) {
+      if (!m.remote || m.tx == null) continue;
+      const T = m.T, g = m.rig.g, ox = m.x, oz = m.z;
+      m.x += (m.tx - m.x) * k; m.y += (m.ty - m.y) * k; m.z += (m.tz - m.z) * k; m.yaw += wrap(m.tyaw - m.yaw) * k;
+      m.t += dt; m.hitT -= dt; m.swing = Math.max(0, m.swing - dt * 3);
+      g.position.set(m.x, m.y, m.z); g.rotation.y = T.fly ? g.rotation.y + dt : m.yaw;
+      const hs = Math.hypot(m.x - ox, m.z - oz) / Math.max(dt, 1e-3);
+      m.phase += dt * hs * 4.2; const amp = Math.min(1, hs / 1.5) * 0.75;
+      for (const L of m.rig.legs) L.rotation.x = Math.sin(m.phase + L.userData.ph * Math.PI) * amp;
+      for (const A of m.rig.arms) A.rotation.x = A.userData.rest + Math.sin(m.phase + A.userData.ph * Math.PI) * amp * 0.4 - m.swing * 0.8;
+      if (m.rig.head && !T.bomber) m.rig.head.rotation.y += ((m.hy || 0) - m.rig.head.rotation.y) * k;
+      if (T.bomber) { m.rig.head.visible = m.fuse > 0 ? Math.floor(m.t * 12) % 2 === 0 : Math.floor(m.t * 1.5) % 3 !== 0; g.scale.setScalar(m.fuse > 0 ? 1 + Math.min(1, m.fuse / 1.5) * 0.25 + Math.sin(m.t * 40) * 0.02 : 1); }
+      if (m.fire > 0 && FX() && Math.random() < dt * 20) FX().burst(m.x, m.y + Math.random() * T.h, m.z, 1, [1, 0.5 + Math.random() * 0.4, 0.1], { speed: 0.6, up: 2, grav: -2, life: 0.5, spread: T.w * 2 });
+      const want = m.hitT > 0 ? RED : m.fuse > 0 && Math.floor(m.fuse * (m.fuse > 1 ? 14 : 7)) % 2 === 0 ? WHITE : null;
+      if (want !== m.flash) { m.flash = want; setMat(m, want); }
+    }
+  }
+  // hôte : état des créatures de sa dimension, pour les invités
+  const r2 = v => Math.round(v * 100) / 100;
+  function snapshot() {
+    if (!hostMode()) return null;
+    const l = [];
+    for (const m of mobs) if (m.dim === G.dim && !m.remote) l.push([m.nid, m.type, r2(m.x), r2(m.y), r2(m.z), r2(m.yaw), r2(m.rig.head ? m.rig.head.rotation.y : 0), (m.hitT > 0 ? 1 : 0) | (m.fire > 0 ? 2 : 0) | (m.swing > 0.6 ? 8 : 0), r2(m.fuse)]);
+    return { k: 'mobs', dim: G.dim, l };
+  }
+  function remoteFx(d) {
+    if (!remoteMode()) return;
+    if (d.e === 'die') { const m = byNid.get(d.id); if (m) { poof(m); kill(m, false); } }
+    else if (d.e === 'arrow' && Array.isArray(d.p) && Array.isArray(d.v)) visArrow(d.p, d.v);
+    else if (d.e === 'boom') { G.sfx('explode', { dist: Math.hypot(G.player.pos.x - d.x, G.player.pos.z - d.z) }); if (FX()) FX().explosion(d.x, d.y, d.z, d.r || 3); }
+  }
+  // invité : le butin d'une créature qu'il a achevée chez l'hôte
+  function remoteDrop(d) { const T = TYPES[d.t]; if (T && isFinite(d.x) && isFinite(d.y) && isFinite(d.z)) dropLoot(T, d.x, d.y, d.z); }
+  function resetRemote() { for (const m of mobs.slice()) if (m.remote) kill(m, false); wasRemote = false; }
 
   /* ---------- coups au corps à corps (clic gauche) : prioritaire sur le minage si une créature est visée ---------- */
   H.on('attack', ({ origin, dir, reach }) => {
@@ -278,5 +404,5 @@
   });
   H.on('dimensionChange', () => { for (const m of mobs.slice()) kill(m, false); for (const a of arrows) { a.on = false; a.g.visible = false; } });
   [I.VIANDE, I.STEAK, I.ESSENCE].forEach(id => VX.registry.creative(id));
-  VX.Mobs = { list: mobs, spawn, kill, explode, damage, TYPES };
+  VX.Mobs = { list: mobs, spawn, kill, explode, damage, TYPES, snapshot, applySnapshot, remoteHit, remoteFx, remoteDrop, resetRemote };
 })();

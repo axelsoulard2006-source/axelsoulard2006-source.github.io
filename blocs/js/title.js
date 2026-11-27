@@ -58,7 +58,8 @@
         ${btn(first ? 'Jouer' : 'Reprendre la partie', 'data-a="play"', 'big green')}
         <div class="pair">${btn('Options', 'data-p="options"')}${btn('Multijoueur', 'data-p="multi"')}</div>
         <div class="pair">${btn('Shaders', 'data-a="shaders"' + (VX.Shaders ? '' : ' disabled'))}${btn('Monde', 'data-p="monde"')}</div>
-        <div class="pair">${btn('Aide', 'data-p="aide"')}${btn('Retour au site', 'data-a="quit"')}</div>
+        <div class="pair">${btn('Mods', 'data-p="mods"')}${btn('Aide', 'data-p="aide"')}</div>
+        ${btn('Retour au site', 'data-a="quit"')}
       </div><div class="ttip">${first ? 'Première partie ? Jette un œil à l\'aide avant de te lancer.' : esc(TIPS[tipI % TIPS.length])}</div>`;
     } else if (page === 'options') {
       const A = VX.Audio, vol = (k, label) => A ? `<label class="dist">${label} <input type="range" data-vol="${k}" min="0" max="1" step="0.05" value="${A.vol[k]}"></label>` : '';
@@ -71,7 +72,11 @@
     } else if (page === 'multi') {
       const on = MP && MP.on;
       body = `<div class="tpanel"><h2>Multijoueur</h2>
-        ${on ? `<p>Salon ouvert</p><p class="code">${esc(MP.room.code)}</p><p>${MP.room.players.length} joueur(s)${MP.host ? ' · donne ce code à tes potes' : ''}</p><div class="row">${btn('Quitter le salon', 'data-a="mpleave"', 'warn')}</div>`
+        ${on ? `<p>Salon ouvert</p><p class="code">${esc(MP.room.code)}</p><p>${MP.room.players.length} joueur(s)${MP.host ? ' · donne ce code à tes potes' : ''}</p>
+          <p class="small">${MP.room.players.map(p => esc(p.name) + (p.id === MP.room.host ? ' ★' : '') + (p.id === MP.id ? ' (toi)' : '')).join(' · ')}</p>
+          <div class="row">${MP.host ? btn('JcJ : ' + (MP.pvp ? 'activé' : 'désactivé'), 'data-a="mppvp"') : `<p class="small">JcJ : ${MP.pvp ? 'activé' : 'désactivé'} (choix de l'hôte)</p>`}</div>
+          <p class="small">Touche <b>Tab</b> en jeu : liste des joueurs · <b>T</b> : chat partagé</p>
+          <div class="row">${btn('Quitter le salon', 'data-a="mpleave"', 'warn')}</div>`
         : `<p>Joue à plusieurs dans le même monde, par un salon privé.</p><div class="row">${btn('Ouvrir mon monde', 'data-a="mphost"' + (MP ? '' : ' disabled'), 'green')}${btn('Rejoindre un pote', 'data-a="mpjoin"' + (MP ? '' : ' disabled'))}</div>`}
         <div class="row">${btn('Retour', 'data-p="main"')}</div></div>`;
     } else if (page === 'monde') {
@@ -79,6 +84,8 @@
         <div class="row">${btn('Sauvegarder', 'data-a="save"', 'green')}${btn('Exporter', 'data-a="export"')}${btn('Importer', 'data-a="import"')}</div>
         <div class="row">${btn('Nouveau monde', 'data-a="new"', 'warn')}</div>
         <div class="row">${btn('Retour', 'data-p="main"')}</div></div>`;
+    } else if (page === 'mods') {
+      body = modsPage(esc);
     } else if (page === 'aide') {
       body = `<div class="tpanel"><h2>Aide</h2><div class="keys"><b>ZQSD</b> se déplacer · <b>Espace</b> sauter / nager (2× en créatif : voler) · <b>Maj</b> s'accroupir · <b>Ctrl</b> ou <b>Z</b>×2 courir<br>
         <b>Clic gauche</b> casser / frapper · <b>Clic droit</b> poser / utiliser / manger / enfiler · <b>E</b> inventaire · <b>1-9</b> ou molette : barre rapide · <b>A</b> jeter · <b>T</b> chat (<b>/mode survie</b>, <b>/mode creatif</b>, <b>/aide</b>) · <b>F3</b> débogage · <b>F7</b> shaders</div>
@@ -91,6 +98,8 @@
       b.addEventListener('click', () => {
         lib().sfx('uiclick');
         if (b.dataset.p) { page = b.dataset.p; render(); return; }
+        if (b.dataset.mod) { toggleMod(b.dataset.mod); render(); return; }
+        if (b.dataset.r === 'reload') { try { G.save(true); } catch (e) {} location.reload(); return; }
         const a = b.dataset.a; if (!a) return;
         G.menuAction(a);
         // certaines actions changent l'état sans rouvrir le menu (mode au premier lancement, salon…)
@@ -99,6 +108,38 @@
     });
     const d = box.querySelector('.vd'); if (d) d.addEventListener('input', () => { G.R = +d.value; G.saveSettings(); const v = box.querySelector('.vdv'); if (v) v.textContent = d.value; });
     box.querySelectorAll('[data-vol]').forEach(r => r.addEventListener('input', () => VX.Audio && VX.Audio.setVol(r.dataset.vol, +r.value)));
+  }
+
+  /* ---------- écran « Mods » : liste de blocs/mods/liste.json, activation gardée dans localStorage ---------- */
+  let modList = null, modListErr = '', modLoading = false;
+  function loadModList() {
+    if (modList || modLoading) return; modLoading = true;
+    fetch('mods/liste.json?v=' + Date.now()).then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
+      .then(j => { modList = Array.isArray(j) ? j : (j && j.mods) || []; }).catch(e => { modListErr = 'Liste des mods illisible (' + e.message + ').'; modList = []; })
+      .finally(() => { modLoading = false; if (shown && page === 'mods') render(); });
+  }
+  function toggleMod(id) {
+    const M = VX.Mods; if (!M) return; const on = M.enabled();
+    M.setEnabled(on.includes(id) ? on.filter(x => x !== id) : on.concat(id)); M.clearError(id);
+  }
+  function modsPage(esc) {
+    const M = VX.Mods; if (!M) return '<div class="tpanel"><h2>Mods</h2><p>Système de mods indisponible.</p></div>';
+    loadModList();
+    const on = M.enabled(), loaded = M.active().map(d => d.id), errs = M.errors();
+    const changed = on.some(id => !loaded.includes(id)) || loaded.some(id => !on.includes(id));
+    const rows = (modList || []).map(m => {
+      const id = String(m.id || ''), act = on.includes(id), now = loaded.includes(id), err = errs[id];
+      const state = err ? `<span style="color:#ff9a8a">désactivé après un plantage : ${esc(err)}</span>` : now && act ? '<span style="color:#9cf07c">actif</span>' : act ? '<span style="color:#ffd23a">activé au prochain chargement</span>' : now ? '<span style="color:#ffd23a">désactivé au prochain chargement</span>' : '<span style="opacity:.7">inactif</span>';
+      return `<div style="display:flex;gap:10px;align-items:center;margin:6px 0;padding:6px 8px;background:rgba(0,0,0,.25);border:2px solid rgba(0,0,0,.35)">
+        <div style="flex:1;text-align:left"><b>${esc(m.nom || id)}</b> <span style="opacity:.7">v${esc(m.version || '1.0')} · ${esc(m.auteur || '?')}</span><br><span style="font-size:13px">${esc(m.description || '')}</span><br><span style="font-size:12px">${state}</span></div>
+        ${btn(act ? 'Désactiver' : 'Activer', 'data-mod="' + esc(id) + '" style="flex:0 0 auto;min-width:110px"', act ? 'warn' : 'green')}</div>`;
+    }).join('');
+    const probs = M.problems.length ? `<p class="small" style="color:#ffb0a0">Conflits : ${M.problems.map(esc).join(' · ')}</p>` : '';
+    return `<div class="tpanel"><h2>Mods</h2>
+      <p class="small">Les mods sont des fichiers du dossier <b>blocs/mods/</b> (voir LISEZ-MOI.md).</p>
+      ${modList ? (rows || '<p>Aucun mod listé dans mods/liste.json.</p>') : '<p>Chargement de la liste…</p>'}${modListErr ? `<p>${esc(modListErr)}</p>` : ''}${probs}
+      ${changed ? `<p style="color:#ffd23a">Recharge la page pour appliquer les changements (ton monde est sauvegardé avant).</p><div class="row">${btn('Recharger maintenant', 'data-r="reload"', 'green')}</div>` : '<p class="small">Un changement demande de recharger la page.</p>'}
+      <div class="row">${btn('Retour', 'data-p="main"')}</div></div>`;
   }
 
   // le monde tourne lentement derrière le titre

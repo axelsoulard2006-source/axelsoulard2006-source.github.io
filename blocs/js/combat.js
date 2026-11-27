@@ -1,5 +1,5 @@
 /* ===== combat.js : arc (tension, flèches paraboliques plantées et ramassables), bouclier (main secondaire, parade frontale),
-   expérience (orbes lumineux qui volent vers le joueur, VX.G.player.xp, VX.xpLevel), armures visibles sur les joueurs en ligne.
+   expérience (orbes lumineux qui volent vers le joueur, VX.G.player.xp, VX.xpLevel). (Armures des joueurs en ligne : mp.js.)
    Module branché par les hooks ; toutes les géométries / matériaux sont partagés et réutilisés (pas d'allocation par image). ===== */
 (function () {
   const VX = window.VX, B = VX.B, I = VX.I, D = VX.BLOCKS, G = VX.G, H = VX.hooks, UI = VX.UI;
@@ -185,33 +185,7 @@
   // mort : une partie de l'expérience reste sur place
   H.on('death', ({ player: P }) => { const L = VX.xpLevel(P.xp || 0).level, n = Math.min(P.xp || 0, L * 7, 100); if (n > 0) dropXP(P.pos.x, P.pos.y + 0.6, P.pos.z, n); P.xp = 0; UI.hud(); });
 
-  /* ---------- armures visibles sur les joueurs en ligne (message relayé « armor », sans toucher à mp.js) ---------- */
-  const peerArmor = new Map();   // id -> couleurs
-  let mpWs = null, armorT = 0, lastLook = '';
-  const ARM_PARTS = [   // emplacement -> boîtes [w, h, d, y, x]
-    [[0.56, 0.3, 0.56, 1.86, 0], [0.56, 0.18, 0.08, 1.66, 0, -0.25], [0.56, 0.18, 0.08, 1.66, 0, 0.25]],
-    [[0.66, 0.8, 0.41, 1.05, 0]],
-    [[0.28, 0.46, 0.34, 0.48, 0.15], [0.28, 0.46, 0.34, 0.48, -0.15]],
-    [[0.28, 0.2, 0.36, 0.1, 0.15], [0.28, 0.2, 0.36, 0.1, -0.15]],
-  ];
-  function dressPeer(p, cols) {
-    if (!p || !p.g) return;
-    if (p.armorG) { p.g.remove(p.armorG); p.armorG = null; }
-    const g = new THREE.Group();
-    cols.forEach((c, slot) => { if (!c) return; for (const [w, h, d, y, x, z] of ARM_PARTS[slot]) { const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat(c)); m.position.set(x || 0, y, z || 0); g.add(m); } });
-    p.g.add(g); p.armorG = g;
-  }
-  H.on('playerTick', ({ dt }) => {
-    const MP = VX.MP; if (!MP || !MP.on || !MP.ws) return;
-    if (MP.ws !== mpWs) {   // nouvelle connexion : on écoute aussi les messages d'armure
-      mpWs = MP.ws; lastLook = '';
-      mpWs.addEventListener('message', ev => { let m; try { m = JSON.parse(ev.data); } catch (e) { return; } if (m.t !== 'r' || !m.d || m.d.k !== 'armor') return; peerArmor.set(m.f, m.d.a); dressPeer(MP.peers.get(m.f), m.d.a); });
-    }
-    for (const [id, a] of peerArmor) { const p = MP.peers.get(id); if (p && p.armorFor !== a) { p.armorFor = a; dressPeer(p, a); } }
-    if ((armorT -= dt) > 0) return; armorT = 2;
-    const look = VX.armorLook ? VX.armorLook().slots.map(s => (s ? s.col : null)) : [null, null, null, null], key = JSON.stringify(look);
-    if (key !== lastLook || Math.random() < 0.2) { lastLook = key; try { if (mpWs.readyState === 1) mpWs.send(JSON.stringify({ t: 'r', to: '*', d: { k: 'armor', a: look } })); } catch (e) {} }
-  });
+  /* ---------- armures visibles sur les joueurs en ligne : gérées par mp.js (message « look », VX.armorLook de survie.js) ---------- */
 
   VX.Combat = { fire, dropXP, gainXP, shieldStack, breakShield, arrows, orbs, mainUsable };
   VX.XP = { drop: dropXP, gain: gainXP };

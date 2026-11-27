@@ -87,6 +87,7 @@
   let growT = 0, wetT = 0;
   H.on('playerTick', ({ dt }) => {
     if (G.world !== world) rescan();
+    if (VX.MP && VX.MP.on && VX.MP.joined) return;   // invité : l'hôte fait autorité (les changements arrivent par le réseau)
     const w = G.world;
     // pousse : en moyenne un stade toutes les ~35 s sur labour humide, ~90 s sur labour sec (un peu plus vite sous la pluie)
     if ((growT += dt) >= 1) {

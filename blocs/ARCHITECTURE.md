@@ -81,7 +81,7 @@ Les évènements disponibles : `blockBreak`, `blockPlace`, `playerTick`, `render
 Modules branchés par les hooks :
 
 - `mobs.js` : les créatures.
-- `mp.js` : le multijoueur. Il passe par le serveur du site : salon privé, monde de l'hôte partagé, blocs et positions relayés, et l'invité ne sauvegarde jamais.
+- `mp.js` : le multijoueur (serveur du site, salons privés par code, relais `{ t:'r', to, d }`). L'hôte fait autorité : monde envoyé en morceaux à l'arrivée (blocs, coffres, fours, liens de portails, météo, liste des mods), blocs relayés, coffres / fours synchronisés (l'invité envoie à l'hôte qui rediffuse), heure + météo + pousse du blé décidées par l'hôte, créatures simulées par l'hôte autour de tous les joueurs de sa dimension (`VX.Mobs.snapshot` à 10 Hz, copies interpolées chez l'invité, coups envoyés à l'hôte). Chat partagé, liste des joueurs (Tab), JcJ désactivé par défaut (`/jcj`, choix de l'hôte), modèle cubique animé des autres joueurs (armure + objets tenus : message `look`), reprise automatique après une coupure, l'hôte qui part renvoie chacun dans son monde. L'invité ne sauvegarde jamais.
 
 ## Shaders personnalisés
 
@@ -128,3 +128,10 @@ Presets : Désactivé (rendu léger d'origine) / Bas / Moyen / Élevé / Ultra, 
 
 `BOULEAU` 36, `F_BOULEAU` 37, `GRES` 38, `ARGILE` 39, `COFFRE` 40 (hache, dureté 2,5, tuiles dessus / côté / face), `HERBES` 41, `FLEUR_R` 42, `FLEUR_J` 43, `ARBUSTE` 44, `CACTUS` 45 (`hurt: 1`), `NEIGE_BLOC` 46, `GRAVIER` 47.
 Propriétés utiles du registre : `plant` (tombe sans support), `replace` (la pose d'un bloc peut la remplacer), `leaves`, `light`, `shade`, `shape`, `tex.front`, `hurt`.
+
+## Mods (`blocs/mods/`)
+
+- `js/modapi.js` (partagé avec le Worker) : `VX.mod({ id, nom, version, auteur, description, blocs(api), init(api) })`, registre surveillé (blocs 64 à 99, objets 300 à 499, conflits refusés), blocs « inconnus » pour les ids de mods absents.
+- `js/mods.js` (thread principal) : lit `localStorage.blocaria_mods`, insère les `<script>` des mods activés juste après `modapi.js` (avant l'atlas et le maillage), complète l'api (`addTile`, `addItemArt`, `command`, hooks protégés, `G`, `R`…), lance les `init(api)` à la fin d'`index.html`. Un mod qui plante est désactivé avec un message.
+- Le Worker reçoit la liste des mods actifs dans son adresse (`worker.js?v=9&mods=a,b`) et les charge après `registry.js`.
+- Écran titre → **Mods** (liste `mods/liste.json`). Guide complet : `mods/LISEZ-MOI.md`.

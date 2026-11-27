@@ -1,0 +1,25 @@
+{
+  "mods": [
+    {
+      "id": "lanternes",
+      "nom": "Lanternes",
+      "version": "1.0",
+      "auteur": "Équipe Blocaria",
+      "description": "Lanternes de fer et de braise, pavés lumineux : de quoi éclairer un village avec style."
+    },
+    {
+      "id": "jetpack",
+      "nom": "Réacteur dorsal",
+      "version": "1.0",
+      "auteur": "Équipe Blocaria",
+      "description": "Un réacteur à charbon pour voler en survie (tiens-le en main, saute et garde Espace enfoncé)."
+    },
+    {
+      "id": "marche-du-village",
+      "nom": "Marché du village",
+      "version": "1.0",
+      "auteur": "Équipe Blocaria",
+      "description": "Vends tes récoltes contre des pièces d'or (/vendre, /prix, /acheter) ou sur un étal du marché."
+    }
+  ]
+}

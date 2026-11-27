@@ -21,6 +21,8 @@
     return (colCache[id] = out);
   }
   FX.blockColors = blockColors;
+  // tuile ajoutée par un mod après coup : couleurs et géométries des blocs à recalculer
+  H.on('tilesChanged', () => { atlasPx = null; for (const k in colCache) delete colCache[k]; for (const k in geoCache) delete geoCache[k]; });   // geoCache : déclaré plus bas, déjà initialisé quand l'évènement arrive
 
   /* ---------- particules : deux nuages de points (débris fins, fumée épaisse), tampons fixes ---------- */
   function cloud(N, size, opts) {

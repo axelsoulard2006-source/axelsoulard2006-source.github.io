@@ -13,33 +13,38 @@
   <!-- cœur partagé avec le Worker (sans DOM) -->
   <script src="js/noise.js?v=8"></script>
   <script src="js/registry.js?v=8"></script>
+  <!-- mods : cœur partagé avec le Worker, puis chargeur (insère les fichiers mods/*.js activés, avant l'atlas et le maillage) -->
+  <script src="js/hooks.js?v=8"></script>
+  <script src="js/modapi.js?v=9"></script>
+  <script src="js/mods.js?v=9"></script>
   <script src="js/gen.js?v=8"></script>
   <script src="js/mesher.js?v=8"></script>
   <!-- thread principal -->
-  <script src="js/hooks.js?v=8"></script>
-  <script src="js/textures.js?v=8"></script>
+  <script src="js/textures.js?v=9"></script>
   <script src="js/texpack.js?v=8"></script>
   <script src="js/renderer.js?v=10"></script>
-  <script src="js/world.js?v=8"></script>
+  <script src="js/world.js?v=9"></script>
   <script src="js/crafting.js?v=8"></script>
   <script src="js/player.js?v=8"></script>
   <script src="js/ui.js?v=8"></script>
-  <script src="js/main.js?v=8"></script>
+  <script src="js/main.js?v=9"></script>
   <!-- modules branchés par les hooks -->
-  <script src="js/mobs.js?v=8"></script>
-  <script src="js/mp.js?v=8"></script>
+  <script src="js/mobs.js?v=9"></script>
+  <script src="js/mp.js?v=9"></script>
   <!-- survie, sons et effets (objets, armures, coffres, audio procédural, fissures, particules, main) -->
   <script src="js/survie.js?v=8"></script>
   <script src="js/audio.js?v=8"></script>
-  <script src="js/fx.js?v=8"></script>
+  <script src="js/fx.js?v=9"></script>
   <script src="js/shaders.js?v=10"></script>
   <!-- interface -->
   <script src="js/preview.js?v=8"></script>
-  <script src="js/title.js?v=8"></script>
+  <script src="js/title.js?v=9"></script>
   <script src="js/debug.js?v=8"></script>
   <!-- contenu -->
-  <script src="js/farm.js?v=8"></script>
-  <script src="js/combat.js?v=8"></script>
+  <script src="js/farm.js?v=9"></script>
+  <script src="js/combat.js?v=9"></script>
   <script src="js/weather.js?v=8"></script>
+  <!-- mods : init(api) de chaque mod activé (tous les modules du jeu sont chargés) -->
+  <script>VX.Mods && VX.Mods.initAll();</script>
 </body>
 </html>

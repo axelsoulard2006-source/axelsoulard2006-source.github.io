@@ -362,7 +362,7 @@
       G.portalCd = Math.max(0, (G.portalCd || 0) - dt);
       if (P.inPortal && G.portalCd <= 0) { G.portalT = (G.portalT || 0) + dt; if (G.portalT > 2.2) G.wantTravel = true; } else G.portalT = Math.max(0, (G.portalT || 0) - dt * 2);
       // fours (tous, même loin)
-      for (const k in G.furnaces) if (VX.furnaceTick(G.furnaces[k], dt) && UI.open && UI.open.furnace === G.furnaces[k]) UI.refresh();
+      if (!(VX.MP && VX.MP.on && VX.MP.joined)) for (const k in G.furnaces) if (VX.furnaceTick(G.furnaces[k], dt) && UI.open && UI.open.furnace === G.furnaces[k]) UI.refresh();   // invité en ligne : l'hôte fait cuire et diffuse
       if (UI.open && UI.open.kind === 'four' && (uiT += dt) > 0.25) { uiT = 0; UI.refresh(); }
       itemsTick(dt);
       // visée, minage
