@@ -794,6 +794,10 @@
     { name: 'LA STATION DE SKI', desc: 'Télécabine, pistes glacées, saut à ski et glaçons', sky: ['#6fb9ff', '#f4fbff'], sea: '#ffffff', build: (r, MP) => buildSki(r, MP) },
     { name: 'LE VOLCAN', desc: 'Pont au-dessus de la lave, marteaux et ascension du cratère', sky: ['#ff5a2a', '#ffcfa0'], sea: '#ffb08a', build: (r, MP) => buildVolcano(r, MP) },
     { name: 'LA BASE SPATIALE', desc: 'Tapis, couloir de murs, mixeur, canons… au milieu des planètes', sky: ['#1a1550', '#6a5bc0'], sea: '#4a3f8a', build: (r, MP) => buildSpace(r, MP) },
+    { name: 'LA JUNGLE', desc: 'Murs des géants, pont de lianes, troncs qui cognent, tyrolienne', sky: ['#4fbf6f', '#e4ffd8'], sea: '#c8f0c0', build: (r, MP) => buildJungle(r, MP) },
+    { name: 'LE CHÂTEAU', desc: 'Pont-levis tournant, donjon en spirale, dalles fantômes', sky: ['#5a4cb0', '#e0dcff'], sea: '#d8d2ff', build: (r, MP) => buildCastle(r, MP) },
+    { name: 'LA PLAGE', desc: 'Vagues qui poussent, canons à eau, toboggan aquatique', sky: ['#3fb6ff', '#fff2c8'], sea: '#7fd8ff', build: (r, MP) => buildBeach(r, MP) },
+    { name: 'LA CITÉ NÉON', desc: 'Tapis, couloirs de murs, mixeur, spirale vertigineuse', sky: ['#1a0f3a', '#5a2a8a'], sea: '#3a1f6a', build: (r, MP) => buildNeon(r, MP) },
   ];
   const pathIdx = () => MAPS.map((m, i) => m.build ? i : -1).filter(i => i >= 0);
   const mapFromSeed = s => { const pm = pathIdx(); return s % 4 !== 0 && pm.length ? pm[Math.floor(s / 4) % pm.length] : s % MAPS.length; };
@@ -1185,6 +1189,80 @@
     decorAround(r, MP, (x, y, z, rr) => { if (rr() < 0.18) { const s = 4 + rr() * 9, pl = mesh(own(new THREE.SphereGeometry(s, 20, 14)), mat(sp[Math.floor(rr() * 4)], { roughness: 0.6 }), false); pl.position.set(x, y + 10 + rr() * 30, z); S.scene.add(pl); if (rr() < 0.6) { const ring = mesh(own(new THREE.TorusGeometry(s * 1.6, s * 0.12, 6, 40)), mat('#ffe9a8'), false); ring.position.copy(pl.position); ring.rotation.set(1.2 + rr() * 0.4, rr(), 0); S.scene.add(ring); } } });
     const st = new THREE.BufferGeometry(), pts = []; for (let i = 0; i < 600; i++) { const a = r() * Math.PI * 2, e = r() * 1.2, d = 300; pts.push(Math.cos(a) * Math.cos(e) * d, Math.sin(e) * d, Math.sin(a) * Math.cos(e) * d); }
     st.setAttribute('position', new THREE.Float32BufferAttribute(pts, 3)); const sm = new THREE.PointsMaterial({ size: 2.2, color: 0xffffff, fog: false, sizeAttenuation: false }); S.disp.push(st, sm); S.skyM.add(new THREE.Points(st, sm));
+  }
+
+  /* ---------- 8. LA JUNGLE ---------- */
+  function buildJungle(r, MP) {
+    sky(MP.sky[0], MP.sky[1]); lights(); S.scene.fog = new THREE.Fog(new THREE.Color(MP.sky[1]).getHex(), 150, 540); S.pathMode = true; S.secAt = [];
+    const c = { x: 0, y: 0, z: -2, yaw: 0 }, g = ['#47d16c', '#2fa55a', '#8bd84a', '#a8743f'];
+    startPlaza(c);
+    cpAt(c); pStraight(c, 8, 12, g[0]); pArc(c, -Math.PI / 3, 16, 10, g[1], 2, { alt: g[2] });
+    cpAt(c); pStraight(c, 5, 10, g[2]); pWallRun(c, 18, '#3a8a3a'); pStraight(c, 8, 12, g[0]);
+    cpAt(c, c.y - 16); crumbleBridge(c, 18, 3.4, g[3]); pStraight(c, 8, 12, g[1]);
+    cpAt(c); pHammers(c, 40, 3, [g[3], '#6b4a2f', '#8a5a33', '#c98a4a']);
+    cpAt(c); pArc(c, Math.PI / 2, 15, 10, g[0], 0, { alt: g[2] }); pStraight(c, 6, 9, g[2]); pZip(c, 44, 10); pStraight(c, 12, 12, g[1]);
+    cpAt(c, c.y - 16); pFans(c, 3, 4, '#c8efff'); pStraight(c, 10, 14, g[0]);
+    cpAt(c, c.y - 14); pTramp(c, 7); pStraight(c, 16, 12, g[2]);
+    cpAt(c, c.y - 20); pArc(c, -Math.PI / 6, 16, 11, g[1], -3); padAt(c, -3, 8, 4); pRamp(c, 32, -10, 11, '#3fd0ff', { ice: true, walls: g[3] }); gap(c, 9, -1.5);
+    finishArena(c, '#2fa55a');
+    decorAround(r, MP, (x, y, z, rr) => { if (rr() < 0.6) { const h = 8 + rr() * 10, tr = mesh(S.trunk || (S.trunk = own(new THREE.CylinderGeometry(0.5, 0.8, 1, 8))), mat('#8a5a33'), false); tr.scale.set(1, h, 1); tr.position.set(x, y - 14 + h / 2, z); S.scene.add(tr);
+      for (let k = 0; k < 5; k++) { const a = k / 5 * Math.PI * 2, lf = mesh(S.leaf || (S.leaf = own(new THREE.SphereGeometry(1, 8, 6))), mat(k % 2 ? '#2fa55a' : '#47d16c'), false); lf.scale.set(2.6, 0.5, 1.2); lf.position.set(x + Math.cos(a) * 1.8, y - 14 + h, z + Math.sin(a) * 1.8); lf.rotation.y = -a; S.scene.add(lf); } } });
+  }
+  /* ---------- 9. LE CHÂTEAU ---------- */
+  function buildCastle(r, MP) {
+    sky(MP.sky[0], MP.sky[1]); lights(); S.scene.fog = new THREE.Fog(new THREE.Color(MP.sky[1]).getHex(), 150, 540); S.pathMode = true; S.secAt = [];
+    const c = { x: 0, y: 0, z: -2, yaw: 0 }, st = ['#b9b3d6', '#9a93c4', '#7a6cff', '#ffcf4a'];
+    startPlaza(c);
+    cpAt(c); pStraight(c, 10, 12, st[0]); pDisc(c, 12, st[2]); pStraight(c, 6, 12, st[1]);
+    cpAt(c, c.y - 16);
+    { const [tx, tz, , yhi] = pSpiral(c, 1, 9, 14, 4.6, [st[0], st[1]], '#d9d3f0', true);   // le donjon : on grimpe en spirale
+      const roof = mesh(own(new THREE.ConeGeometry(7.6, 8, 12)), mat('#7a6cff')); roof.position.set(tx, yhi + 7, tz); S.scene.add(roof);
+      const fl = mesh(BOXG, mat('#ff4f9e'), false); fl.scale.set(0.12, 1.2, 1.8); fl.position.set(tx, yhi + 11.7, tz + 0.9); S.scene.add(fl); }
+    pStraight(c, 7, 8, st[1]);
+    cpAt(c, c.y - 14); pBlink(c, 6, ['#c8c4ff', '#7a6cff', '#ffffff']); pStraight(c, 10, 12, st[0]);
+    cpAt(c, c.y - 16); pHammers(c, 38, 3, [st[1], '#ffcf4a', '#ff4f9e', '#7a6cff']);
+    cpAt(c); pArc(c, -Math.PI / 2, 15, 10, st[0], 0, { alt: st[1] }); pCannons(c, 15, 0); pStraight(c, 14, 14, st[0]);
+    cpAt(c, c.y - 18); pStraight(c, 6, 9, st[1]); pZip(c, 40, 12); pStraight(c, 10, 12, st[0]);
+    cpAt(c, c.y - 20); padAt(c, -3, 8, 4); pRamp(c, 30, -9, 11, '#7a6cff', { walls: '#ffcf4a' }); gap(c, 9, -1.5);
+    finishArena(c, '#7a6cff');
+    decorAround(r, MP, (x, y, z, rr) => { if (rr() < 0.35) { const h = 10 + rr() * 14, tw = mesh(S.tower || (S.tower = own(new THREE.CylinderGeometry(2.2, 2.6, 1, 10))), mat('#b9b3d6'), false); tw.scale.set(1, h, 1); tw.position.set(x, y - 12 + h / 2, z); S.scene.add(tw);
+      const rf = mesh(S.troof || (S.troof = own(new THREE.ConeGeometry(2.9, 4, 10))), mat(rr() < 0.5 ? '#7a6cff' : '#ff4f9e'), false); rf.position.set(x, y - 12 + h + 2, z); S.scene.add(rf); } });
+  }
+  /* ---------- 10. LA PLAGE ---------- */
+  function buildBeach(r, MP) {
+    sky(MP.sky[0], MP.sky[1]); lights(); S.scene.fog = new THREE.Fog(new THREE.Color(MP.sky[1]).getHex(), 160, 560); S.pathMode = true; S.secAt = [];
+    const c = { x: 0, y: 0, z: -2, yaw: 0 }, sb = ['#ffe3a0', '#ffd27a', '#3fd0ff', '#ff6f6f'];
+    startPlaza(c);
+    cpAt(c); pStraight(c, 8, 12, sb[0]); pBelt(c, 26, 10, 0, 5); pStraight(c, 6, 12, sb[1]);   // les vagues poussent sur le côté
+    cpAt(c); pArc(c, Math.PI / 2, 15, 10, sb[0], 0, { alt: sb[1] }); pTramp(c, 6); pStraight(c, 16, 12, sb[0]);
+    cpAt(c, c.y - 14); pCannons(c, 16, 2); pStraight(c, 14, 14, sb[1]);
+    cpAt(c, c.y - 16); padAt(c, -3, 8, 4); pRamp(c, 30, -8, 11, '#3fd0ff', { ice: true, walls: sb[3] }); pStraight(c, 8, 12, sb[0]);   // toboggan aquatique
+    cpAt(c, c.y - 14); pBelt(c, 22, 10, 0, -5); pArc(c, -Math.PI / 2, 15, 10, sb[1], 0, { alt: sb[0] });
+    cpAt(c); pElev(c, 10); pStraight(c, 8, 12, sb[0]); pZip(c, 40, 9); pStraight(c, 10, 12, sb[1]);
+    cpAt(c, c.y - 16); pBlink(c, 5, ['#3fd0ff', '#ffe3a0', '#ff6f6f']); pStraight(c, 8, 12, sb[0]);
+    cpAt(c, c.y - 14); padAt(c, -3, 8, 4); pRamp(c, 26, -7, 11, '#ffb13d', { walls: '#3fd0ff' }); gap(c, 9, -1.5);
+    finishArena(c, '#ff6f6f');
+    decorAround(r, MP, (x, y, z, rr) => { if (rr() < 0.5) { const pole = mesh(S.pole || (S.pole = own(new THREE.CylinderGeometry(0.15, 0.15, 6, 6))), mat('#ffffff'), false); pole.position.set(x, y - 8, z); S.scene.add(pole);
+      const um = mesh(S.umb || (S.umb = own(new THREE.ConeGeometry(3, 1.4, 10))), mat(['#ff6f6f', '#3fd0ff', '#ffe14a', '#47d16c'][Math.floor(rr() * 4)]), false); um.position.set(x, y - 4.6, z); S.scene.add(um); } });
+  }
+  /* ---------- 11. LA CITÉ NÉON ---------- */
+  function buildNeon(r, MP) {
+    sky(MP.sky[0], MP.sky[1]); lights(); S.scene.fog = new THREE.Fog(new THREE.Color(MP.sky[1]).getHex(), 170, 600); S.pathMode = true; S.secAt = [];
+    const c = { x: 0, y: 0, z: -2, yaw: 0 }, ne = ['#3a2a6a', '#4b3a8a', '#ff4fd8', '#3fffe0'];
+    startPlaza(c);
+    cpAt(c); pBelt(c, 22, 10, 9); pArc(c, -Math.PI / 2, 14, 9, ne[1], 0, { alt: ne[0] });
+    cpAt(c); pStraight(c, 6, 10, ne[0]); pWallRun(c, 16, ne[2]); pStraight(c, 6, 10, ne[1]); pWallRun(c, 16, ne[3]); pStraight(c, 10, 12, ne[0]);
+    cpAt(c, c.y - 16); pDisc(c, 13, ne[1]); pStraight(c, 6, 12, ne[0]);
+    cpAt(c); pElev(c, 12); pStraight(c, 8, 12, ne[1]); pBlink(c, 5, [ne[2], ne[3], '#ffe14a']); pStraight(c, 8, 12, ne[0]);
+    cpAt(c, c.y - 16); pArc(c, Math.PI / 2, 15, 9, ne[1], 0, { alt: ne[0] }); pFans(c, 2, 3, '#ff4fd8'); pStraight(c, 10, 12, ne[0]);
+    cpAt(c, c.y - 16);
+    pSpiral(c, -1, 9, -14, 4.6, [ne[1], ne[0]], '#ff4fd8', true);   // descente en spirale (bords hauts : pas de raccourci)
+    pStraight(c, 8, 10, ne[0]);
+    cpAt(c, c.y - 14); pCannons(c, 15, 0); pStraight(c, 12, 14, ne[1]);
+    cpAt(c, c.y - 16); padAt(c, -3, 8, 4); pRamp(c, 30, -9, 11, '#ff4fd8', { walls: '#3fffe0' }); gap(c, 9, -1.5);
+    finishArena(c, '#ff4fd8');
+    decorAround(r, MP, (x, y, z, rr) => { if (rr() < 0.45) { const h = 12 + rr() * 26, bd = mesh(BOXG, mat('#241a48'), false); bd.scale.set(5, h, 5); bd.position.set(x, y - 14 + h / 2, z); S.scene.add(bd);
+      const col = rr() < 0.5 ? '#ff4fd8' : '#3fffe0', st = mesh(BOXG, mat(col, { emissive: col, emissiveIntensity: 1.2 }), false); st.scale.set(5.1, 0.35, 5.1); st.position.set(x, y - 14 + h * (0.4 + rr() * 0.5), z); S.scene.add(st); } });
   }
   // distance parcourue le long du tracé (classement, bots)
   function pathProg(x, y, z) {
@@ -2059,7 +2137,7 @@
     if (S.round === 2) { S.r2 = cfg.kind; S.def = Object.assign({}, R2[S.r2], { time: R2[S.r2].score ? R2[S.r2].time + (S.final ? 15 : 0) : S.final ? 90 : 75 }); S.usedR2.push(cfg.kind); try { BR.store.set('br_party_r2', S.r2); } catch (e) {} }
     else { S.def = RACE_DEF; S.usedMaps.push(cfg.map); }
     S.high = S.low = null; S.part = cfg.q.filter(id => S.players.has(id)); S.out = new Set(); S.outOrder = []; S.fin = []; S.decided = false; S.tiles = null; S.tramps = [];
-    S.scene = new THREE.Scene(); S.solids = []; S.haz = []; S.checks = []; S.scroll = []; S.anim = []; S.winds = []; S.pads = []; S.zips = []; S.crs = []; S.path = []; S.pathMode = false; S.finishBox = null; S.gyB = S.gyG = S.canG = S.bulb = null; S.bob = []; S.cloudTex = null; S.seaM = null; S.post = S.flag = S.fanG = S.pine = null; S.crown = S.paint = S.teams = S.spawnFor = S.bomb = null; S.ctime = {}; S.csT = 0;
+    S.scene = new THREE.Scene(); S.solids = []; S.haz = []; S.checks = []; S.scroll = []; S.anim = []; S.winds = []; S.pads = []; S.zips = []; S.crs = []; S.path = []; S.pathMode = false; S.finishBox = null; S.gyB = S.gyG = S.canG = S.bulb = null; S.bob = []; S.cloudTex = null; S.seaM = null; S.post = S.flag = S.fanG = S.pine = S.trunk = S.leaf = S.tower = S.troof = S.pole = S.umb = null; S.crown = S.paint = S.teams = S.spawnFor = S.bomb = null; S.ctime = {}; S.csT = 0;
     initFx();
     if (S.round === 1) buildCourse(cfg.map); else buildSpin(S.r2);
     if (S.round === 1 && !S.pathMode) S.checks.sort((a, b) => a.z - b.z);
