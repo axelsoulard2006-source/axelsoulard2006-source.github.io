@@ -267,6 +267,7 @@
       n.querySelectorAll('.gcard').forEach(c => c.addEventListener('click', () => {
         const g = BR.GAMES.find(x => x.id === c.dataset.game);
         if (!g.ready) { Au.ui('error'); UI.toast('Ce jeu arrive bientôt !'); return; }
+        if (g.id === 'blocs') { Au.ui('ok'); location.href = 'blocs/index.html'; return; }
         Au.ui('ok'); BR.ascMode = g.id === 'ascension';
         UI.show(g.id === 'ascension' ? 'asc' : g.id === 'colosses' ? 'arena' : g.id === 'portes' ? 'portes' : g.id === 'bousculade' ? 'party' : 'main');
       }));

@@ -7,6 +7,7 @@
     { id: 'ascension', name: 'COLOSSES', sub: 'L\'ASCENSION', tag: 'Roguelite en équipe · 10 étages', desc: 'Grimpez une tour de 10 étages entre amis : hordes, élites, gardiens géants. Choisissez des bénédictions qui se combinent, votez pour la prochaine porte, relevez vos potes. Chaque course est différente.', ready: true, hue: 28, pres: 'colosses', isNew: true },
     { id: 'colosses', name: 'COLOSSES', sub: 'CLASSIQUE', tag: 'Boss en équipe · Duels', desc: 'La version d\'origine : boss géants, duels entre amis, compétences à la roulette.', ready: true, hue: 18, old: true },
     { id: 'bousculade', name: 'BOUSCULADE', tag: 'Party game · jusqu\'à 8 potes', desc: 'Course d\'obstacles ultra rapide : sauts muraux, toboggans, trampolines, un parcours différent à chaque partie, puis survie sur un plateau qui s\'effrite. Saute, plonge, bouscule… le dernier debout gagne !', ready: true, hue: 320, isNew: true },
+    { id: 'blocs', name: 'BLOCARIA', tag: 'Bac à sable de blocs · solo', desc: 'Un monde infini de blocs à creuser et construire : outils, établi, four, survie ou créatif, et un portail d’obsidienne vers les Braises, la dimension de feu où se cache l’astrium. Ta partie est sauvegardée dans ton navigateur.', ready: true, hue: 110, isNew: true },
     { id: 'portes', name: 'PORTES', tag: 'Salles à défis · quiz BUT GMP', desc: 'Une suite de salles toutes différentes : lave, plancher pourri, 1-2-3 soleil, lasers, labyrinthe, digicode… entre deux questions de génie mécanique. Attention à ce qui te poursuit.', ready: true, hue: 135 },
   ];
 
