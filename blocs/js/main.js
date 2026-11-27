@@ -157,7 +157,7 @@
   document.addEventListener('pointerlockchange', () => { locked = document.pointerLockElement === canvas; if (!locked && !UI.open && !UI.menuOpen && G.player.hp > 0) UI.menu('pause'); });
   canvas.addEventListener('mousedown', e => {
     if (!locked) { if (!UI.open && !UI.menuOpen) canvas.requestPointerLock(); return; }
-    if (e.button === 0) mining = true; else if (e.button === 2) { useItem(); useCd = 0.25; G.rmb = true; }
+    if (e.button === 0) { if (!H.emit('attack', { origin: eyeV.clone(), dir: dirV.clone(), reach: 3.5 })) return; mining = true; } else if (e.button === 2) { useItem(); useCd = 0.25; G.rmb = true; }
   });
   document.addEventListener('mouseup', e => { if (e.button === 0) { mining = false; mineT = 0; UI.mining(0); } if (e.button === 2) G.rmb = false; });
   canvas.addEventListener('contextmenu', e => e.preventDefault());
@@ -269,6 +269,7 @@
     R.render();
   }
 
+  G.hurt = n => hurt(n); G.dropItem = dropItem; G.scene = scene;
   G._dbg = { breakBlock: t => breakBlock(t), useItem: () => useItem(), lightPortal, travel, setTarget: t => { target = t; }, dropItem, useWorld, tick: dt => tick(last + dt * 1000) };   // tests
   /* ---------- démarrage ---------- */
   UI.init(G);

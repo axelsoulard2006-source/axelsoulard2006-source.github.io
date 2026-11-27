@@ -10,7 +10,7 @@
     PORTAIL: 26, TORCHE: 27, LAVE: 28, B_FER: 29, B_OR: 30, B_SAPHIR: 31, BRIQUES: 32, SOCLE: 33, NEIGE: 34, BRAISIER: 35,
   };
   const I = {
-    BATON: 100, CHARBON: 101, L_FER: 102, L_OR: 103, SAPHIR: 104, ECLAT: 105, L_ASTRIUM: 106, POMME: 107, ALLUMEUR: 108, MORCEAU: 109, ROTI: 110,
+    BATON: 100, CHARBON: 101, L_FER: 102, L_OR: 103, SAPHIR: 104, ECLAT: 105, L_ASTRIUM: 106, POMME: 107, ALLUMEUR: 108, MORCEAU: 109, ROTI: 110, VIANDE: 111, STEAK: 112, ESSENCE: 113,
   };
   VX.B = B; VX.I = I;
   const D = VX.BLOCKS = [];
@@ -67,6 +67,9 @@
   it(I.ALLUMEUR, 'Allumeur de portail', 'igniter', { stack: 1, dura: 64 });
   it(I.MORCEAU, 'Morceau de chapeau', 'cap_piece', { food: 2 });
   it(I.ROTI, 'Champignon rôti', 'roast', { food: 7 });
+  it(I.VIANDE, 'Viande de bouffi', 'meat', { food: 3 });
+  it(I.STEAK, 'Bouffi rôti', 'steak', { food: 8 });
+  it(I.ESSENCE, 'Essence d’ombre', 'essence', { fuel: 60 });
   VX.TIERS = [
     { key: 'bois', name: 'en bois', col: '#b08a52', speed: 2, dura: 60, dmg: 4 },
     { key: 'pierre', name: 'en pierre', col: '#8d8d92', speed: 4, dura: 132, dmg: 5 },
@@ -120,7 +123,7 @@
   // cuisson : entrée -> sortie
   VX.SMELT = {
     [B.SABLE]: B.VERRE, [B.GALETS]: B.PIERRE, [B.M_FER]: I.L_FER, [B.M_OR]: I.L_OR, [B.M_CHARBON]: I.CHARBON, [B.M_SAPHIR]: I.SAPHIR,
-    [B.TRONC]: I.CHARBON, [B.TIGE]: I.CHARBON, [B.M_ASTRIUM]: I.ECLAT, [I.MORCEAU]: I.ROTI, [B.CHAPEAU]: I.ROTI, [B.CENDRITE]: B.BRIQUES,
+    [B.TRONC]: I.CHARBON, [B.TIGE]: I.CHARBON, [B.M_ASTRIUM]: I.ECLAT, [I.MORCEAU]: I.ROTI, [I.VIANDE]: I.STEAK, [B.CHAPEAU]: I.ROTI, [B.CENDRITE]: B.BRIQUES,
   };
 
   /* ---------- API du registre : ajouter du contenu sans toucher au moteur ---------- */
