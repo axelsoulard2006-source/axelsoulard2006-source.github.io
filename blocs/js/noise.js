@@ -1,6 +1,6 @@
 /* ===== noise.js : bruit de Perlin 2D/3D (graine), fbm et hachage déterministe ===== */
 (function () {
-  const VX = window.VX = window.VX || {};
+  const VX = self.VX = self.VX || {};
   VX.makeNoise = function (seed) {
     let s = (seed >>> 0) || 1;
     const rnd = () => (s = (Math.imul(s, 1664525) + 1013904223) >>> 0) / 4294967296;

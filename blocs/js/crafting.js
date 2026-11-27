@@ -1,32 +1,6 @@
-/* ===== crafting.js : recettes (grille 2×2 et 3×3, avec ou sans forme) et cuisson au four ===== */
+/* ===== crafting.js : logique de fabrication (grilles 2×2 / 3×3) et des fours (les recettes sont dans registry.js) ===== */
 (function () {
-  const VX = window.VX, B = VX.B, I = VX.I;
-  const R = VX.RECIPES = [];
-  // forme : lignes de caractères, clé : caractère -> id (ou liste d'ids acceptés)
-  const shaped = (rows, keys, out, n) => R.push({ rows, keys, out, n: n || 1 });
-  const shapeless = (items, out, n) => R.push({ items, out, n: n || 1 });
-
-  shapeless([B.TRONC], B.PLANCHES, 4);
-  shapeless([B.TIGE], B.PLANCHES, 4);
-  shaped(['P', 'P'], { P: B.PLANCHES }, I.BATON, 4);
-  shaped(['PP', 'PP'], { P: B.PLANCHES }, B.ETABLI);
-  shaped(['GGG', 'G G', 'GGG'], { G: [B.GALETS, B.CENDRITE] }, B.FOUR);
-  shaped(['C', 'S'], { C: I.CHARBON, S: I.BATON }, B.TORCHE, 4);
-  shaped(['C', 'S'], { C: B.LUMICRISTAL, S: I.BATON }, B.TORCHE, 6);
-  shaped(['PP', 'PP'], { P: B.PIERRE }, B.BRIQUES, 4);
-  shaped(['F ', ' C'], { F: I.L_FER, C: [I.CHARBON, I.ECLAT] }, I.ALLUMEUR);
-  shapeless([I.ECLAT, I.ECLAT, I.ECLAT, I.ECLAT, I.L_OR], I.L_ASTRIUM);
-  // blocs de stockage et retour
-  for (const [ing, blk] of [[I.L_FER, B.B_FER], [I.L_OR, B.B_OR], [I.SAPHIR, B.B_SAPHIR], [I.L_ASTRIUM, B.B_ASTRIUM]]) {
-    shaped(['XXX', 'XXX', 'XXX'], { X: ing }, blk);
-    shapeless([blk], ing, 9);
-  }
-  shaped(['XXX', 'XXX', 'XXX'], { X: I.CHARBON }, B.BRAISIER);
-  // outils des 5 matériaux
-  const MAT = [[B.PLANCHES, B.TIGE], [B.GALETS, B.CENDRITE, B.BASALTE], I.L_FER, I.SAPHIR, I.L_ASTRIUM];
-  const SHAPES = { pioche: ['XXX', ' S ', ' S '], hache: ['XX', 'XS', ' S'], pelle: ['X', 'S', 'S'], epee: ['X', 'X', 'S'] };
-  MAT.forEach((m, ti) => VX.TOOLS.forEach(k => shaped(SHAPES[k], { X: m, S: I.BATON }, VX.toolId(ti, k))));
-
+  const VX = window.VX, R = VX.RECIPES;
   const ok = (want, id) => Array.isArray(want) ? want.includes(id) : want === id;
   // grille : tableau de w*w ids (0 = vide)
   VX.craft = function (grid, w) {
@@ -55,11 +29,6 @@
     return null;
   };
 
-  // cuisson : entrée -> sortie
-  VX.SMELT = {
-    [B.SABLE]: B.VERRE, [B.GALETS]: B.PIERRE, [B.M_FER]: I.L_FER, [B.M_OR]: I.L_OR, [B.M_CHARBON]: I.CHARBON, [B.M_SAPHIR]: I.SAPHIR,
-    [B.TRONC]: I.CHARBON, [B.TIGE]: I.CHARBON, [B.M_ASTRIUM]: I.ECLAT, [I.MORCEAU]: I.ROTI, [B.CHAPEAU]: I.ROTI, [B.CENDRITE]: B.BRIQUES,
-  };
   VX.SMELT_T = 8;   // secondes par objet
   // un four : { in, fuel, out, burn, burnMax, prog } (piles {id, n} ou null)
   VX.furnaceTick = function (f, dt) {

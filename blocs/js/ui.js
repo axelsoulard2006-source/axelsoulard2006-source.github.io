@@ -121,7 +121,7 @@
         if (shift) { if (!G.canGive(r.id, r.n)) break; G.give(st.id, st.n, st.d); }
         else { if (G.cursor && !(same(G.cursor, st) && G.cursor.n + st.n <= max(st))) break; if (G.cursor) G.cursor.n += st.n; else G.cursor = st; }
         grid(w).forEach((s, i) => { if (s) { s.n--; if (s.n <= 0) grid(w)[i] = null; } });
-        G.sfx('craft');
+        G.sfx('craft'); VX.hooks.emit('craft', { id: r.id, n: r.n });
       }
       renderInv(); UI.hud(); return;
     }
@@ -161,7 +161,7 @@
       const help = `<div class="keys"><b>ZQSD</b> se déplacer · <b>Espace</b> sauter (2× en créatif : voler) · <b>Maj</b> s'accroupir / descendre · <b>Ctrl</b> courir<br><b>Clic gauche</b> casser · <b>Clic droit</b> poser / utiliser / manger · <b>E</b> inventaire · <b>1-9</b> ou molette : barre rapide · <b>A</b> jeter · <b>G</b> survie / créatif</div>`;
       m.innerHTML = kind === 'aide'
         ? `<h2>BLOCARIA</h2><p class="sub">Bac à sable de blocs · Surface et Braises</p>${help}<p>Fabrique un établi (4 planches), des outils, un four… Trouve de l'obsidienne, construis un cadre (4 de large, 5 de haut) et allume-le avec l'<b>allumeur</b> pour passer dans <b>les Braises</b>, où se cache l'astrium.</p><button data-a="play">Jouer</button>`
-        : `<h2>Pause</h2>${help}<div class="row"><button data-a="play">Reprendre</button><button data-a="mode">Mode : ${G.mode === 'creatif' ? 'Créatif' : 'Survie'}</button></div>
+        : `<h2>Pause</h2>${help}<div class="row"><button data-a="play">Reprendre</button><button data-a="mode">Mode : ${G.mode === 'creatif' ? 'Créatif' : 'Survie'}</button><button data-a="gfx">Rendu : ${VX.fastMesh ? 'Rapide' : 'Beau'}</button></div>
           <div class="row"><button data-a="save">Sauvegarder</button><button data-a="export">Exporter le monde</button><button data-a="import">Importer</button></div>
           <div class="row"><label class="dist">Distance de vue <input type="range" min="2" max="7" step="1" value="${G.R}"></label></div>
           <div class="row"><button data-a="new" class="warn">Nouveau monde</button><button data-a="quit">Retour au site</button></div><p class="small">Graine : ${G.seed} · ${G.dimName()}</p>`;

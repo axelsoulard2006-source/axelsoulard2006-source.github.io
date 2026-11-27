@@ -1,6 +1,6 @@
-/* ===== blocks.js : blocs, objets, outils, nourriture, combustibles ===== */
+/* ===== registry.js : registre central — blocs, objets, outils, recettes, cuisson, combustibles (sans DOM : utilisable dans le Worker) ===== */
 (function () {
-  const VX = window.VX;
+  const VX = self.VX;
   // tool : outil qui va vite ; tier : niveau d'outil minimum pour récupérer le bloc (-1 = à la main)
   // drop : ce que donne le bloc (id, ou fonction(rnd) -> [id, n] / null)
   const B = {
@@ -89,4 +89,48 @@
   VX.CREATIVE = [B.HERBE, B.TERRE, B.PIERRE, B.GALETS, B.BRIQUES, B.TRONC, B.PLANCHES, B.FEUILLES, B.SABLE, B.VERRE, B.NEIGE, B.OBSIDIENNE, B.ETABLI, B.FOUR, B.TORCHE,
     B.M_CHARBON, B.M_FER, B.M_OR, B.M_SAPHIR, B.B_FER, B.B_OR, B.B_SAPHIR, B.CENDRITE, B.MOUSSE, B.TIGE, B.CHAPEAU, B.BASALTE, B.LUMICRISTAL, B.BRAISIER, B.M_ASTRIUM, B.B_ASTRIUM,
     I.BATON, I.CHARBON, I.L_FER, I.L_OR, I.SAPHIR, I.ECLAT, I.L_ASTRIUM, I.POMME, I.ROTI, I.ALLUMEUR].concat(VX.TIERS.flatMap((t, ti) => VX.TOOLS.map(k => VX.toolId(ti, k))));
+
+  /* ---------- recettes ---------- */
+  const R = VX.RECIPES = [];
+  // forme : lignes de caractères, clé : caractère -> id (ou liste d'ids acceptés)
+  const shaped = (rows, keys, out, n) => R.push({ rows, keys, out, n: n || 1 });
+  const shapeless = (items, out, n) => R.push({ items, out, n: n || 1 });
+
+  shapeless([B.TRONC], B.PLANCHES, 4);
+  shapeless([B.TIGE], B.PLANCHES, 4);
+  shaped(['P', 'P'], { P: B.PLANCHES }, I.BATON, 4);
+  shaped(['PP', 'PP'], { P: B.PLANCHES }, B.ETABLI);
+  shaped(['GGG', 'G G', 'GGG'], { G: [B.GALETS, B.CENDRITE] }, B.FOUR);
+  shaped(['C', 'S'], { C: I.CHARBON, S: I.BATON }, B.TORCHE, 4);
+  shaped(['C', 'S'], { C: B.LUMICRISTAL, S: I.BATON }, B.TORCHE, 6);
+  shaped(['PP', 'PP'], { P: B.PIERRE }, B.BRIQUES, 4);
+  shaped(['F ', ' C'], { F: I.L_FER, C: [I.CHARBON, I.ECLAT] }, I.ALLUMEUR);
+  shapeless([I.ECLAT, I.ECLAT, I.ECLAT, I.ECLAT, I.L_OR], I.L_ASTRIUM);
+  // blocs de stockage et retour
+  for (const [ing, blk] of [[I.L_FER, B.B_FER], [I.L_OR, B.B_OR], [I.SAPHIR, B.B_SAPHIR], [I.L_ASTRIUM, B.B_ASTRIUM]]) {
+    shaped(['XXX', 'XXX', 'XXX'], { X: ing }, blk);
+    shapeless([blk], ing, 9);
+  }
+  shaped(['XXX', 'XXX', 'XXX'], { X: I.CHARBON }, B.BRAISIER);
+  // outils des 5 matériaux
+  const MAT = [[B.PLANCHES, B.TIGE], [B.GALETS, B.CENDRITE, B.BASALTE], I.L_FER, I.SAPHIR, I.L_ASTRIUM];
+  const SHAPES = { pioche: ['XXX', ' S ', ' S '], hache: ['XX', 'XS', ' S'], pelle: ['X', 'S', 'S'], epee: ['X', 'X', 'S'] };
+  MAT.forEach((m, ti) => VX.TOOLS.forEach(k => shaped(SHAPES[k], { X: m, S: I.BATON }, VX.toolId(ti, k))));
+
+  // cuisson : entrée -> sortie
+  VX.SMELT = {
+    [B.SABLE]: B.VERRE, [B.GALETS]: B.PIERRE, [B.M_FER]: I.L_FER, [B.M_OR]: I.L_OR, [B.M_CHARBON]: I.CHARBON, [B.M_SAPHIR]: I.SAPHIR,
+    [B.TRONC]: I.CHARBON, [B.TIGE]: I.CHARBON, [B.M_ASTRIUM]: I.ECLAT, [I.MORCEAU]: I.ROTI, [B.CHAPEAU]: I.ROTI, [B.CENDRITE]: B.BRIQUES,
+  };
+
+  /* ---------- API du registre : ajouter du contenu sans toucher au moteur ---------- */
+  VX.registry = {
+    block(id, name, tex, opts) { def(id, name, typeof tex === 'string' ? T(tex) : tex, opts); return D[id]; },
+    item(id, name, icon, opts) { it(id, name, icon, opts); return IT[id]; },
+    shaped(rows, keys, out, n) { shaped(rows, keys, out, n); },
+    shapeless(items, out, n) { shapeless(items, out, n); },
+    smelt(input, output) { VX.SMELT[input] = output; },
+    fuel(id, seconds) { FUEL[id] = seconds; },
+    creative(id) { if (!VX.CREATIVE.includes(id)) VX.CREATIVE.push(id); },
+  };
 })();

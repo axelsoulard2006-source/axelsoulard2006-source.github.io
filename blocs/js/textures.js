@@ -95,6 +95,8 @@
     atlas, tex, names,
     uv(name) { const i = idx[name] != null ? idx[name] : 0, u0 = (i % COLS) / COLS, v0 = 1 - (Math.floor(i / COLS) + 1) / COLS; return [u0 + E, v0 + E, u0 + 1 / COLS - E, v0 + 1 / COLS - E]; },
     has: name => idx[name] != null,
+    // pour le Worker : nom -> index de tuile, et coin bas-gauche (u, v) de chaque tuile dans l'atlas
+    workerTiles() { if (this._wt) return this._wt; const origins = names.map((n, i) => [(i % COLS) / COLS, 1 - (Math.floor(i / COLS) + 1) / COLS]); return (this._wt = { tiles: Object.assign({}, idx), origins }); },
     src(name) { const i = idx[name] || 0; return [(i % COLS) * N, Math.floor(i / COLS) * N]; },
   };
 

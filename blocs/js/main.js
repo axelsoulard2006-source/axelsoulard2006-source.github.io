@@ -2,26 +2,16 @@
 (function () {
   const VX = window.VX, B = VX.B, I = VX.I, D = VX.BLOCKS;
   const SAVE_KEY = 'blocaria_save_v1', SET_KEY = 'blocaria_set_v1';
-  const canvas = document.getElementById('gl');
-  const R3 = new THREE.WebGLRenderer({ canvas, antialias: false, powerPreference: 'high-performance' });
-  R3.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.5));
-  const scene = new THREE.Scene(), camera = new THREE.PerspectiveCamera(75, 1, 0.05, 400);
-  const resize = () => { R3.setSize(window.innerWidth, window.innerHeight, false); camera.aspect = window.innerWidth / window.innerHeight; camera.updateProjectionMatrix(); };
-  window.addEventListener('resize', resize); resize();
-  const outline = new THREE.LineSegments(new THREE.EdgesGeometry(new THREE.BoxGeometry(1.004, 1.004, 1.004)), new THREE.LineBasicMaterial({ color: 0x101010 }));
-  outline.visible = false; scene.add(outline);
-  // étoiles (surface, la nuit)
-  const stars = (() => { const g = new THREE.BufferGeometry(), p = [], r = VX.rng(5); for (let i = 0; i < 500; i++) { const a = r() * 6.283, e = r() * 1.3 + 0.1, d = 300; p.push(Math.cos(a) * Math.cos(e) * d, Math.sin(e) * d, Math.sin(a) * Math.cos(e) * d); } g.setAttribute('position', new THREE.Float32BufferAttribute(p, 3)); return new THREE.Points(g, new THREE.PointsMaterial({ color: 0xffffff, size: 1.6, sizeAttenuation: false, fog: false, transparent: true })); })();
-  scene.add(stars);
-  const sunM = new THREE.Mesh(new THREE.PlaneGeometry(30, 30), new THREE.MeshBasicMaterial({ color: 0xfff3b0, fog: false })); scene.add(sunM);
+  const R = VX.R, canvas = R.gl.domElement, scene = R.scene, camera = R.camera, outline = R.outline;
+  const H = VX.hooks;
 
   const G = VX.G = {
     inv: Array(36).fill(null), sel: 0, cursor: null, craft2: Array(4).fill(null), craft3: Array(9).fill(null),
     mode: 'survie', R: 4, seed: 0, dim: 'surface', mods: { surface: {}, braises: {} }, worlds: {}, furnaces: {}, links: {}, items: [], time: 0.28,
     player: new VX.Player(), spawn: null, world: null,
   };
-  try { const s = JSON.parse(localStorage.getItem(SET_KEY) || '{}'); if (s.R) G.R = s.R; } catch (e) {}
-  G.saveSettings = () => { try { localStorage.setItem(SET_KEY, JSON.stringify({ R: G.R })); } catch (e) {} };
+  try { const s = JSON.parse(localStorage.getItem(SET_KEY) || '{}'); if (s.R) G.R = s.R; VX.fastMesh = !!s.fast; } catch (e) {}
+  G.saveSettings = () => { try { localStorage.setItem(SET_KEY, JSON.stringify({ R: G.R, fast: !!VX.fastMesh })); } catch (e) {} };
   G.dimName = () => G.dim === 'braises' ? 'Les Braises' : 'La Surface';
 
   /* ---------- sons (petit synthé) ---------- */
@@ -50,15 +40,12 @@
   const UI = VX.UI;
 
   /* ---------- mondes et dimensions ---------- */
-  const SKY = { surface: { day: new THREE.Color('#8fd0ff'), night: new THREE.Color('#0b1030') }, braises: new THREE.Color('#3a1838') };
   function useWorld(dim) {
     if (G.world) { scene.remove(G.world.group); G.world.unloadAll(); }
     G.dim = dim; G.world = new VX.World(G.seed, dim, G.mods[dim] = G.mods[dim] || {}); scene.add(G.world.group);
     for (const it of G.items) if (it.sprite) it.sprite.visible = it.dim === dim;
-    stars.visible = sunM.visible = dim === 'surface';
-    scene.fog = new THREE.Fog(0x000000, 10, 100);
   }
-  function preload() { const p = G.player.pos; for (let k = 0; k < 40; k++) if (!G.world.update(p.x, p.z, Math.min(2, G.R), { gen: 30, mesh: 30 })) break; }
+  function preload() { const p = G.player.pos; G.world.preload(p.x, p.z, 1); }
 
   /* ---------- objets au sol ---------- */
   function dropItem(id, n, pos, vel, d) {
@@ -78,7 +65,7 @@
       if (!sol(it.pos.x, ny - 0.18, it.pos.z)) it.pos.y = ny; else { it.pos.y = Math.floor(ny - 0.18) + 1.18; it.vel.y = 0; }
       it.sprite.position.set(it.pos.x, it.pos.y + Math.sin(it.age * 3) * 0.06, it.pos.z);
       const dx = P.pos.x - it.pos.x, dy = P.pos.y + 0.8 - it.pos.y, dz = P.pos.z - it.pos.z;
-      if (it.age > it.pick && dx * dx + dy * dy + dz * dz < 2.6 && G.canGive(it.id, it.n)) { G.giveRange({ id: it.id, n: it.n, d: it.d }, 0, 36); scene.remove(it.sprite); G.items.splice(i, 1); G.sfx('pop'); UI.hud(); }
+      if (it.age > it.pick && dx * dx + dy * dy + dz * dz < 2.6 && G.canGive(it.id, it.n)) { G.giveRange({ id: it.id, n: it.n, d: it.d }, 0, 36); H.emit('itemPickup', { id: it.id, n: it.n }); scene.remove(it.sprite); G.items.splice(i, 1); G.sfx('pop'); UI.hud(); }
     }
   }
 
@@ -98,6 +85,7 @@
     while (todo.length) { const [a, b2, c] = todo.pop(); const k = a + ',' + b2 + ',' + c; if (seen.has(k) || seen.size > 600) continue; seen.add(k); if (w.getG(a, b2, c) !== B.PORTAIL) continue; w.set(a, b2, c, B.AIR); todo.push([a + 1, b2, c], [a - 1, b2, c], [a, b2 + 1, c], [a, b2 - 1, c], [a, b2, c + 1], [a, b2, c - 1]); }
   }
   function breakBlock(t) {
+    if (!H.emit('blockBreak', { x: t.x, y: t.y, z: t.z, id: t.id, dim: G.dim, player: G.player })) return;
     const w = G.world, b = D[t.id]; w.set(t.x, t.y, t.z, B.AIR); G.sfx('break');
     const dr = blockDrops(b); if (dr) dropItem(dr[0], dr[1], new THREE.Vector3(t.x + 0.5, t.y + 0.5, t.z + 0.5));
     if (t.id === B.FOUR) { const k = fKey(t.x, t.y, t.z), f = G.furnaces[k]; if (f) { for (const s of [f.in, f.fuel, f.out]) if (s) dropItem(s.id, s.n, new THREE.Vector3(t.x + 0.5, t.y + 0.5, t.z + 0.5)); delete G.furnaces[k]; } }
@@ -122,6 +110,7 @@
     if (y < 0 || y >= VX.H || (cur && cur.id !== B.AIR && !cur.liquid)) return;
     const nb = D[st.id]; if (nb.solid && intersectsPlayer(x, y, z)) return;
     if (st.id === B.TORCHE && !(D[w.getG(x, y - 1, z)] || {}).solid) return;
+    if (!H.emit('blockPlace', { x, y, z, id: st.id, dim: G.dim, player: P })) return;
     w.set(x, y, z, st.id); G.sfx('place');
     if (G.mode !== 'creatif') { st.n--; if (st.n <= 0) G.inv[G.sel] = null; }
     UI.hud();
@@ -148,7 +137,7 @@
   function travel() {
     const P = G.player, from = G.dim, to = from === 'surface' ? 'braises' : 'surface';
     const lk = from + ':' + Math.floor(P.pos.x / 8) + ',' + Math.floor(P.pos.z / 8), link = G.links[lk];
-    useWorld(to);
+    useWorld(to); H.emit('dimensionChange', { from, to });
     let dest;
     if (link) dest = { x: link.x, y: link.y, z: link.z };
     else {
@@ -190,6 +179,7 @@
   G.menuAction = function (a) {
     if (a === 'play') { UI.menu(null); canvas.requestPointerLock(); }
     else if (a === 'respawn') { const P = G.player; P.hp = 20; P.food = 20; P.sat = 5; if (G.dim !== 'surface') useWorld('surface'); P.pos.set(G.spawn.x, G.spawn.y + 0.2, G.spawn.z); P.vel.set(0, 0, 0); P.fallTop = null; preload(); UI.menu(null); UI.hud(); canvas.requestPointerLock(); }
+    else if (a === 'gfx') { VX.fastMesh = !VX.fastMesh; G.saveSettings(); G.world.remeshAll(); UI.menu('pause'); }
     else if (a === 'mode') setMode(G.mode === 'creatif' ? 'survie' : 'creatif');
     else if (a === 'save') { G.save(); }
     else if (a === 'export') { G.save(true); const blob = new Blob([localStorage.getItem(SAVE_KEY) || JSON.stringify(state())], { type: 'application/json' }), u = URL.createObjectURL(blob), l = document.createElement('a'); l.href = u; l.download = 'blocaria-monde-' + G.seed + '.json'; l.click(); setTimeout(() => URL.revokeObjectURL(u), 2000); }
@@ -234,6 +224,7 @@
     if (!paused) {
       const inp = locked && !UI.open ? { f: keys.KeyW, b: keys.KeyS, l: keys.KeyA, r: keys.KeyD, jump: keys.Space, sneak: keys.ShiftLeft || keys.ShiftRight, sprint: keys.ControlLeft || keys.ControlRight } : {};
       const fall = P.step(w, inp, dt, G.mode === 'creatif'); if (fall) hurt(fall);
+      H.emit('playerTick', { dt, player: P });
       // faim et vie
       if (G.mode === 'survie') {
         P.exh += dt * 0.04;
@@ -267,24 +258,15 @@
       P.hurtT = Math.max(0, P.hurtT - dt);
     }
     // monde autour du joueur
-    w.update(P.pos.x, P.pos.z, G.R, { gen: 2, mesh: 2 });
-    // ciel, lumière, brouillard
-    let sky, light;
-    if (G.dim === 'surface') {
-      const s = Math.sin(G.time * Math.PI * 2), k = Math.max(0, Math.min(1, s * 2.2 + 0.45)); light = 0.22 + 0.78 * k;
-      sky = SKY.surface.night.clone().lerp(SKY.surface.day, k); stars.material.opacity = 1 - k;
-      const ang = G.time * Math.PI * 2; sunM.position.set(P.pos.x + Math.cos(ang) * 250, Math.sin(ang) * 250, P.pos.z + 40); sunM.lookAt(P.pos.x, P.eye, P.pos.z);
-      sunM.material.color.set(s > 0 ? 0xfff3b0 : 0xdde6ff);
-      w.matO.color.setScalar(light); w.matT.color.setScalar(Math.max(0.35, light));
-    } else { light = 0.9; sky = SKY.braises; w.matO.color.setRGB(1, 0.9, 0.92); w.matT.color.setRGB(1, 0.92, 0.95); }
-    const under = P.eyeWater;
-    scene.background = under === 1 ? new THREE.Color('#1c3f8a') : under === 2 ? new THREE.Color('#c84a10') : sky;
-    scene.fog.color.copy(scene.background); scene.fog.near = under ? 1 : G.dim === 'braises' ? 8 : G.R * 16 * 0.55; scene.fog.far = under ? (under === 2 ? 3 : 14) : G.dim === 'braises' ? G.R * 16 * 0.75 : G.R * 16 * 0.95;
+    G.world.update(P.pos.x, P.pos.z, G.R);
+    // ciel, lumière, brouillard (renderer.js)
+    const under = P.eyeWater; R.sky(G.dim, G.time, P, G.R, under);
     camera.position.set(P.pos.x, P.eye, P.pos.z); camera.rotation.set(P.pitch, P.yaw, 0, 'YXZ');
     camera.fov += ((P.sprint ? 84 : 75) - camera.fov) * Math.min(1, dt * 8); camera.updateProjectionMatrix();
     UI.fx(under, P.hurtT > 0 ? P.hurtT * 1.5 : 0, Math.min(1, (G.portalT || 0) / 2.2));
     if ((G.infoT = (G.infoT || 0) - dt) <= 0) { G.infoT = 0.25; UI.info(`${G.dimName()} · X ${Math.floor(P.pos.x)}  Y ${Math.floor(P.pos.y)}  Z ${Math.floor(P.pos.z)} · ${G.mode === 'creatif' ? 'Créatif' + (P.fly ? ' (vol)' : '') : 'Survie'}`); }
-    R3.render(scene, camera);
+    H.emit('renderFrame', { dt, time: G.time, scene, camera });
+    R.render();
   }
 
   G._dbg = { breakBlock: t => breakBlock(t), useItem: () => useItem(), lightPortal, travel, setTarget: t => { target = t; }, dropItem, useWorld, tick: dt => tick(last + dt * 1000) };   // tests
