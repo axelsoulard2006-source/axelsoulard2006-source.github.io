@@ -74,6 +74,7 @@
 #party .pt-card button{border:0;border-radius:14px;padding:12px 20px;font-weight:900;font-size:16px;cursor:pointer;background:#6a5cff;color:#fff;box-shadow:0 5px 0 #4636c9}
 #party .pt-card button.alt{background:#ff4f9e;box-shadow:0 5px 0 #c42a74}
 #party .pt-card button:active{transform:translateY(3px);box-shadow:0 2px 0 #4636c9}
+#party .pt-set{display:grid;gap:10px;margin:6px 0 16px;font-weight:800;font-size:14px}#party .pt-set label{display:grid;grid-template-columns:1fr 1.3fr;align-items:center;gap:10px}#party .pt-set select{font:inherit;padding:4px 8px;border-radius:8px}#party .pt-set input[type=range]{-webkit-appearance:auto!important;appearance:auto!important;width:100%;accent-color:#ff4f9e;background:transparent!important;height:auto!important}
 #party .pt-gain{text-align:center;font-weight:900;color:#2a9a55;margin-bottom:12px}
 .pt-rk{--rc:#c77b3b;display:grid;grid-template-columns:1fr auto;gap:4px 10px;align-items:center;margin:8px auto 12px;max-width:420px;padding:10px 14px;border-radius:14px;background:linear-gradient(135deg,color-mix(in srgb,var(--rc) 22%,#fff),#fff);border:3px solid var(--rc);color:#2a1a4a;box-shadow:0 4px 0 color-mix(in srgb,var(--rc) 60%,#000)}
 .pt-rk b{font-size:20px;font-weight:900;color:color-mix(in srgb,var(--rc) 70%,#000)}.pt-rk span{font-weight:900;font-size:16px}
@@ -2160,7 +2161,7 @@
     const x = tx + ux * d, y = ty + uy * d, z = tz + uz * d;
     const kk = Math.min(1, dt * 12), near = d < S.camD - 0.3; S.camD = d;
     if (near) { S.camP.set(x, y, z); } else { S.camP.x += (x - S.camP.x) * kk; S.camP.y += (y - S.camP.y) * Math.min(1, dt * 8); S.camP.z += (z - S.camP.z) * kk; }
-    S.shake = Math.max(0, S.shake - dt * 1.6); const sh = S.shake * S.shake * 0.6;
+    S.shake = Math.max(0, S.shake - dt * 1.6); const sh = S.shake * S.shake * 0.6 * (BR.settings.shake != null ? BR.settings.shake : 1);
     S.cam.position.set(S.camP.x + (Math.random() - 0.5) * sh, S.camP.y + (Math.random() - 0.5) * sh, S.camP.z + (Math.random() - 0.5) * sh);
     S.cam.lookAt(tx, ty, tz);
     S.cam.fov += (68 + clamp(spd - 12, 0, 12) * 0.8 - S.cam.fov) * Math.min(1, dt * 5); S.cam.updateProjectionMatrix();
@@ -2489,8 +2490,10 @@
   function pauseMenu() {
     if (S.paused) { S.paused = false; DOM.panel.classList.remove('on'); lock(); return; }
     S.paused = true; unlock();
-    DOM.card.innerHTML = `<h2>PAUSE</h2><p>${S.solo ? 'Le jeu continue de tourner derrière.' : 'La partie continue pour les autres !'}</p><div class="pt-b"><button data-a="back">Reprendre</button><button class="alt" data-a="quit">Quitter la partie</button></div>`;
+    DOM.card.innerHTML = `<h2>PAUSE</h2><p>${S.solo ? 'Le jeu continue de tourner derrière.' : 'La partie continue pour les autres !'}</p><div class="pt-set"><label>Sensibilité souris <input type="range" min="0.3" max="2.5" step="0.05" data-s="sens" value="${BR.settings.sens || 1}"></label><label>Qualité <select data-s="quality"><option value="low">Basse (petit PC)</option><option value="med">Moyenne</option><option value="high">Haute</option></select></label><label>Secousses <input type="range" min="0" max="1.5" step="0.1" data-s="shake" value="${BR.settings.shake != null ? BR.settings.shake : 1}"></label></div><div class="pt-b"><button data-a="back">Reprendre</button><button class="alt" data-a="quit">Quitter la partie</button></div>`;
     DOM.panel.classList.add('on');
+    { const sel = DOM.card.querySelector('select[data-s]'); sel.value = BR.settings.quality || 'high'; }
+    DOM.card.querySelectorAll('[data-s]').forEach(el => el.addEventListener(el.tagName === 'SELECT' ? 'change' : 'input', () => { const k = el.dataset.s; BR.settings[k] = k === 'quality' ? el.value : +el.value; try { BR.saveSettings(); } catch (e) {} if (k === 'quality') { R.shadowMap.enabled = el.value !== 'low'; resize(); S.scene.traverse(o => { if (o.material) [].concat(o.material).forEach(m => m.needsUpdate = true); }); } }));
     DOM.card.querySelector('[data-a=back]').onclick = () => { sfx('click'); S.paused = false; DOM.panel.classList.remove('on'); lock(); };
     DOM.card.querySelector('[data-a=quit]').onclick = () => { sfx('back'); if (!S.solo) BR.Net.relay({ k: 'quit' }); const cb = S.o.onEnd; P.stop(); if (cb) cb(S && S.solo ? 'menu' : 'lobby'); };
   }
