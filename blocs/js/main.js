@@ -237,6 +237,7 @@
     else if (a === 'mphost') VX.MP.host_();
     else if (a === 'mpjoin') VX.MP.join();
     else if (a === 'mpleave') { VX.MP.leave(); UI.menu('pause'); }
+    else if (a === 'shaders') { if (VX.Shaders) VX.Shaders.openPanel(); }
     else if (a === 'gfx') { VX.fastMesh = !VX.fastMesh; G.saveSettings(); G.world.remeshAll(); UI.menu('pause'); }
     else if (a === 'mode') setMode(G.mode === 'creatif' ? 'survie' : 'creatif');
     else if (a === 'save') { G.save(); }

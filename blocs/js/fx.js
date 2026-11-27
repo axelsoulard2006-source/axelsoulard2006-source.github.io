@@ -148,7 +148,7 @@
   const arm = new THREE.Group(); rig.add(arm);
   const armSkin = new THREE.Mesh(new THREE.BoxGeometry(0.13, 0.13, 0.4), skinMat); armSkin.position.set(0, 0, -0.2); arm.add(armSkin);
   const sleeve = new THREE.Mesh(new THREE.BoxGeometry(0.155, 0.155, 0.3), sleeveMat); sleeve.position.set(0, 0, 0.14); arm.add(sleeve);
-  arm.rotation.set(0.32, 0.38, 0); arm.position.set(0.5, -0.5, -0.95); arm.scale.setScalar(0.62);   // épaule en bas à droite, la main remonte vers le centre
+  arm.rotation.set(0.32, 0.38, 0); arm.position.set(0.52, -0.52, -1.15); arm.scale.setScalar(0.5);   // épaule en bas à droite, la main remonte vers le centre
   const held = new THREE.Group(); rig.add(held);
   let heldId = -1, heldMesh = null;
   function setHeld(id) {
