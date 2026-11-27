@@ -45,6 +45,7 @@
         let m; try { m = JSON.parse(ev.data); } catch (e) { return; }
         if (m.t === 'welcome') {
           MP.id = m.id; MP.resumed = !!m.resumed;
+          ws.send(JSON.stringify({ t: 'where', g: 'blocs' }));   // compteur « en jeu » de la ville (avant d'être dans un salon b_blocs)
           // place gardée d'une page précédente (rechargement) alors qu'on n'est dans aucun salon : on la libère
           if (m.resumed && !MP.on) { MP.stale = true; ws.send(JSON.stringify({ t: 'leave' })); }
           if (!done) { done = true; clearTimeout(to); res(); }
@@ -481,6 +482,29 @@
   // fermer l'onglet en tant qu'hôte : on prévient les invités
   window.addEventListener('beforeunload', () => { if (!MP.on) return; if (MP.host) relay({ k: 'bye' }); MP.leaving = true; send({ t: 'leave' }); });
   MP.host_ = hostGame; MP.join = joinGame; MP.leave = leave;
+
+  /* =====================================================================
+     11. PRÉSENCE : la ville des jeux affiche combien de joueurs sont sur Blocaria.
+     Petite connexion à part, sans salon, qui dit seulement « je suis sur Blocaria » ({ t:'where', g:'blocs' }).
+     Elle se ferme dès que la connexion du multijoueur existe (celle-ci le dit elle-même, pas de double compte)
+     et se rouvre après. Aucun message à l'écran ; si le serveur dort ou est injoignable, nouvel essai
+     de plus en plus espacé (5 s → 2 min). Rien n'attend après elle.
+     ===================================================================== */
+  const PR = { ws: null, t: null, wait: 0 };
+  const psid = (() => { const mk = () => 'blocsp' + Math.random().toString(36).slice(2, 14); try { let s = sessionStorage.getItem('blocaria_psid'); if (!s) { s = mk(); sessionStorage.setItem('blocaria_psid', s); } return s; } catch (e) { return mk(); } })();
+  function presOpen() {
+    if (PR.ws || MP.ws || typeof WebSocket === 'undefined') return;
+    let ws; try { ws = new WebSocket(SERVER); } catch (e) { presRetry(); return; }
+    PR.ws = ws;
+    ws.onopen = () => { try { ws.send(JSON.stringify({ t: 'hello', sid: psid, name: pname(), look: null, level: 1, token: token() })); } catch (e) {} };
+    ws.onmessage = ev => { let m; try { m = JSON.parse(ev.data); } catch (e) { return; } if (m && m.t === 'welcome') { PR.wait = 0; try { ws.send(JSON.stringify({ t: 'where', g: 'blocs' })); } catch (e) {} } };
+    ws.onclose = () => { if (PR.ws !== ws) return; PR.ws = null; presRetry(); };
+    ws.onerror = () => {};
+  }
+  function presRetry() { clearTimeout(PR.t); PR.wait = Math.min(120000, PR.wait ? PR.wait * 2 : 5000); PR.t = setTimeout(() => { PR.t = null; presOpen(); }, PR.wait); }
+  function presClose() { clearTimeout(PR.t); PR.t = null; const ws = PR.ws; PR.ws = null; if (ws) try { ws.close(); } catch (e) {} }
+  setTimeout(presOpen, 1500);
+  setInterval(() => { if (MP.ws) { if (PR.ws || PR.t) presClose(); } else if (!PR.ws && !PR.t) presOpen(); }, 3000);
   MP.relay = relay; MP.sendTo = (id, d) => relay(d, id);
   // joueurs distants de ma dimension (cibles des créatures simulées par l'hôte)
   MP.targets = () => { const out = []; if (!MP.on) return out; for (const p of MP.peers.values()) if (p.t && p.dim === G.dim) out.push({ id: p.id, pos: { x: p.t[0], y: p.t[1], z: p.t[2] }, eye: p.t[1] + (p.sneak ? 1.42 : 1.62), alive: !!p.vis, remote: true }); return out; };

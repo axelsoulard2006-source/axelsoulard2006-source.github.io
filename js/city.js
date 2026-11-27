@@ -11,11 +11,11 @@
   const BR = window.BR, Au = BR.Audio, Acc = BR.Account, V3 = THREE.Vector3;
   const C = (BR.City = {}); let V = null;
   const DEST = [
-    { id: 'bousculade', name: 'BOUSCULADE', sub: 'Le Stade · party game jusqu\'à 8', col: '#ff4f9e', ang: 0, ico: '🏟️', pk: null },
+    { id: 'bousculade', name: 'BOUSCULADE', sub: 'Le Stade · party game jusqu\'à 8', col: '#ff4f9e', ang: 0, ico: '🏟️', pk: 'bousculade' },
     { id: 'backrooms', name: 'BACKROOMS', sub: 'La Tour jaune · survie à plusieurs', col: '#e8cf62', ang: 72, ico: '🔦', pk: 'backrooms' },
     { id: 'ascension', name: 'COLOSSES', sub: 'La Citadelle · L\'Ascension', col: '#ffb24a', ang: 144, ico: '⚔️', pk: 'colosses' },
     { id: 'portes', name: 'LES PORTES', sub: 'La Tour aux portes · défis', col: '#5fe08c', ang: 216, ico: '🚪', pk: 'portes' },
-    { id: 'blocs', name: 'BLOCARIA', sub: 'Le Chantier · bac à sable', col: '#6cc04a', ang: 288, ico: '🧱', pk: null },
+    { id: 'blocs', name: 'BLOCARIA', sub: 'Le Chantier · bac à sable', col: '#6cc04a', ang: 288, ico: '🧱', pk: 'blocs' },
   ];
   const RING = 50, PLAZA = 17, BOUND = 115, PROM = 29;
   const PIN = { bousculade: [21, -6], backrooms: [12.4, 6], ascension: [15.8, 9], portes: [16.6, 10], blocs: [10.4, 5.6] };   // repères flottants : [hauteur, z local] au-dessus des entrées
@@ -756,14 +756,15 @@
       g.textAlign = 'left'; g.font = `44px "Segoe UI Emoji", sans-serif`; g.fillText(ico, x + 30, 176); g.font = `700 30px ${FONT}`; g.fillStyle = '#d8ccff'; g.fillText(lab, x + 96, 150);
       g.font = `900 52px ${FONT}`; g.fillStyle = '#fff'; g.fillText(val, x + 96, 200); };
     tile(36, '🏙️', 'En ville', String(K.here), '#ffe14a'); tile(528, '🌐', 'Connectés au serveur', K.online == null ? '…' : String(K.online), '#3fd0ff');
-    const rows = [['🔦', 'Backrooms', K.cnt('backrooms') + ' en jeu', '#e8cf62'], ['⚔️', 'Colosses', K.cnt('colosses') + ' en jeu', '#ffb24a'], ['🚪', 'Les Portes', K.cnt('portes') + ' en jeu', '#5fe08c'], ['🏠', 'Salons ouverts', String(K.open), '#ff4f9e']];
+    const rows = [['🏟️', 'Bousculade', K.cnt('bousculade') + ' en jeu', '#ff4f9e'], ['🔦', 'Backrooms', K.cnt('backrooms') + ' en jeu', '#e8cf62'], ['⚔️', 'Colosses', K.cnt('colosses') + ' en jeu', '#ffb24a'], ['🚪', 'Les Portes', K.cnt('portes') + ' en jeu', '#5fe08c'], ['🧱', 'Blocaria', K.cnt('blocs') + ' en jeu', '#6cc04a'], ['🏠', 'Salons ouverts', String(K.open), '#ff4f9e']];
     if (V.daily) rows.push(['⏱', 'Défi du jour', V.daily, '#7a6cff']);
     if (V.top) rows.push(['🏆', 'Champion classé', V.top, '#ffe14a']);
-    rows.slice(0, 6).forEach(([ico, a, b, col], i) => {
-      const y = 262 + i * 62; rrect(g, 36, y, W - 72, 52, 14); g.fillStyle = i % 2 ? 'rgba(255,255,255,0.04)' : 'rgba(255,255,255,0.08)'; g.fill();
-      g.fillStyle = col; g.beginPath(); g.arc(62, y + 26, 8, 0, 7); g.fill();
-      g.textAlign = 'left'; g.font = `30px "Segoe UI Emoji", sans-serif`; g.fillText(ico, 82, y + 28); g.font = `700 32px ${FONT}`; g.fillStyle = '#ffe9a8'; g.fillText(a, 130, y + 28);
-      g.textAlign = 'right'; g.font = `800 32px ${FONT}`; g.fillStyle = '#fff'; g.fillText(b, W - 56, y + 28, 520);
+    // (8 lignes au plus : 5 jeux, salons, défi du jour, champion ; hauteur du panneau 640)
+    rows.slice(0, 8).forEach(([ico, a, b, col], i) => {
+      const y = 254 + i * 47; rrect(g, 36, y, W - 72, 41, 12); g.fillStyle = i % 2 ? 'rgba(255,255,255,0.04)' : 'rgba(255,255,255,0.08)'; g.fill();
+      g.fillStyle = col; g.beginPath(); g.arc(60, y + 20.5, 7, 0, 7); g.fill();
+      g.textAlign = 'left'; g.font = `25px "Segoe UI Emoji", sans-serif`; g.fillText(ico, 78, y + 22); g.font = `700 27px ${FONT}`; g.fillStyle = '#ffe9a8'; g.fillText(a, 122, y + 22);
+      g.textAlign = 'right'; g.font = `800 27px ${FONT}`; g.fillStyle = '#fff'; g.fillText(b, W - 56, y + 22, 520);
     });
     t.needsUpdate = true;
     // l'interface HTML

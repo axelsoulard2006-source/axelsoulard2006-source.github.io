@@ -63,7 +63,7 @@
     // (fenêtre en arrière-plan : les images d'animation arrivent toutes d'un coup ; seul l'écran encore actuel s'affiche)
     requestAnimationFrame(() => { if (curId === id && def.node === node) node.classList.add('on'); });
     BR.$('#topbar').style.display = def.noTop ? 'none' : '';
-    reportWhere(id === 'hub' || id === 'games' || id === 'boot' || BR.curGame === 'bousculade' ? null : BR.curGame === 'arena' ? 'colosses' : BR.curGame === 'portes' ? 'portes' : 'backrooms');   // (la Bousculade n'a pas de compteur « en jeu » côté serveur)
+    reportWhere(id === 'hub' || id === 'games' || id === 'boot' ? null : BR.curGame === 'bousculade' ? 'bousculade' : BR.curGame === 'arena' ? 'colosses' : BR.curGame === 'portes' ? 'portes' : 'backrooms');   // (un ancien serveur ignore « bousculade » : compté nulle part, comme avant)
     const brand = BR.$('#topbar .tb-brand'); if (brand) brand.textContent = brandName(); document.body.classList.toggle('arenamenu', BR.curGame === 'arena' && id !== 'hub');
     document.body.classList.toggle('doorsmenu', BR.curGame === 'portes' && id !== 'hub' && id !== 'boot' && id !== 'games');
     if (def.ownBg && def.ownBg()) { if (BR.ArenaUI) BR.ArenaUI.bg(false); BR.MenuBG.stop(); }   // l'écran dessine son propre décor 3D
@@ -1080,6 +1080,7 @@
   function launchParty(o) {
     BR.$$('.modal-back').forEach(m => m.remove());
     killPreview(); BR.MenuBG.stop(); if (BR.ArenaUI) BR.ArenaUI.bg(false);
+    BR.curGame = 'bousculade'; reportWhere('bousculade');   // partie en cours (même lancée hors des menus de la Bousculade)
     o.onEnd = a => { BR.MenuBG.start(); if (a === 'trial') { startTrial(); return; } if (a === 'replay') startPartySolo(o.tuto ? undefined : o.forceMap); else UI.show(o.mode === 'multi' && N.room ? 'lobby' : 'party'); };
     try { BR.Party.start(o); }
     catch (e) { console.error(e); try { BR.Party.stop(); } catch (_) {} UI.toast('Erreur au lancement : ' + e.message, 'error'); UI.show(o.mode === 'multi' ? (N.room ? 'lobby' : 'multi') : 'party'); }
