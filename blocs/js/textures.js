@@ -88,11 +88,44 @@
   tile('lava', P => { for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) { const v = Math.sin((x + y * 0.5) * 0.8) * 0.5 + Math.sin((y - x * 0.3) * 0.9) * 0.5; P(x, y, v > 0.55 ? '#ffd23a' : v > -0.2 ? '#ff7a1a' : '#d0420e'); } });
   tile('portal', P => { for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) { const v = Math.sin(x * 0.9 + Math.cos(y * 0.7) * 2) * 0.5 + 0.5; P(x, y, `rgba(${170 + v * 60 | 0},${70 + v * 60 | 0},255,0.72)`); } });
 
-  const tex = new THREE.CanvasTexture(atlas);
+  /* ---------- version 64×64 lissée : chaque tuile 16×16 est agrandie ×4 (Scale2x deux fois : diagonales adoucies),
+     puis légèrement fondue et grainée (raccord gardé sur les bords : voisins pris en boucle dans la tuile) ---------- */
+  const SC = 4, HN = N * SC, hi = document.createElement('canvas'); hi.width = hi.height = HN * COLS;
+  (function buildHi() {
+    const src = ctx.getImageData(0, 0, N * COLS, N * COLS).data, W0 = N * COLS, hctx = hi.getContext('2d'), out = hctx.createImageData(hi.width, hi.height), o = out.data, gr = VX.rng(4242);
+    const scale2x = (p, n) => {
+      const m = n * 2, q = new Uint32Array(m * m), at = (x, y) => p[((y + n) % n) * n + ((x + n) % n)];
+      for (let y = 0; y < n; y++) for (let x = 0; x < n; x++) {
+        const P = at(x, y), A = at(x, y - 1), B = at(x + 1, y), C = at(x - 1, y), D = at(x, y + 1);
+        q[(2 * y) * m + 2 * x] = C === A && C !== D && A !== B ? A : P;
+        q[(2 * y) * m + 2 * x + 1] = A === B && A !== C && B !== D ? B : P;
+        q[(2 * y + 1) * m + 2 * x] = D === C && D !== B && C !== A ? C : P;
+        q[(2 * y + 1) * m + 2 * x + 1] = B === D && B !== A && D !== C ? D : P;
+      }
+      return q;
+    };
+    for (let i = 0; i < names.length; i++) {
+      const ox = (i % COLS) * N, oy = Math.floor(i / COLS) * N; let t = new Uint32Array(N * N);
+      for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) { const k = ((oy + y) * W0 + ox + x) * 4; t[y * N + x] = src[k] | (src[k + 1] << 8) | (src[k + 2] << 16) | (src[k + 3] << 24); }
+      t = scale2x(scale2x(t, N), N * 2);
+      const ch = (v, c) => (v >>> (c * 8)) & 255, at = (x, y) => t[((y + HN) % HN) * HN + ((x + HN) % HN)];
+      for (let y = 0; y < HN; y++) for (let x = 0; x < HN; x++) {
+        const v = at(x, y), a = ch(v, 3), k = (((oy * SC) + y) * hi.width + ox * SC + x) * 4, g = 1 + (gr() - 0.5) * 0.07;
+        for (let c = 0; c < 3; c++) {   // lissage doux avec les 4 voisins opaques
+          let sum = ch(v, c) * 4, wt = 4;
+          for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) { const nv = at(x + dx, y + dy); if (ch(nv, 3) > 127) { sum += ch(nv, c); wt++; } }
+          o[k + c] = Math.max(0, Math.min(255, Math.round(sum / wt * g)));
+        }
+        o[k + 3] = a;
+      }
+    }
+    hctx.putImageData(out, 0, 0);
+  })();
+  const tex = new THREE.CanvasTexture(hi);
   tex.magFilter = THREE.NearestFilter; tex.minFilter = THREE.NearestFilter; tex.generateMipmaps = false;
   const E = 0.0008;
   VX.TEX = {
-    atlas, tex, names,
+    atlas, hi, tex, names, tileSize: HN,
     uv(name) { const i = idx[name] != null ? idx[name] : 0, u0 = (i % COLS) / COLS, v0 = 1 - (Math.floor(i / COLS) + 1) / COLS; return [u0 + E, v0 + E, u0 + 1 / COLS - E, v0 + 1 / COLS - E]; },
     has: name => idx[name] != null,
     // pour le Worker : nom -> index de tuile, et coin bas-gauche (u, v) de chaque tuile dans l'atlas
