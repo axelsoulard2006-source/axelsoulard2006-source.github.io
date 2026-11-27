@@ -1071,6 +1071,27 @@
     try { BR.Party.start(o); }
     catch (e) { console.error(e); try { BR.Party.stop(); } catch (_) {} UI.toast('Erreur au lancement : ' + e.message, 'error'); UI.show(o.mode === 'multi' ? (N.room ? 'lobby' : 'multi') : 'party'); }
   }
+  // récompenses de la Bousculade : quêtes du jour, passe de saison, chapeaux, traînées
+  function partyRewards() {
+    Au.ui('click');
+    modal(box => {
+      const draw = () => {
+        const R = BR.Party.rewards(), b = R.b, lvx = R.sx - R.lv * R.PASS_XP;
+        const ic = r => r[0] === 'pts' ? '🪙' : r[0] === 'hat' ? R.HATS[r[1]].ico : R.TRAILS[r[1]].ico, nm = r => r[0] === 'pts' ? r[1] + ' pts' : r[0] === 'hat' ? R.HATS[r[1]].n : R.TRAILS[r[1]].n;
+        const cos = (kind, D) => `<div class="rw-cos">${[['', { n: 'Aucun', ico: '🚫' }]].concat(Object.entries(D)).map(([id, d]) => { const own = !id || b.own.includes(id), on = (kind === 'hat' ? b.hat || '' : b.trail || '') === id; return `<button data-k="${kind}" data-id="${id}" class="${on ? 'on' : ''}" ${own ? '' : 'disabled'} title="${esc(d.n)}"><b>${own ? d.ico : '🔒'}</b>${esc(d.n)}</button>`; }).join('')}</div>`;
+        box.innerHTML = `<h3>🎁 Récompenses de la Bousculade</h3><div class="rw">
+          <div><h4>QUÊTES DU JOUR <small class="muted">(nouvelles chaque jour · +120 points et +100 XP de saison chacune)</small></h4>${R.quests.map(q => `<div class="rw-q ${q.c ? 'ok' : ''}"><span>${q.c ? '✅ ' : ''}${esc(q.t)}</span><b>${q.p} / ${q.n}</b><i><u style="width:${Math.round(q.p / q.n * 100)}%"></u></i></div>`).join('')}</div>
+          <div><h4>PASSE DE SAISON · palier ${R.lv} / ${R.PASS.length}</h4>${R.lv < R.PASS.length ? `<div class="rw-bar"><u style="width:${Math.round(lvx / R.PASS_XP * 100)}%"></u></div><small class="muted">${R.PASS_XP - lvx} XP avant le palier ${R.lv + 1} · on gagne de l'XP en jouant, en se qualifiant et avec les quêtes</small>` : '<small>Passe terminé, bravo !</small>'}
+            <div class="rw-pass" style="margin-top:8px">${R.PASS.map((r, i) => `<div class="${i < R.lv ? 'got' : i === R.lv ? 'nx' : ''}"><b>${ic(r)}</b>${i + 1}<br>${esc(nm(r))}</div>`).join('')}</div></div>
+          <div><h4>RÉCOMPENSES DU CLASSÉ</h4><div class="rw-pass">${R.RANK_REW.map(([rp, k, id]) => { const d = k === 'hat' ? R.HATS[id] : R.TRAILS[id], got = b.own.includes(id), t = BR.Party.tier(rp); return `<div class="${got ? 'got' : ''}" style="min-width:110px"><b>${d.ico}</b>${esc(d.n)}<br><span style="color:${t.col}">${t.label}</span></div>`; }).join('')}</div></div>
+          <div><h4>CHAPEAU</h4>${cos('hat', R.HATS)}</div>
+          <div><h4>TRAÎNÉE <small class="muted">(derrière toi quand tu cours vite)</small></h4>${cos('trail', R.TRAILS)}</div>
+        </div>`;
+        box.querySelectorAll('.rw-cos button').forEach(bt => bt.addEventListener('click', () => { if (BR.Party.equip(bt.dataset.k, bt.dataset.id)) { Au.ui('ok'); draw(); } }));
+      };
+      draw();
+    });
+  }
   // file classée : il faut un compte ; le serveur nous place dans un salon classé (ou en ouvre un)
   let rkWant = false;
   function rankedQueue() {
@@ -1108,6 +1129,7 @@
             <button class="mi d-hot" data-go="multi"><span>Multijoueur</span><small>Jusqu'à 8 potes · le dernier debout gagne</small></button>
             <button class="mi d-hot" data-go="tour"><span>🆕 Nouvelles cartes</span><small>Ski, Volcan, Base spatiale, Temple, Montagnes russes…</small></button>
             <button class="mi" data-go="solo"><span>Entraînement solo</span><small>4 manches contre 7 bots</small></button>
+            <button class="mi d-hot" data-go="rewards"><span>🎁 Récompenses</span><small>${(() => { const R = BR.Party.rewards(); return R.quests.filter(q => !q.c).length + ' quête(s) du jour · passe palier ' + R.lv + '/' + R.PASS.length; })()}</small></button>
             <button class="mi" data-go="lb"><span>Classement mondial</span><small>Les meilleurs joueurs de la saison</small></button>
             <button class="mi" data-go="rules"><span>Règles</span><small>Les manches, les obstacles, le plongeon</small></button>
             <button class="mi" data-go="char"><span>Personnage</span><small>Ce que voient les autres joueurs</small></button>
@@ -1122,6 +1144,7 @@
       n.querySelectorAll('[data-go]').forEach(bt => bt.addEventListener('click', () => {
         const go = bt.dataset.go;
         if (go === 'ranked') { rankedQueue(); return; }
+        if (go === 'rewards') { partyRewards(); return; }
         if (go === 'solo') { startPartySolo(); return; }
         if (go === 'tour') { const pm = BR.Party.pathMaps(); startPartySolo(pm[Math.floor(Math.random() * pm.length)]); return; }
         if (go === 'rules') { Au.ui('click'); modal(box => box.insertAdjacentHTML('beforeend', `<h3>Bousculade — règles</h3>${partyRules()}`)); return; }
