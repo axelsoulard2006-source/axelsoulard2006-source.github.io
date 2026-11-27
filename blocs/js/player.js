@@ -1,4 +1,4 @@
-/* ===== player.js : joueur (physique AABB, marche, saut, accroupi, nage, vol, dégâts de chute) ===== */
+/* ===== player.js : joueur (physique AABB, marche, saut, accroupi, nage, vol, dégâts de chute, oxygène) ===== */
 (function () {
   const VX = window.VX, B = VX.B, D = VX.BLOCKS;
   const W = 0.3, HGT = 1.8, EPS = 1e-4, GRAV = 30, JUMP = 9.2;
@@ -7,7 +7,7 @@
       this.pos = new THREE.Vector3(0.5, 40, 0.5); this.vel = new THREE.Vector3(); this.yaw = 0; this.pitch = 0;
       this.onGround = false; this.fly = false; this.hp = 20; this.food = 20; this.sat = 5; this.exh = 0;
       this.fallTop = null; this.inWater = false; this.inLava = false; this.eyeWater = false; this.sneak = false; this.sprint = false;
-      this.hurtT = 0; this.lavaT = 0;
+      this.hurtT = 0; this.lavaT = 0; this.air = VX.AIR_MAX || 15;   // oxygène (secondes) sous l'eau
     }
     get eye() { return this.pos.y + (this.sneak && !this.fly ? 1.42 : 1.62); }
     solid(world, x, y, z) { const b = D[world.getG(x, y, z)]; return !!(b && b.solid); }

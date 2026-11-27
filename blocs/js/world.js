@@ -5,14 +5,16 @@
   const CS = VX.CS, H = VX.H, P = VX.MESH_PAD, W = VX.MESH_W, LAVA_LV = VX.LAVA_LV;
   const key = (cx, cz) => cx + ',' + cz;
   const idx = (x, y, z) => x + z * CS + y * CS * CS;
-  const LIGHT_IDS = new Set([B.TORCHE, B.LUMICRISTAL, B.BRAISIER, B.PORTAIL, B.LAVE]);
+  const LR = 14;   // portée de la lumière (niveaux 0..15) : un changement peut éclairer / assombrir jusqu'à 14 blocs autour
+  // ce changement de bloc modifie-t-il la lumière ? (opacité, émission, atténuation)
+  const lightChange = (a, b) => { const A = D[a] || D[0], Bb = D[b] || D[0]; return !!A.opaque !== !!Bb.opaque || (A.light || 0) !== (Bb.light || 0) || (A.shade || 0) !== (Bb.shade || 0) || !!A.liquid !== !!Bb.liquid; };
 
   /* ---------- Workers (génération + maillage) ---------- */
   const WK = VX.Workers = { list: [], cb: new Map(), seq: 0, ok: false, rr: 0, inited: false };
   try {
     const n = Math.max(1, Math.min(2, (navigator.hardwareConcurrency || 4) - 2));
     for (let i = 0; i < n; i++) {
-      const w = new Worker('js/worker.js?v=4');
+      const w = new Worker('js/worker.js?v=6');
       w.onmessage = e => { const f = WK.cb.get(e.data.id); if (f) { WK.cb.delete(e.data.id); f(e.data); } };
       w.onerror = err => { console.warn('Worker indisponible, calcul sur le thread principal', err.message); WK.ok = false; WK.cb.clear(); if (VX.G && VX.G.world) VX.G.world.resetPending(); };
       WK.list.push(w);
@@ -55,12 +57,21 @@
       c.data[i] = id; const k = key(cx, cz); (this.mods[k] = this.mods[k] || {})[i] = id;
       VX.hooks.emit('worldSet', { dim: this.dim, x, y, z, id, old });
       this.markDirty(cx, cz);
-      if (LIGHT_IDS.has(id) || LIGHT_IDS.has(old) || lx < 8 || lx > 7) {   // lumière et ombres débordent jusqu'à 8 blocs
-        const nx = lx < 8 ? -1 : 1, nz = lz < 8 ? -1 : 1, far = LIGHT_IDS.has(id) || LIGHT_IDS.has(old);
-        if (far || lx === 0 || lx === CS - 1) this.markDirty(cx + nx, cz);
-        if (far || lz === 0 || lz === CS - 1) this.markDirty(cx, cz + nz);
-        if (far) this.markDirty(cx + nx, cz + nz);
+      c.urgent = true;   // le chunk modifié est remaillé en premier (réactivité de la casse / pose)
+      // voisins : la lumière se propage jusqu'à LR blocs (distance de Manhattan) ; sinon seuls les bords (faces, ombre aux coins)
+      if (lightChange(old, id)) {
+        for (let dz = -1; dz <= 1; dz++) for (let dx = -1; dx <= 1; dx++) {
+          if (!dx && !dz) continue;
+          const ex = dx < 0 ? lx + 1 : dx > 0 ? CS - lx : 0, ez = dz < 0 ? lz + 1 : dz > 0 ? CS - lz : 0;
+          if (ex + ez <= LR) this.markDirty(cx + dx, cz + dz);
+        }
+      } else {
+        const nx = lx === 0 ? -1 : lx === CS - 1 ? 1 : 0, nz = lz === 0 ? -1 : lz === CS - 1 ? 1 : 0;
+        if (nx) this.markDirty(cx + nx, cz); if (nz) this.markDirty(cx, cz + nz); if (nx && nz) this.markDirty(cx + nx, cz + nz);
       }
+      // une plante (herbes, fleurs, arbuste) ne tient pas sans bloc solide dessous
+      const up = y + 1 < H ? this.get(x, y + 1, z) : 0;
+      if (up && D[up] && D[up].plant && !(D[id] && D[id].solid)) this.set(x, y + 1, z, B.AIR);
       return true;
     }
     markDirty(cx, cz) { const c = this.chunk(cx, cz); if (c) { c.dirty = true; c.ver++; } }
@@ -82,8 +93,8 @@
     neighbors(c) { for (let dz = -1; dz <= 1; dz++) for (let dx = -1; dx <= 1; dx++) if (!this.chunk(c.cx + dx, c.cz + dz)) return false; return true; }
     requestMesh(c) {
       const ver = c.ver, vol = this.volume(c); c.busy = true;
-      if (WK.ok && WK.inited) { this.inflight++; WK.send({ type: 'mesh', vol, dim: this.dim, fast: !!VX.fastMesh }, [vol.buffer], m => { this.inflight = Math.max(0, this.inflight - 1); this.results.push([c, ver, m.r]); }); }
-      else { const t = VX.TEX.workerTiles(); this.applyMesh(c, ver, VX.Mesher.build(vol, this.dim, t.tiles, t.origins, !!VX.fastMesh)); }
+      if (WK.ok && WK.inited) { this.inflight++; WK.send({ type: 'mesh', vol, dim: this.dim, fast: !!VX.fastMesh, ox: c.cx * CS, oz: c.cz * CS }, [vol.buffer], m => { this.inflight = Math.max(0, this.inflight - 1); WK.meshMs = WK.meshMs ? WK.meshMs * 0.9 + m.ms * 0.1 : m.ms; WK.meshN = (WK.meshN || 0) + 1; this.results.push([c, ver, m.r]); }); }
+      else { const t = VX.TEX.workerTiles(); this.applyMesh(c, ver, VX.Mesher.build(vol, this.dim, t.tiles, t.origins, !!VX.fastMesh, c.cx * CS, c.cz * CS)); }
     }
     applyMesh(c, ver, r) {
       c.busy = false; if (!this.alive || this.chunk(c.cx, c.cz) !== c) return;
@@ -93,7 +104,7 @@
         const m = this.pool.pop() || new THREE.Mesh(new THREE.BufferGeometry(), VX.R.mats.o);
         const g = m.geometry; g.dispose();
         g.setAttribute('position', new THREE.BufferAttribute(b.p, 3)); g.setAttribute('uv', new THREE.BufferAttribute(b.u, 2));
-        g.setAttribute('tile', new THREE.BufferAttribute(b.t, 2)); g.setAttribute('color', new THREE.BufferAttribute(b.c, 3)); g.setAttribute('lit', new THREE.BufferAttribute(b.l, 2));
+        g.setAttribute('tile', new THREE.BufferAttribute(b.t, 2)); g.setAttribute('color', new THREE.BufferAttribute(b.c, 3)); g.setAttribute('lit', new THREE.BufferAttribute(b.l, 3));
         g.setIndex(new THREE.BufferAttribute(b.i, 1)); g.computeBoundingSphere();
         m.material = VX.R.mats[k]; m.renderOrder = k === 't' ? 2 : 0;
         m.position.set(c.cx * CS, 0, c.cz * CS); m.matrixAutoUpdate = false; m.updateMatrix(); m.frustumCulled = true;
@@ -107,6 +118,8 @@
       const pcx = Math.floor(px / CS), pcz = Math.floor(pz / CS);
       if (this.orderR !== R) { this.orderR = R; this.order = []; for (let dz = -R - 1; dz <= R + 1; dz++) for (let dx = -R - 1; dx <= R + 1; dx++) this.order.push([dx * dx + dz * dz, dx, dz, Math.max(Math.abs(dx), Math.abs(dz)) <= R]); this.order.sort((a, b) => a[0] - b[0]); }
       let genBudget = WK.ok ? 8 - this.pendGen.size : 1, meshBudget = WK.ok ? 4 - this.inflight : 1;
+      // d'abord les chunks que le joueur vient de modifier
+      for (const c of this.chunks.values()) if (c.urgent && meshBudget > 0) { if (c.busy || !this.neighbors(c)) continue; c.urgent = false; if (c.dirty) { meshBudget--; this.requestMesh(c); } }
       for (const [, dx, dz, inner] of this.order) {
         const cx = pcx + dx, cz = pcz + dz, k = key(cx, cz); let c = this.chunk(cx, cz);
         if (!c) {
@@ -125,7 +138,7 @@
     preload(px, pz, r) {
       const pcx = Math.floor(px / CS), pcz = Math.floor(pz / CS), t = VX.TEX.workerTiles();
       for (let dz = -r - 1; dz <= r + 1; dz++) for (let dx = -r - 1; dx <= r + 1; dx++) this.ensure(pcx + dx, pcz + dz);
-      for (let dz = -r; dz <= r; dz++) for (let dx = -r; dx <= r; dx++) { const c = this.chunk(pcx + dx, pcz + dz); if (c.dirty && !c.busy) this.applyMesh(c, c.ver, VX.Mesher.build(this.volume(c), this.dim, t.tiles, t.origins, !!VX.fastMesh)); }
+      for (let dz = -r; dz <= r; dz++) for (let dx = -r; dx <= r; dx++) { const c = this.chunk(pcx + dx, pcz + dz); if (c.dirty && !c.busy) this.applyMesh(c, c.ver, VX.Mesher.build(this.volume(c), this.dim, t.tiles, t.origins, !!VX.fastMesh, c.cx * CS, c.cz * CS)); }
     }
     unloadAll() { this.alive = false; for (const c of this.chunks.values()) this.freeMeshes(c); this.chunks.clear(); for (const m of this.pool) m.geometry.dispose(); this.pool = []; this.results = []; }
     /* ---------- rayon (bloc visé) ---------- */
@@ -150,7 +163,9 @@
         if (this.dim === 'braises') {
           for (let y = 50; y > LAVA_LV + 1; y--) { const g = this.getG(x, y - 1, z); if (D[g] && D[g].solid && this.getG(x, y, z) === 0 && this.getG(x, y + 1, z) === 0 && this.getG(x, y + 2, z) === 0) return { x: x + 0.5, y, z: z + 0.5 }; }
         } else {
-          for (let y = H - 2; y > VX.SEA; y--) { const g = this.getG(x, y - 1, z); if (g !== B.AIR) { if (D[g].solid && this.getG(x, y, z) === 0 && this.getG(x, y + 1, z) === 0) return { x: x + 0.5, y, z: z + 0.5 }; break; } }
+          // sol solide (pas un arbre ni un cactus) et deux cases libres (les plantes ne gênent pas)
+          const free = id => id === 0 || !!(D[id] && D[id].plant);
+          for (let y = H - 2; y > VX.SEA; y--) { const g = this.getG(x, y - 1, z), gb = D[g]; if (!free(g)) { if (gb && gb.solid && !gb.leaves && g !== B.CACTUS && free(this.getG(x, y, z)) && free(this.getG(x, y + 1, z))) return { x: x + 0.5, y, z: z + 0.5 }; break; } }
         }
       }
       return { x: x0 + 0.5, y: 40, z: z0 + 0.5 };

@@ -84,6 +84,30 @@
   bevelB('blocaria_bloc_cristal', '#3a9cff', '#bfe6ff', '#1c5fb8', 'sapphire_block');
   bevelB('blocaria_bloc_astrium', '#b45ae6', '#f0c8ff', '#6a2a90', 'astrium_block');
   G('blocaria_torche', { h: '#7a5230', k: '#5a3a20', y: '#ffd23a', o: '#ff8a2a', w: '#fff3a0' }, ['                ', '                ', '       w        ', '       yo       ', '       yo       ', '       yo       ', '       hk       ', '       hk       ', '       hk       ', '       hk       ', '       hk       ', '       hk       ', '       hk       ', '       hk       ', '       hk       ', '       hk       '], 'torch');
+  // --- Biomes : bouleaux, désert, océans, montagnes ---
+  G('blocaria_bouleau_cote', { '.': '#e4dfd0', a: '#d2ccba', b: '#f4f0e4', d: '#4a423a', e: '#8a8070' }, ['..b....a....b...', '.ddd.......ee...', '....a..b.......a', 'b.......a..b....', '..a..dde....a...', '.....b.....b....', 'a.........dddd..', '...b..a.........', '.b......b...a..b', 'dde..a......b...', '....b...a.......', '..a.....b..ddde.', 'b....a.......a..', '...ed.....b.....', '.a......a....b..', '....b.a...a.....'], 'birch_side');
+  G('blocaria_bouleau_haut', { x: '#e4dfd0', d: '#4a423a', '.': '#ead6a4', r: '#cdb380' }, ['xxxxxxxxxxxxxxxx', 'xd............xx', 'x..rrrrrrrrrr..x', 'x.r..........r.x', 'x.r..rrrrrr..r.x', 'x.r.r......r.r.x', 'x.r.r..rr..r.r.x', 'x.r.r.r..r.r.r.x', 'x.r.r.r..r.r.r.x', 'x.r.r..rr..r.r.x', 'x.r.r......r.r.x', 'x.r..rrrrrr..r.x', 'x.r..........r.x', 'x..rrrrrrrrrr..x', 'xx............dx', 'xxxxxxxxxxxxxxxx'], 'birch_top');
+  G('blocaria_bouleau_feuillage', { '.': '#74b04a', a: '#5e973a', b: '#93cc62' }, ['.b.a .b.. a.b. .', 'a.. .b.a.b. ..b.', '.b.a.. .a. .b.a.', ' .a.b.a.. b.a.. ', 'b.. .a. b.a.b.a.', '.a.b.. a.. .a. b', '. .a.b. .b.a.. .', 'a.b.. .a.. .b.a.', '.. .b.a.b.a. ..b', '.a.a. .. .b.a.a.', 'b.. .b.a.b. .. .', '.a.b.a. .a.b.a.b', ' .. .b.a. .. .a.', 'a.b.a.. b.a.b. .', '.. .b.a.a. ..b.a', '.b.a. .. .a.b.. '], 'birch_leaves');
+  const SANDST = { '.': '#dcc890', a: '#cbb37a', b: '#ead9a8', s: '#b89c62', c: '#c4ab70' };
+  G('blocaria_gres_cote', SANDST, ['bbbbbbbbbbbbbbbb', '..a.....b...a...', '.b...a.....a..b.', 'sss......ssssss.', '...sssss.......s', '.a..b....a...b..', '....a..b.....a..', '..b.....a..b....', 'ss.....ssss.....', '..sssss....sssss', '..a...b..a......', '.b..a.....b..a..', '....b..a.......b', 'a......sssss....', 'sssssss.....ssss', 'aaaaaaaaaaaaaaaa'], 'sandstone_side');
+  G('blocaria_gres_haut', SANDST, FINE, 'sandstone_top');
+  G('blocaria_gres_bas', { '.': '#cbb47c', a: '#b89c62', b: '#dcc890', c: '#a88c58', d: '#e2d0a0' }, GRAIN, 'sandstone_bottom');
+  G('blocaria_argile', { '.': '#9ea6b8', a: '#8f97aa', b: '#aeb6c7', c: '#838b9f' }, FINE, 'clay');
+  G('blocaria_gravier', { '.': '#7d7a76', a: '#5e5b58', b: '#9a9692', c: '#4a4744', d: '#8c7c6a' }, ['aab.cbb.aadb.cab', 'abb.bbd.abbb.bba', '..c.....c...c...', '.bba.cab..daab.c', 'abbb.bbbc.bbba..', '.ac...ac...cc..d', 'c..daab..bba.abb', '.abbbb.cabbb.bbb', '..cc...c..c...c.', 'bba.dab..abb.cab', 'bbb.bbbc.bbba.bb', '.c...cc...cc..c.', 'a.abb..bda.abba.', '.abbbc.bbb.bbbbc', '..cc...cc...cc..', 'db..abb..cabb.ad'], 'gravel');
+  // coffre de Blocaria : planches cerclées de fer, coins renforcés, serrure de laiton
+  const CHEST = { '.': '#a8743e', a: '#8f6032', b: '#bd8852', x: '#4a3018', m: '#8a8e96', n: '#5e626a', r: '#d8a040', R: '#f0c860', k: '#1c140c' };
+  G('blocaria_coffre_haut', CHEST, ['xxxxxxxxxxxxxxxx', 'xmmm.a....b.mmmx', 'xmr..b..a....rmx', 'xm.a......b...mx', 'x...a..b...a...x', 'xaaaaaaaaaaaaaax', 'x.b....a...b...x', 'x....b.....a.b.x', 'x.a.....b......x', 'x...b.a.....a..x', 'xaaaaaaaaaaaaaax', 'x..a....b...a..x', 'xm..b.a.....b.mx', 'xmr.....a....rmx', 'xmmm.b....a.mmmx', 'xxxxxxxxxxxxxxxx'], 'chest_top');
+  G('blocaria_coffre_cote', CHEST, ['xxxxxxxxxxxxxxxx', 'xmm.a....b...mmx', 'xm..b..a....a.mx', 'x.a....b..a....x', 'x...b.....b..a.x', 'xnnnnnnnnnnnnnnx', 'xxxxxxxxxxxxxxxx', 'x.b...a....b...x', 'x....b...a...b.x', 'xaaaaaaaaaaaaaax', 'x..a....b..a...x', 'x.b...a.....b..x', 'xaaaaaaaaaaaaaax', 'xm..b...a...b.mx', 'xmm...b....a.mmx', 'xxxxxxxxxxxxxxxx'], 'chest_side');
+  G('blocaria_coffre_face', CHEST, ['xxxxxxxxxxxxxxxx', 'xmm.a....b...mmx', 'xm..b..a....a.mx', 'x.a....b..a....x', 'x...b.rrrr...a.x', 'xnnnnnrRRrnnnnnx', 'xxxxxxrkkrxxxxxx', 'x.b...rRkr.b...x', 'x....b.rr....b.x', 'xaaaaaaaaaaaaaax', 'x..a....b..a...x', 'x.b...a.....b..x', 'xaaaaaaaaaaaaaax', 'xm..b...a...b.mx', 'xmm...b....a.mmx', 'xxxxxxxxxxxxxxxx'], 'chest_front');
+  // plantes (rendues en croix : fond transparent)
+  G('blocaria_hautes_herbes', { g: '#5fae3e', h: '#4a9030', k: '#7ccc52' }, ['                ', '                ', '          k     ', '   k      g     ', '   g     kg   k ', '   g  k  gh   g ', '  kg  g  g h  g ', '  gh  g kg h kg ', ' kg h gh g  hg  ', ' g  hkg hg  hg  ', ' g  hg  g k hg k', 'kg  g h g g g gh', 'g h g h ghg gh g', 'g hg  hhg g g hg', 'ghg h hgh hgghg ', 'hghghhghghhghghh'], 'tallgrass');
+  G('blocaria_fleur_rubis', { r: '#c8203a', R: '#ff5a6a', c: '#ffb0a0', y: '#ffd23a', s: '#3f8a2c', l: '#5cab3c' }, ['                ', '                ', '       RR       ', '     rRRRRr     ', '    rRRccRRr    ', '    rRcyycRr    ', '    rRRccRRr    ', '     rrRRrr     ', '       rs       ', '       s   ll   ', '   ll  s  lls   ', '    lls s ls    ', '      lss       ', '       s        ', '       s        ', '       s        '], 'flower_red');
+  G('blocaria_fleur_ambre', { y: '#f2c020', Y: '#ffe86a', o: '#e0701a', s: '#3f8a2c', l: '#5cab3c' }, ['                ', '      Y  Y      ', '     YyYYyY     ', '    YyyooyyY    ', '     yyooyy     ', '    YyyyyyyY    ', '      y  y      ', '       ss       ', '       s        ', '   l   s        ', '   lls s   ll   ', '     lss  ls    ', '       s ls     ', '       ss       ', '       s        ', '       s        '], 'flower_yellow');
+  G('blocaria_arbuste_sec', { b: '#8a6a3e', B: '#6a4c28', d: '#a8865a' }, ['                ', '  d          d  ', '   b   d    b   ', '   b    b  b  d ', ' d  b   b b  b  ', '  b  b  bb  b   ', '   b  b b  b    ', '    b  bb b   d ', ' d   b Bb b  b  ', '  b   bB bb b   ', '   bb  BBb b    ', '     b BB bb    ', '      bBB b     ', '       BB       ', '       BB       ', '      BBBB      '], 'deadbush');
+  const CACT = { '.': '#4f9a3a', a: '#3f8030', b: '#68b84c', c: '#2f6424', s: '#ece6c4', y: '#ff8ab0', o: '#ffd23a' };
+  G('blocaria_cactus_cote', CACT, Array.from({ length: 16 }, (_, i) => ['c.b.ac.b.ac.b.ac', 'csb.ac.b.acsb.ac', 'c.b.ac.bsac.b.ac', 'c.b.acsb.ac.b.ac'][i % 4]), 'cactus_side');
+  G('blocaria_cactus_haut', CACT, ['aaaaaaaaaaaaaaaa', 'ab............ba', 'a.b..a....a..b.a', 'a..b........b..a', 'a.a.b.cccc.b.a.a', 'a....cbbbbc....a', 'a...cb.yy.bc...a', 'a.a.cbyooybc.a.a', 'a.a.cbyooybc.a.a', 'a...cb.yy.bc...a', 'a....cbbbbc....a', 'a.a.b.cccc.b.a.a', 'a..b........b..a', 'a.b..a....a..b.a', 'ab............ba', 'aaaaaaaaaaaaaaaa'], 'cactus_top');
+  G('blocaria_cactus_bas', { '.': '#4f9a3a', a: '#3f8030', b: '#68b84c', c: '#2f6424' }, FINE, 'cactus_bottom');
   // effets animés d'aspect (liquide de feu, voile du portail) : dessinés en ondes régulières
   tile('lava', P => { for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) { const v = Math.sin((x + y * 0.5) * 0.8) * 0.5 + Math.sin((y - x * 0.3) * 0.9) * 0.5; P(x, y, v > 0.55 ? '#ffd23a' : v > -0.2 ? '#ff7a1a' : '#d0420e'); } });
   tile('portal', P => { for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) { const v = Math.sin(x * 0.9 + Math.cos(y * 0.7) * 2) * 0.5 + 0.5; P(x, y, `rgba(${170 + v * 60 | 0},${70 + v * 60 | 0},255,0.72)`); } });
@@ -162,9 +186,9 @@
   ITEMART.ingot_astrium = [ITEMART.ingot_iron[0], { L: '#6a2a90', w: '#f4c8ff', d: '#c06ae8' }];
   function blockIcon(id) {
     const d = VX.BLOCKS[id], c = document.createElement('canvas'); c.width = c.height = 32; const g = c.getContext('2d'); g.imageSmoothingEnabled = false;
-    if (d.shape === 'torch' || d.cutout && id === VX.B.VERRE && false) { const [sx, sy] = VX.TEX.src(d.tex.side); g.drawImage(atlas, sx, sy, 16, 16, 0, 0, 32, 32); return c; }
+    if (d.shape === 'torch' || d.shape === 'cross') { /* torche et plantes : icône à plat */ const [sx, sy] = VX.TEX.src(d.tex.side); g.drawImage(atlas, sx, sy, 16, 16, 0, 0, 32, 32); return c; }
     const face = (name, m, dark) => { const [sx, sy] = VX.TEX.src(name); g.setTransform(...m); g.drawImage(atlas, sx, sy, 16, 16, 0, 0, 16, 16); if (dark) { g.fillStyle = `rgba(0,0,0,${dark})`; g.fillRect(0, 0, 16, 16); } };
-    face(d.tex.top, [1, 0.5, -1, 0.5, 16, 0]); face(d.tex.side, [1, 0.5, 0, 1, 0, 8], 0.22); face(d.tex.side, [1, -0.5, 0, 1, 16, 16], 0.38);
+    face(d.tex.top, [1, 0.5, -1, 0.5, 16, 0]); face(d.tex.front || d.tex.side, [1, 0.5, 0, 1, 0, 8], 0.22); face(d.tex.side, [1, -0.5, 0, 1, 16, 16], 0.38);
     g.setTransform(1, 0, 0, 1, 0, 0); return c;
   }
   VX.icon = function (id) {
@@ -174,6 +198,7 @@
     else {
       const itd = VX.ITEMS[id];
       if (itd && itd.tool) { const t = VX.TIERS[itd.tool.tier]; c = art(withShadow(TOOLART[itd.tool.kind]), { m: t.col, M: vary(t.col, -0.35), h: '#8a5f33', H: '#5a3a20' }); }
+      else if (VX.itemArt && VX.itemArt[id]) { const [rows, pal] = VX.itemArt[id]; c = art(rows, pal); }   // icônes ajoutées par d'autres modules : VX.itemArt[id] = [16 lignes, palette]
       else if (itd && ITEMART[itd.icon]) { const [rows, pal] = ITEMART[itd.icon]; c = art(rows, pal); }
       else { c = document.createElement('canvas'); c.width = c.height = 16; }
     }

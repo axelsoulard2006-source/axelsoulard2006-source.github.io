@@ -8,6 +8,9 @@
     M_CHARBON: 10, M_FER: 11, M_OR: 12, M_SAPHIR: 13, VERRE: 14, FOUR: 15, ETABLI: 16, OBSIDIENNE: 17,
     CENDRITE: 18, MOUSSE: 19, TIGE: 20, CHAPEAU: 21, BASALTE: 22, LUMICRISTAL: 23, M_ASTRIUM: 24, B_ASTRIUM: 25,
     PORTAIL: 26, TORCHE: 27, LAVE: 28, B_FER: 29, B_OR: 30, B_SAPHIR: 31, BRIQUES: 32, SOCLE: 33, NEIGE: 34, BRAISIER: 35,
+    // biomes et coffre (ids 36 à 63 réservés au terrain / aux blocs)
+    BOULEAU: 36, F_BOULEAU: 37, GRES: 38, ARGILE: 39, COFFRE: 40, HERBES: 41, FLEUR_R: 42, FLEUR_J: 43, ARBUSTE: 44, CACTUS: 45,
+    NEIGE_BLOC: 46, GRAVIER: 47,
   };
   const I = {
     BATON: 100, CHARBON: 101, L_FER: 102, L_OR: 103, SAPHIR: 104, ECLAT: 105, L_ASTRIUM: 106, POMME: 107, ALLUMEUR: 108, MORCEAU: 109, ROTI: 110, VIANDE: 111, STEAK: 112, ESSENCE: 113,
@@ -52,6 +55,28 @@
   def(B.SOCLE, 'Socle', T('bedrock'), { hard: -1, drop: null });
   def(B.NEIGE, 'Neige tassée', T('snow_side', 'snow', 'dirt'), { hard: 0.6, tool: 'pelle', drop: B.TERRE });
   def(B.BRAISIER, 'Braisier', T('ember'), { hard: 0.8, tool: 'pioche', glow: true });
+  // --- biomes (forêts, désert, montagnes, océans) ---
+  // shape 'cross' : plante rendue en deux quads diagonaux ; plant : tombe si le bloc dessous disparaît ; replace : la pose d'un bloc la remplace
+  // light : lumière émise (0..15) ; shade : atténuation supplémentaire de la lumière du ciel en la traversant
+  const PLANT = { solid: false, opaque: false, cutout: true, shape: 'cross', plant: true, replace: true, hard: 0 };
+  def(B.BOULEAU, 'Tronc de bouleau', T('birch_side', 'birch_top'), { hard: 2, tool: 'hache' });
+  def(B.F_BOULEAU, 'Feuillage de bouleau', T('birch_leaves'), { opaque: false, cutout: true, leaves: true, hard: 0.2, tool: 'hache', drop: r => r() < 0.05 ? [I.BATON, 1] : null });
+  def(B.GRES, 'Grès', T('sandstone_side', 'sandstone_top', 'sandstone_bottom'), { hard: 0.8, tool: 'pioche', tier: 0 });
+  def(B.ARGILE, 'Argile', T('clay'), { hard: 0.6, tool: 'pelle' });
+  // coffre : comportement (inventaire) géré côté jeu ; tex.front = face avant (orientée vers le côté le plus dégagé)
+  def(B.COFFRE, 'Coffre', { top: 'chest_top', bottom: 'chest_top', side: 'chest_side', front: 'chest_front' }, { hard: 2.5, tool: 'hache' });
+  def(B.HERBES, 'Hautes herbes', T('tallgrass'), Object.assign({}, PLANT, { drop: null }));
+  def(B.FLEUR_R, 'Fleur rubis', T('flower_red'), PLANT);
+  def(B.FLEUR_J, 'Fleur d\'ambre', T('flower_yellow'), PLANT);
+  def(B.ARBUSTE, 'Arbuste sec', T('deadbush'), Object.assign({}, PLANT, { drop: r => r() < 0.6 ? [I.BATON, 1] : null }));
+  // cactus : solide mais un peu plus fin que le bloc (forme 'cactus'), pique au contact (hurt, à gérer côté jeu)
+  def(B.CACTUS, 'Cactus', T('cactus_side', 'cactus_top', 'cactus_bottom'), { opaque: false, shape: 'cactus', hard: 0.4, hurt: 1 });
+  def(B.NEIGE_BLOC, 'Bloc de neige', T('snow'), { hard: 0.4, tool: 'pelle' });
+  def(B.GRAVIER, 'Gravier', T('gravel'), { hard: 0.6, tool: 'pelle' });
+  D[B.FEUILLES].leaves = true;
+  D[B.EAU].shade = 1; D[B.FEUILLES].shade = 1; D[B.F_BOULEAU].shade = 1;
+  // lumière des blocs (0..15), propagée par le mesher
+  D[B.TORCHE].light = 14; D[B.LUMICRISTAL].light = 13; D[B.LAVE].light = 13; D[B.BRAISIER].light = 11; D[B.PORTAIL].light = 11;
 
   // objets (non posables) et outils
   const IT = VX.ITEMS = {};
@@ -92,6 +117,8 @@
   VX.CREATIVE = [B.HERBE, B.TERRE, B.PIERRE, B.GALETS, B.BRIQUES, B.TRONC, B.PLANCHES, B.FEUILLES, B.SABLE, B.VERRE, B.NEIGE, B.OBSIDIENNE, B.ETABLI, B.FOUR, B.TORCHE,
     B.M_CHARBON, B.M_FER, B.M_OR, B.M_SAPHIR, B.B_FER, B.B_OR, B.B_SAPHIR, B.CENDRITE, B.MOUSSE, B.TIGE, B.CHAPEAU, B.BASALTE, B.LUMICRISTAL, B.BRAISIER, B.M_ASTRIUM, B.B_ASTRIUM,
     I.BATON, I.CHARBON, I.L_FER, I.L_OR, I.SAPHIR, I.ECLAT, I.L_ASTRIUM, I.POMME, I.ROTI, I.ALLUMEUR].concat(VX.TIERS.flatMap((t, ti) => VX.TOOLS.map(k => VX.toolId(ti, k))));
+  // blocs des biomes : rangés avec les autres blocs (avant les objets)
+  VX.CREATIVE.splice(VX.CREATIVE.indexOf(I.BATON), 0, B.COFFRE, B.BOULEAU, B.F_BOULEAU, B.GRES, B.ARGILE, B.GRAVIER, B.NEIGE_BLOC, B.CACTUS, B.HERBES, B.FLEUR_R, B.FLEUR_J, B.ARBUSTE);
 
   /* ---------- recettes ---------- */
   const R = VX.RECIPES = [];
